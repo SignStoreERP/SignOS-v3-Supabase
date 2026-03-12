@@ -245,27 +245,48 @@ window.onload = async function() {
         }
     }
 
-    // --- FETCH MENU DATA ---
-    try {
-        const response = await fetch(`${SCRIPT_URL}?tab=SYS_Modules&ip=${clientIP}&user=${user}&role=${role}&req=table`);
-        const data = await response.json();
+// --- FETCH MENU DATA FROM SUPABASE ---
+try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=*`, {
+        headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
+    });
 
-        // Safety Check
-        if (data.error) throw new Error(data.error);
-        if (!Array.isArray(data)) throw new Error("Invalid Data Format");
+    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+    
+    // Convert Postgres snake_case keys back to the Title_Case expected by your renderMenu logic
+    const rawData = await response.json();
+    const data = rawData.map(item => ({
+        Module_ID: item.id,
+        Display_Name: item.display_name,
+        File_Link: item.file_link,
+        Dev_Status: item.dev_status,
+        Live_Ver: item.live_ver,
+        Dev_Ver: item.dev_ver,
+        Live_SALES: item.live_sales,
+        Live_PROD: item.live_prod,
+        Live_ADMIN: item.live_admin,
+        Dev_SALES: item.dev_sales,
+        Dev_PROD: item.dev_prod,
+        Dev_ADMIN: item.dev_admin,
+        Category: item.category,
+        Icon: item.icon,
+        Icon_Path: item.icon_path
+    }));
 
-        // Hide Loader & Render
-        document.getElementById('loader').classList.add('hidden');
-        document.getElementById('menu-container').classList.remove('hidden');
-        
-        renderMenu(data, role);
+    document.getElementById('loader').classList.add('hidden');
+    document.getElementById('menu-container').classList.remove('hidden');
 
-    } catch (e) {
-        document.getElementById('loader').innerText = "CONNECTION FAILED: " + e.message;
-        document.getElementById('loader').classList.add('text-red-500', 'font-bold');
-        console.error("Menu Load Error:", e);
-    }
-};
+    renderMenu(data, role);
+
+} catch (e) {
+    document.getElementById('loader').innerText = "CONNECTION FAILED: " + e.message;
+    document.getElementById('loader').classList.add('text-red-500', 'font-bold');
+    console.error("Menu Load Error:", e);
+}
 </script>
 </body>
 </html>
+
