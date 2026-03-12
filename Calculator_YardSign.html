@@ -84,13 +84,17 @@
 let backendData = {};
 
 function runCalc() {
-    if(!backendData.Retail_Min_Order) return;
+    // FIX 1: Look for Retail_Min_Order instead of Item_Name to verify data loaded
+    if(!backendData || !backendData.Retail_Min_Order) return;
 
     try {
         const inputs = {
             qty: parseFloat(document.getElementById('qty').value) || 1,
             sides: parseInt(document.getElementById('sides').value) || 1,
-            stakes: document.getElementById('stakes').value === 'true'
+            hasStakes: document.getElementById('hasStakes').checked,
+            // FIX 2: Explicitly pass physical dimensions for the new Physics Engine
+            w: 24, 
+            h: 18  
         };
 
         const result = calculateYardSign(inputs, backendData);
