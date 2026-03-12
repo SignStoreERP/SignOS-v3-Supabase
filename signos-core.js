@@ -1,18 +1,14 @@
-// SignOS Core System v1.8.2
-// Features: Twin-Engine Env, Auto-Routing API, IP Telemetry, "Island" Header Injection
+// SignOS Core System v3.0 (Supabase Edition)
+const IS_DEV_ENV = window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1');
 
-const IS_DEV_ENV = window.location.href.includes('signos-app') || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-
-// --- DUAL-TRACK API ROUTING ---
-const DEV_API = "https://script.google.com/macros/s/AKfycbw1XUqhSSRprGkRq1SYV7BYF30eyTBWfu63sYWRTGNuGVm0m9aZk3g6YsUB9nWyh6VyXw/exec";
-const LIVE_API = "https://script.google.com/macros/s/AKfycbxwnXJKEMhUsWHWEoOW99axFTWuoZG8ZlrMZMbBE5lyxW7YGER6E0I9feSPlKkKAoO5kA/exec";
-
-const SCRIPT_URL = IS_DEV_ENV ? DEV_API : LIVE_API;
+// --- SUPABASE API ROUTING ---
+const SUPABASE_URL = "https://YOUR_PROJECT_ID.supabase.co"; // <-- INSERT YOUR URL HERE
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY"; // <-- INSERT YOUR ANON KEY HERE
 
 let clientIP = "Unknown";
 const currentHost = window.location.hostname;
 
-// 1. IP Telemetry
+// 1. IP Telemetry (Preserved)
 fetch('https://api.ipify.org?format=json')
     .then(r => r.json())
     .then(d => { clientIP = d.ip; })
@@ -24,10 +20,8 @@ if (!window.location.pathname.includes('index.html')) {
     if (!user) window.location.href = 'index.html';
 }
 
-// 3. Global Logout
+// 3. Global Logout (Updated for Supabase)
 function logout() {
-    const u = sessionStorage.getItem('signos_user');
-    fetch(`${SCRIPT_URL}?req=log_event&action=LOGOUT&user=${u}&ip=${clientIP}&host=${currentHost}`, {mode: 'no-cors'});
     sessionStorage.clear();
     window.location.href = 'index.html';
 }
@@ -151,21 +145,33 @@ async function submitFeedback() {
     finally { btn.innerText = "SUBMIT TICKET"; btn.disabled = false; }
 }
 
-// --- CENTRALIZED API LOADER (Phase 3) ---
+// --- CENTRALIZED API LOADER (Supabase RPC) ---
 window.SignOS = window.SignOS || {};
 
-SignOS.fetchProductData = async function(tabName, refTables = []) {
-    const refs = refTables.join(',');
-    // Build the request URL
-    let url = `${SCRIPT_URL}?req=bundle&tab=${tabName}`;
-    if (refs) url += `&refs=${refs}`;
-    
-    const response = await fetch(url);
-    const json = await response.json();
-    
-    if (json.status !== "success") {
-        throw new Error(json.message || "Failed to fetch bundle");
+SignOS.fetchProductData = async function(productId, refTables = []) {
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_product_bundle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({
+                p_product_id: productId,
+                p_tables: refTables
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Database Error: ${response.statusText}`);
+        }
+
+        const json = await response.json();
+        return json;
+        
+    } catch (error) {
+        console.error("SignOS Backend Connection Failed:", error);
+        return { error: error.message };
     }
-    
-    return json.data;
 };
