@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post & Panel Signs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <script src="signos-ui.js"></script>
+    <script src="cost_post_panel.js"></script>
+    <style>
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px;}
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px;}
+        .blueprint-bg { background-color: #f8fafc; background-image: linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px); background-size: 20px 20px;}
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
+
+<div id="app-wrapper" class="w-full max-w-lg mx-auto mt-8 transition-all duration-500 flex justify-center items-start gap-4 px-4 sm:px-0">
+
+    <!-- LEFT: FULL MATH LEDGER (SANDBOX) -->
+    <div id="sandbox-ledger" class="hidden w-[380px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
+        <div class="p-4 bg-slate-50 border-b border-gray-200 flex flex-col shrink-0 rounded-t-xl gap-3">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Financial Ledger</h2>
+                    <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Market vs. Physics Breakdown</span>
+                </div>
+                <button onclick="toggleSandbox()" class="text-gray-400 hover:text-red-500 transition font-bold text-lg focus:outline-none">✕</button>
+            </div>
+            <div class="flex justify-between items-center bg-white p-3 rounded border border-gray-200 shadow-sm">
+                <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Simulated Margin:</span>
+                <span id="sbx-margin" class="text-2xl font-black text-green-600 tracking-tight leading-none">--</span>
+            </div>
+        </div>
+        <div class="p-5 space-y-6">
+            <div>
+                <h3 class="text-[11px] font-black text-blue-700 uppercase tracking-widest border-b-2 border-blue-100 pb-2 mb-3">Market Logic (Retail)</h3>
+                <div id="sbx-retail-breakdown" class="space-y-3 mb-4"></div>
+            </div>
+            <div>
+                <h3 class="text-[11px] font-black text-red-700 uppercase tracking-widest border-b-2 border-red-100 pb-2 mb-3">Physics Engine (Hard Cost)</h3>
+                <div id="sbx-cost-breakdown" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CENTER: MAIN CALCULATOR ISLAND -->
+    <div class="flex flex-col gap-4 w-full max-w-lg shrink-0 z-20">
+        <div id="main-card" class="w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200 transition-all duration-300 relative">
+            <div id="sim-badge" class="hidden bg-yellow-400 text-yellow-900 text-[10px] font-black text-center py-1 uppercase tracking-widest animate-pulse">Simulation Active</div>
+            
+            <!-- 2D ARCHITECTURAL SHOP DRAWINGS -->
+            <div class="w-full h-56 bg-slate-800 border-b border-gray-200 flex flex-col relative">
+                <span class="absolute top-2 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10">Live Shop Drawings</span>
+                
+                <div class="flex flex-1 w-full h-full p-4 gap-4">
+                    <!-- Front Elevation -->
+                    <div class="flex-1 flex flex-col h-full">
+                        <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 text-center">Front Elevation</span>
+                        <div class="flex-1 blueprint-bg border border-slate-600 rounded bg-slate-900 overflow-hidden flex items-center justify-center p-2" id="svg-front-container"></div>
+                    </div>
+                    <!-- Side Elevation -->
+                    <div class="w-32 flex flex-col h-full shrink-0">
+                        <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 text-center">Side View</span>
+                        <div class="flex-1 blueprint-bg border border-slate-600 rounded bg-slate-900 overflow-hidden flex items-center justify-center p-2" id="svg-side-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 space-y-5">
+                <!-- Dimensions -->
+                <div class="grid grid-cols-4 gap-3">
+                    <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                    <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel W (in)</label><input type="number" id="w" value="48" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                    <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel H (in)</label><input type="number" id="h" value="48" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                    <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Clearance (in)</label><input type="number" id="clearance" value="36" min="0" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner bg-blue-50 text-blue-800" oninput="runCalc()" title="Distance from ground to bottom of panel"></div>
+                </div>
+
+                <!-- Structural Mount Style -->
+                <div class="border-t border-gray-100 pt-3">
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Panel Mounting Style</label>
+                    <div class="flex gap-4">
+                        <label class="flex-1 flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer bg-gray-50 p-2 rounded border border-gray-200 hover:border-blue-400 transition">
+                            <input type="radio" name="mountStyle" value="Between" onchange="toggleInsetUI(); runCalc()" class="w-4 h-4 text-blue-600"> Between Posts
+                        </label>
+                        <label class="flex-1 flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer bg-gray-50 p-2 rounded border border-gray-200 hover:border-blue-400 transition">
+                            <input type="radio" name="mountStyle" value="Flush" checked onchange="toggleInsetUI(); runCalc()" class="w-4 h-4 text-blue-600"> Flush Mount
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Posts & Skeleton -->
+                <div class="border-t border-gray-100 pt-3 space-y-3">
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Material</label>
+                            <select id="postType" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                <option value="Aluminum">Aluminum</option>
+                                <option value="Steel">Steel Tube</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Size</label>
+                            <select id="postSize" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                <option value="3">3" Square</option>
+                                <option value="4" selected>4" Square</option>
+                                <option value="6">6" Square</option>
+                            </select>
+                        </div>
+                        <div id="wrap-inset" class="transition-opacity duration-300">
+                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Inset (in)</label>
+                            <input type="number" id="postInset" value="0" min="0" step="0.5" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-center focus:border-blue-500 outline-none shadow-sm h-[38px]" oninput="runCalc()">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Internal Frame Skeleton</label>
+                        <select id="frameMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                            <option value="Angle15">1.5" Steel Angle Iron</option>
+                            <option value="Angle20" selected>2" Steel Angle Iron</option>
+                            <option value="Tube10">1" Steel Square Tube</option>
+                            <option value="Tube20">2" Steel Square Tube</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Substrate & Print -->
+                <div class="border-t border-gray-100 pt-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Face Substrate</label>
+                            <select id="faceMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                <option value="063 Alum">.063 Aluminum</option>
+                                <option value="080 Alum">.080 Aluminum</option>
+                                <option value="3mm ACM" selected>3mm ACM</option>
+                                <option value="6mm ACM">6mm ACM</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Printed Sides</label>
+                            <select id="sides" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                <option value="1">Single Sided</option>
+                                <option value="2" selected>Double Sided</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RESULTS -->
+            <div class="bg-blue-50 p-6 border-t border-blue-200 shadow-inner relative z-0">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
+                    <span id="ui-unit" class="text-3xl font-black text-blue-900 tracking-tight leading-none">$0.00</span>
+                </div>
+                <div class="border-t border-blue-200/50 my-3"></div>
+                <div class="flex justify-between items-end pt-1">
+                    <div>
+                        <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
+                        <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $150</span>
+                        <div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div>
+                    </div>
+                    <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
+                </div>
+
+                <button id="btn-sandbox" onclick="toggleSandbox()" class="hidden w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black py-2.5 rounded shadow-md uppercase tracking-widest transition">
+                    Launch Cost Sandbox
+                </button>
+            </div>
+
+            <div class="bg-gray-50 p-4 border-t border-gray-200">
+                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
+                <textarea id="job-desc" class="w-full text-xs p-3 border border-gray-300 rounded bg-white h-24 text-gray-700 font-mono outline-none leading-snug shadow-inner custom-scroll" readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: SANDBOX VARIABLES -->
+    <div id="sandbox-vars" class="hidden w-[300px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
+        <div class="p-4 bg-slate-50 border-b border-gray-200 flex justify-between items-center shrink-0 rounded-t-xl">
+            <div>
+                <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Sandbox Variables</h2>
+                <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Modify System Inputs</span>
+            </div>
+        </div>
+        <div class="p-5 space-y-6">
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[10px] font-black text-blue-700 uppercase tracking-widest border-b border-blue-200 pb-1">Market Overrides</span>
+                </div>
+                <div id="sbx-retail-inputs" class="space-y-2"></div>
+            </div>
+            <div>
+                <span class="text-[10px] font-black text-red-700 uppercase tracking-widest border-b border-red-200 pb-1 mb-3 block">Physics Overrides</span>
+                <div id="sbx-cost-inputs" class="space-y-2"></div>
+            </div>
+        </div>
+        <div class="p-4 bg-slate-50 border-t border-gray-200 shrink-0 space-y-2 rounded-b-xl z-20">
+            <button onclick="applySandbox()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded shadow text-xs uppercase tracking-widest transition">Run Simulation</button>
+            <div class="flex gap-2">
+                <button onclick="resetSandbox()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-100 text-gray-600 font-bold py-2 rounded text-[10px] uppercase tracking-widest transition shadow-sm">Reset</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let backendData = {}, customSimData = null;
+
+    // Remove rogue loaders from base template
+    if(document.getElementById('loader')) document.getElementById('loader').classList.add('hidden');
+    if(document.getElementById('status-text')) document.getElementById('status-text').innerText = "System Active";
+    if (typeof SignOS_UI !== 'undefined' && SignOS_UI.hideLoader) SignOS_UI.hideLoader();
+
+    function toggleInsetUI() {
+        const style = document.querySelector('input[name="mountStyle"]:checked').value;
+        const wrap = document.getElementById('wrap-inset');
+        if(style === 'Between') { wrap.classList.add('opacity-30', 'pointer-events-none'); } 
+        else { wrap.classList.remove('opacity-30', 'pointer-events-none'); }
+    }
+
+    // --- 2D SVG RENDERING ---
+    function drawShopDrawings(geom) {
+        const frontCont = document.getElementById('svg-front-container');
+        const sideCont = document.getElementById('svg-side-container');
+        
+        // Front View Dimensions
+        const th = geom.above + geom.under; 
+        const ow = geom.overallW;
+        
+        // Dynamic ViewBox with padding
+        const padX = 10; const padY = 10;
+        const frontVB = `${-padX} ${-padY} ${ow + (padX*2)} ${th + (padY*2)}`;
+        
+        let p1_x = geom.mount === 'Between' ? 0 : geom.inset;
+        let p2_x = geom.mount === 'Between' ? ow - geom.post : ow - geom.inset - geom.post;
+        let pnl_x = geom.mount === 'Between' ? geom.post : 0;
+        let pnl_y = geom.above - geom.clearance - geom.h;
+        
+        // Front Elevation SVG
+        frontCont.innerHTML = `
+        <svg viewBox="${frontVB}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <!-- Ground Line -->
+            <line x1="${-padX}" y1="${geom.above}" x2="${ow+padX}" y2="${geom.above}" stroke="#22c55e" stroke-width="${Math.max(1, th/100)}" stroke-dasharray="4 4" />
+            <!-- Underground Hatching -->
+            <rect x="${-padX}" y="${geom.above}" width="${ow+(padX*2)}" height="${geom.under}" fill="#0f172a" opacity="0.3" />
+            
+            <!-- Post Left -->
+            <rect x="${p1_x}" y="0" width="${geom.post}" height="${th}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" />
+            <!-- Post Right -->
+            <rect x="${p2_x}" y="0" width="${geom.post}" height="${th}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" />
+            
+            <!-- Panel Face -->
+            <rect x="${pnl_x}" y="${pnl_y}" width="${geom.w}" height="${geom.h}" fill="#f1f5f9" stroke="#3b82f6" stroke-width="${Math.max(0.5, geom.w/150)}" />
+            <text x="${pnl_x + (geom.w/2)}" y="${pnl_y + (geom.h/2)}" font-family="sans-serif" font-weight="900" font-size="${geom.h/4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>
+        </svg>`;
+
+        // Side Elevation ViewBox
+        const sideW = geom.post + 8; // Post width + 8 inches padding for panel profile
+        const sideVB = `${-padX} ${-padY} ${sideW + (padX*2)} ${th + (padY*2)}`;
+        const pnlThick = 2; // Fixed 2" visual for Frame + Skin
+        
+        let sidePnl_x = geom.mount === 'Between' ? (geom.post - pnlThick) / 2 : geom.post; // Centered if between, attached to face if flush
+
+        sideCont.innerHTML = `
+        <svg viewBox="${sideVB}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <!-- Ground Line -->
+            <line x1="${-padX}" y1="${geom.above}" x2="${sideW+padX}" y2="${geom.above}" stroke="#22c55e" stroke-width="${Math.max(1, th/100)}" stroke-dasharray="4 4" />
+            <rect x="${-padX}" y="${geom.above}" width="${sideW+(padX*2)}" height="${geom.under}" fill="#0f172a" opacity="0.3" />
+            
+            <!-- Side Post -->
+            <rect x="0" y="0" width="${geom.post}" height="${th}" fill="#64748b" />
+            
+            <!-- Side Panel Profile -->
+            <rect x="${sidePnl_x}" y="${pnl_y}" width="${pnlThick}" height="${geom.h}" fill="#3b82f6" />
+        </svg>`;
+    }
+
+    // --- SANDBOX UI FUNCTIONS ---
+    function toggleSandbox() {
+        const wrap = document.getElementById('app-wrapper');
+        const left = document.getElementById('sandbox-ledger');
+        const right = document.getElementById('sandbox-vars');
+        
+        if (left.classList.contains('hidden')) {
+            wrap.classList.remove('max-w-lg'); wrap.classList.add('max-w-[1200px]');
+            left.classList.remove('hidden'); left.classList.add('flex');
+            right.classList.remove('hidden'); right.classList.add('flex');
+            if(!customSimData) { customSimData = { ...backendData }; buildSandboxInputs(); }
+            applySandbox();
+        } else {
+            wrap.classList.add('max-w-lg'); wrap.classList.remove('max-w-[1200px]');
+            left.classList.add('hidden'); left.classList.remove('flex');
+            right.classList.add('hidden'); right.classList.remove('flex');
+        }
+    }
+
+    function buildSandboxInputs() {
+        const buildSection = (arr, containerId) => {
+            let html = '';
+            arr.forEach(i => {
+                let v = customSimData[i.key] !== undefined ? customSimData[i.key] : '';
+                if (v !== '' && !isNaN(v) && i.label.includes('$')) v = parseFloat(v).toFixed(2);
+                html += `
+                <div class="flex items-center justify-between hover-var opacity-100 transition-opacity" data-var="${i.key}" id="wrap_sbx_${i.key}">
+                    <label class="text-[10px] font-black text-gray-800 cursor-help" title="${i.key}">${i.label}</label>
+                    <input type="text" id="sbx_${i.key}" value="${v}" class="w-16 border border-blue-400 bg-white rounded p-1 text-[10px] text-blue-900 font-bold text-center outline-none focus:ring-1 focus:ring-blue-500 shadow-sm transition-all">
+                </div>`;
+            });
+            document.getElementById(containerId).innerHTML = html;
+        };
+        buildSection(window.POSTPANEL_CONFIG.retails, 'sbx-retail-inputs');
+        buildSection(window.POSTPANEL_CONFIG.costs, 'sbx-cost-inputs');
+    }
+
+    function applySandbox() {
+        if(!customSimData) customSimData = { ...backendData };
+        const harvest = (arr) => { arr.forEach(i => { let v = document.getElementById(`sbx_${i.key}`).value; if(v !== "") customSimData[i.key] = parseFloat(v) || v; }); };
+        harvest(window.POSTPANEL_CONFIG.retails); harvest(window.POSTPANEL_CONFIG.costs);
+        document.getElementById('sim-badge').classList.remove('hidden');
+        document.getElementById('main-card').classList.add('border-yellow-400');
+        runCalc();
+    }
+
+    function resetSandbox() {
+        customSimData = { ...backendData };
+        document.getElementById('sim-badge').classList.add('hidden');
+        document.getElementById('main-card').classList.remove('border-yellow-400');
+        buildSandboxInputs();
+        runCalc();
+    }
+
+    function dimInactiveSandboxVars() {
+        const activeVars = new Set();
+        document.querySelectorAll('#sandbox-ledger .hover-var').forEach(el => activeVars.add(el.getAttribute('data-var')));
+        
+        const allVars = [...window.POSTPANEL_CONFIG.retails, ...window.POSTPANEL_CONFIG.costs];
+        allVars.forEach(item => {
+            const wrapEl = document.getElementById(`wrap_sbx_${item.key}`);
+            const inputEl = document.getElementById(`sbx_${item.key}`);
+            if (wrapEl && inputEl) {
+                const labelEl = wrapEl.querySelector('label');
+                if (activeVars.has(item.key)) {
+                    wrapEl.classList.remove('opacity-40'); wrapEl.classList.add('opacity-100');
+                    if (labelEl) { labelEl.classList.add('text-black', 'font-black'); labelEl.classList.remove('text-gray-600', 'font-bold'); }
+                    inputEl.classList.add('bg-white', 'text-blue-900', 'border-blue-400', 'font-bold');
+                    inputEl.classList.remove('bg-gray-50', 'text-gray-800', 'border-gray-300');
+                } else {
+                    wrapEl.classList.remove('opacity-100'); wrapEl.classList.add('opacity-40');
+                    if (labelEl) { labelEl.classList.remove('text-black', 'font-black'); labelEl.classList.add('text-gray-600', 'font-bold'); }
+                    inputEl.classList.remove('bg-white', 'text-blue-900', 'border-blue-400', 'font-bold');
+                    inputEl.classList.add('bg-gray-50', 'text-gray-800', 'border-gray-300');
+                }
+            }
+        });
+    }
+
+    function renderLedgerUI(res) {
+        const fmt = (n) => "$" + (n||0).toFixed(2);
+        if (!res || !res.retail || !res.retail.breakdown) return;
+
+        let retHtml = res.retail.breakdown.map(i => `
+        <div class="mb-2 border-b border-gray-100 pb-1.5">
+            <div class="flex justify-between text-[11px] text-blue-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
+            <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
+        </div>
+        `).join('');
+        retHtml += `<div class="flex justify-between text-[12px] font-black text-blue-700 mt-2 pt-2 border-t-2 border-blue-200"><span>Gross Retail:</span><span>${fmt(res.retail.grandTotal)}</span></div>`;
+        document.getElementById('sbx-retail-breakdown').innerHTML = retHtml;
+
+        let cstHtml = res.cost.breakdown.map(i => `
+        <div class="mb-2 border-b border-gray-100 pb-1.5">
+            <div class="flex justify-between text-[11px] text-red-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
+            <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
+        </div>
+        `).join('');
+        cstHtml += `<div class="flex justify-between text-[12px] font-black text-red-700 mt-2 pt-2 border-t-2 border-red-200"><span>Total Hard Cost:</span><span>${fmt(res.cost.total)}</span></div>`;
+        document.getElementById('sbx-cost-breakdown').innerHTML = cstHtml;
+
+        const margin = res.metrics.margin * 100;
+        const mEl = document.getElementById('sbx-margin');
+        mEl.innerText = margin.toFixed(1) + '%';
+        mEl.className = margin >= 50 ? 'text-2xl font-black text-green-600 tracking-tight leading-none' : (margin > 0 ? 'text-2xl font-black text-yellow-600 tracking-tight leading-none' : 'text-2xl font-black text-red-600 tracking-tight leading-none');
+    }
+
+    // --- MAIN MATH ENGINE ---
+    function runCalc() {
+        if(!backendData.Retail_Min_Order) return;
+
+        const inputs = {
+            qty: parseInt(document.getElementById('qty').value) || 1,
+            w: parseFloat(document.getElementById('w').value) || 48,
+            h: parseFloat(document.getElementById('h').value) || 48,
+            clearance: parseFloat(document.getElementById('clearance').value) || 36,
+            mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
+            postType: document.getElementById('postType').value,
+            postSize: document.getElementById('postSize').value,
+            postInset: parseFloat(document.getElementById('postInset').value) || 0,
+            frameMat: document.getElementById('frameMat').value,
+            faceMat: document.getElementById('faceMat').value,
+            sides: parseInt(document.getElementById('sides').value) || 2
+        };
+
+        try {
+            const dataToUse = customSimData || backendData;
+            const result = calculatePostPanel(inputs, dataToUse);
+            
+            if (!result || !result.retail) return;
+            const ret = result.retail;
+            const fmt = (n) => "$" + (n || 0).toFixed(2);
+
+            document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+            document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+            document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 150)}`;
+            document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+
+            const sideTxt = inputs.sides === 2 ? "Double Sided" : "Single Sided";
+            const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount (${inputs.postInset}" Inset)`;
+            const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
+            
+            document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" x ${inputs.h}" Post & Panel Sign.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})`;
+
+            // Generate the dynamic SVGs using the physics geometry payload
+            if(result.geom) drawShopDrawings(result.geom);
+
+            if (customSimData) {
+                renderLedgerUI(result);
+                dimInactiveSandboxVars();
+            }
+
+        } catch(e) { console.error("Physics Error:", e); }
+    }
+
+    window.addEventListener('load', async () => {
+        if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
+
+        if(sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER') {
+            document.getElementById('btn-sandbox').classList.remove('hidden');
+        }
+
+        try {
+            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', []); // Fallback to get global rates
+            backendData = payload.config;
+            toggleInsetUI();
+            runCalc();
+        } catch(e) {
+            console.error("API Error:", e);
+        }
+    });
+</script>
+</body>
+</html>

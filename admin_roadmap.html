@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Master Strategy Board v4.0 | SignOS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="signos-core.js"></script>
+
+<style>
+.kanban-col { height: 100%; overflow-y: auto; padding-right: 4px; }
+.custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+.custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+/* Status-Based Card Styling */
+.card-live { @apply border-green-500 bg-green-50 shadow-sm; }
+.card-progress { @apply border-blue-500 bg-blue-50 shadow-md; }
+.card-pending { @apply border-gray-300 bg-white opacity-80; }
+
+.modal { transition: opacity 0.25s ease; }
+body.modal-active { overflow: hidden; }
+</style>
+</head>
+<body class="bg-gray-100 h-screen font-sans flex flex-col overflow-hidden">
+
+<!-- HEADER -->
+<div class="bg-gray-900 text-white px-6 py-3 flex justify-between items-center shadow-md z-30 shrink-0">
+    <div class="flex items-center gap-3">
+        <h1 class="text-lg font-black tracking-tight">Master Strategy Board</h1>
+        <span class="bg-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded text-white">EPIC TRACKER v4.0</span>
+    </div>
+    <div class="flex gap-4 text-xs font-bold items-center">
+        <button onclick="toggleForm()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded transition flex items-center gap-1 shadow border border-blue-400"><span>+ Add Mini-Goal</span></button>
+        <span class="text-gray-600">|</span>
+        <a href="#" onclick="goBack()" class="text-gray-400 hover:text-white uppercase">Exit to Menu</a>
+    </div>
+</div>
+
+<!-- KANBAN BOARD (DYNAMIC SILOS) -->
+<div class="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-slate-100 custom-scroll">
+    <div id="board-container" class="flex gap-6 h-full min-w-max">
+        <div class="text-gray-400 font-bold animate-pulse mt-10 ml-10">Loading Silos...</div>
+    </div>
+</div>
+
+<!-- SIDE FORM (ADD MINI-GOAL) -->
+<div id="side-form" class="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl border-l border-gray-200 z-30 transform translate-x-full transition-transform duration-300 flex flex-col">
+    <div class="p-6 bg-gray-900 text-white flex justify-between items-center shrink-0">
+        <h2 class="font-bold text-lg">Add Mini-Goal</h2>
+        <button onclick="toggleForm()" class="text-gray-400 hover:text-white text-xl">×</button>
+    </div>
+    <div class="p-6 space-y-4 flex-1 overflow-y-auto">
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Target Silo (Context)</label>
+            <input type="text" id="inp-ctx" placeholder="e.g., Silo: Analytics" class="w-full border p-2 rounded text-sm font-bold bg-gray-50 outline-none focus:border-blue-500">
+        </div>
+        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Goal Title</label><input type="text" id="inp-title" class="w-full border p-2 rounded text-sm font-bold outline-none focus:border-blue-500"></div>
+        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Description / Definition of Done</label><textarea id="inp-desc" class="w-full border p-2 rounded text-sm h-32 outline-none focus:border-blue-500"></textarea></div>
+    </div>
+    <div class="p-6 border-t border-gray-200 bg-gray-50 shrink-0"><button onclick="submitItem()" id="btn-submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded shadow transition">CREATE GOAL</button></div>
+</div>
+
+<!-- TICKET MODAL (TASK MANAGER) -->
+<div id="ticket-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+        
+        <!-- Modal Header -->
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-start shrink-0">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span id="t-silo" class="text-[10px] font-bold uppercase tracking-wide text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200">Silo</span>
+                    <span id="t-status-badge" class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded text-white">Status</span>
+                </div>
+                <h2 id="t-title" class="text-2xl font-black text-gray-900 leading-tight mt-1">Goal Title</h2>
+            </div>
+            <button onclick="closeTicket()" class="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">&times;</button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6 bg-white custom-scroll">
+            <div>
+                <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Definition of Done</h4>
+                <p id="t-desc" class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-inner"></p>
+            </div>
+            <div>
+                <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-100 pb-1">Tasks & Activity Log</h4>
+                <div id="t-history" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- Modal Footer (Add Task) -->
+        <div class="bg-slate-100 px-6 py-4 border-t border-gray-300 shrink-0 shadow-inner">
+            <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Update Progress</label>
+            <div class="flex gap-2">
+                <select id="t-new-status" class="bg-white border border-gray-300 text-xs font-bold rounded px-2 py-2 w-40 outline-none focus:border-blue-500 text-gray-700">
+                    <option value="">Keep Current Status</option>
+                    <option value="Pending">Move to: Pending</option>
+                    <option value="In Progress">Move to: Actively Building</option>
+                    <option value="Live">Move to: Completed / Live</option>
+                </select>
+                <input type="text" id="t-comment" placeholder="Log a completed task or note..." class="flex-1 border border-gray-300 rounded px-3 text-sm focus:border-blue-500 outline-none shadow-inner">
+                <button onclick="postUpdate()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 rounded text-xs shadow transition">LOG UPDATE</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const user = sessionStorage.getItem('signos_user') || 'Admin';
+let currentTicketId = null;
+let allRoadmapData = [];
+
+window.onload = function() { 
+    if(typeof injectHeader === 'function') injectHeader("Master Strategy", false);
+    loadData(); 
+};
+
+function toggleForm() { document.getElementById('side-form').classList.toggle('translate-x-full'); }
+function goBack() { window.history.back(); }
+function val(obj, key) { if(!obj) return ""; return obj[key] || obj[key.toUpperCase()] || obj[key.toLowerCase()] || ""; }
+
+async function loadData() {
+    try {
+        const response = await fetch(`${SCRIPT_URL}?req=table&tab=SYS_Roadmap&ip=${clientIP}&user=${user}`);
+        const data = await response.json();
+        if(data.error) throw new Error(data.error);
+        allRoadmapData = data;
+        renderSilos(data);
+    } catch(e) { console.error(e); }
+}
+
+function renderSilos(data) {
+    const container = document.getElementById('board-container');
+    container.innerHTML = "";
+
+    // Find all unique Silos (Contexts)
+    let silos = [...new Set(data.map(i => val(i, 'Context')))].filter(Boolean);
+    
+    // Sort to push "Completed/Foundation" silos to the right, active to the left
+    silos.sort((a, b) => {
+        if(a.includes('Completed') || a.includes('Foundation')) return 1;
+        if(b.includes('Completed') || b.includes('Foundation')) return -1;
+        return a.localeCompare(b);
+    });
+
+    if(silos.length === 0) {
+        container.innerHTML = "<div class='text-gray-400 p-10'>No silos defined yet. Add a mini-goal!</div>";
+        return;
+    }
+
+    silos.forEach(siloName => {
+        const items = data.filter(i => val(i, 'Context') === siloName);
+        
+        // Calculate Progress
+        const total = items.length;
+        const liveCount = items.filter(i => String(val(i, 'Status')).toLowerCase().includes('live') || String(val(i, 'Status')).toLowerCase().includes('done')).length;
+        const progressPct = total > 0 ? Math.round((liveCount / total) * 100) : 0;
+
+        const col = document.createElement('div');
+        col.className = "flex flex-col bg-slate-200/50 rounded-xl border border-slate-300 shadow-sm w-80 shrink-0 h-full overflow-hidden";
+        
+        // Silo Header
+        col.innerHTML = `
+            <div class="p-4 border-b border-slate-300 bg-slate-200 shrink-0">
+                <h3 class="font-black text-slate-800 text-sm uppercase tracking-wide truncate" title="${siloName}">${siloName}</h3>
+                <div class="flex items-center gap-2 mt-2">
+                    <div class="w-full bg-slate-300 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-indigo-500 h-1.5 rounded-full" style="width: ${progressPct}%"></div>
+                    </div>
+                    <span class="text-[9px] font-bold text-slate-500">${progressPct}%</span>
+                </div>
+            </div>
+            <div class="kanban-col p-3 space-y-3 custom-scroll flex-1"></div>
+        `;
+        
+        const cardContainer = col.querySelector('.kanban-col');
+
+        // Draw Cards (Mini-Goals)
+        items.forEach(item => {
+            const id = val(item, 'ID');
+            const statusRaw = String(val(item, 'Status')).toLowerCase();
+            let stateClass = "card-pending";
+            let dotColor = "bg-gray-400";
+            let statusText = "Pending";
+
+            if(statusRaw.includes('live') || statusRaw.includes('done')) {
+                stateClass = "card-live";
+                dotColor = "bg-green-500";
+                statusText = "Completed";
+            } else if (statusRaw.includes('progress') || statusRaw.includes('doing') || statusRaw.includes('staging')) {
+                stateClass = "card-progress";
+                dotColor = "bg-blue-500";
+                statusText = "In Progress";
+            }
+
+            const card = document.createElement('div');
+            card.className = `p-4 rounded-lg border cursor-pointer hover:-translate-y-0.5 transition transform ${stateClass}`;
+            card.onclick = () => openTicket(id);
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-1.5 bg-white/80 px-2 py-0.5 rounded border border-gray-200/50">
+                        <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
+                        <span class="text-[8px] font-black uppercase tracking-widest text-gray-600">${statusText}</span>
+                    </div>
+                </div>
+                <h4 class="font-bold text-sm text-gray-900 leading-snug mb-1">${val(item, 'Title')}</h4>
+                <p class="text-[10px] text-gray-500 line-clamp-2">${val(item, 'Description')}</p>
+            `;
+            cardContainer.appendChild(card);
+        });
+
+        container.appendChild(col);
+    });
+}
+
+// --- MODAL & TASK LOGIC ---
+async function openTicket(id) {
+    currentTicketId = id; 
+    document.getElementById('ticket-modal').classList.remove('hidden'); 
+    document.body.classList.add('modal-active');
+    
+    document.getElementById('t-title').innerText = "Loading..."; 
+    document.getElementById('t-history').innerHTML = '<div class="text-center text-gray-400 text-xs py-4 animate-pulse">Fetching tasks...</div>';
+    
+    try {
+        const res = await fetch(`${SCRIPT_URL}?req=get_ticket&id=${id}`); 
+        const data = await res.json();
+        
+        if(data.status === 'success') {
+            const t = data.ticket; 
+            document.getElementById('t-title').innerText = val(t, 'Title'); 
+            document.getElementById('t-desc').innerText = val(t, 'Description') || "No definition provided."; 
+            document.getElementById('t-silo').innerText = val(t, 'Context') || "Unassigned Silo";
+            
+            const currentStatus = val(t, 'Status').toLowerCase();
+            const badge = document.getElementById('t-status-badge');
+            if(currentStatus.includes('live')) { badge.innerText = "COMPLETED"; badge.className = "text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded text-white bg-green-500"; }
+            else if(currentStatus.includes('progress') || currentStatus.includes('staging')) { badge.innerText = "IN PROGRESS"; badge.className = "text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded text-white bg-blue-500"; }
+            else { badge.innerText = "PENDING"; badge.className = "text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded text-gray-600 bg-gray-200"; }
+
+            // Sync Dropdown
+            document.getElementById('t-new-status').value = "";
+
+            const histDiv = document.getElementById('t-history'); 
+            histDiv.innerHTML = "";
+            
+            if(!data.history || data.history.length === 0) {
+                histDiv.innerHTML = '<div class="text-center text-gray-400 italic text-xs py-4 bg-gray-50 rounded border border-dashed">No tasks or updates logged yet.</div>';
+            } else {
+                data.history.forEach(act => {
+                    const d = new Date(val(act, 'Timestamp')).toLocaleDateString(); 
+                    const row = document.createElement('div'); 
+                    row.className = "flex gap-3 text-xs bg-white p-3 rounded-lg border border-gray-200 shadow-sm";
+                    
+                    const isStatusChange = val(act, 'Type') === 'Status Update';
+                    const icon = isStatusChange ? '🔄' : '✅';
+                    
+                    row.innerHTML = `
+                        <div class="text-lg pt-1 opacity-80">${icon}</div>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800 text-sm">${val(act, 'Details')}</p>
+                            <div class="mt-1 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                Logged by ${val(act, 'User')} • ${d}
+                            </div>
+                        </div>
+                    `;
+                    histDiv.appendChild(row);
+                });
+            }
+        }
+    } catch(e) { alert("Error: " + e.message); closeTicket(); }
+}
+
+function closeTicket() { document.getElementById('ticket-modal').classList.add('hidden'); document.body.classList.remove('modal-active'); }
+
+async function postUpdate() {
+    const msg = document.getElementById('t-comment').value; 
+    const newStatus = document.getElementById('t-new-status').value;
+    
+    if(!msg && !newStatus) return;
+    
+    const type = newStatus ? "Status Update" : "Task Completed"; 
+    const txt = newStatus && msg ? `${msg} (Moved to ${newStatus})` : (newStatus ? `Status advanced to ${newStatus}` : msg);
+    
+    document.getElementById('t-comment').value = "Saving...";
+    document.getElementById('t-comment').disabled = true;
+
+    try { 
+        await fetch(`${SCRIPT_URL}?req=add_action&id=${currentTicketId}&user=${user}&type=${type}&msg=${encodeURIComponent(txt)}&new_status=${newStatus}`); 
+        document.getElementById('t-comment').value = ""; 
+        document.getElementById('t-comment').disabled = false;
+        document.getElementById('t-new-status').value = ""; 
+        
+        // Soft update local data so we don't have to reload entire board immediately if just adding a task
+        if(newStatus) { 
+            const item = allRoadmapData.find(i => val(i,'ID') === currentTicketId); 
+            if(item) item.Status = newStatus; 
+            renderSilos(allRoadmapData); 
+        } 
+        openTicket(currentTicketId); 
+    } catch(e) { 
+        alert("Post failed"); 
+        document.getElementById('t-comment').disabled = false;
+    }
+}
+
+async function submitItem() {
+    const title = document.getElementById('inp-title').value; 
+    const desc = document.getElementById('inp-desc').value; 
+    const ctx = document.getElementById('inp-ctx').value || "General";
+    const btn = document.getElementById('btn-submit');
+    
+    if(!title) { alert("Title Required"); return; } 
+    btn.disabled = true;
+    btn.innerText = "CREATING...";
+
+    try { 
+        const res = await fetch(`${SCRIPT_URL}?req=add_roadmap&user=${user}&title=${encodeURIComponent(title)}&desc=${encodeURIComponent(desc)}&prio=Med&cat=Feature&target=APP&source=Internal&context=${encodeURIComponent(ctx)}`); 
+        const data = await res.json(); 
+        if(data.status === 'success') { 
+            toggleForm(); 
+            document.getElementById('inp-title').value = ""; 
+            document.getElementById('inp-desc').value = ""; 
+            loadData(); 
+        } 
+    } catch(e) { 
+        alert("Error"); 
+    } finally { 
+        btn.disabled = false; 
+        btn.innerText = "CREATE GOAL";
+    }
+}
+</script>
+</body>
+</html>

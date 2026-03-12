@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SignOS Menu v6.0 (Mobile)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans flex flex-col pb-10">
+
+<div class="bg-gray-900 text-white px-4 py-3 flex justify-between items-center text-xs shadow-md shrink-0 sticky top-0 z-50">
+    <div class="flex flex-col leading-tight">
+        <span class="text-gray-400 text-[10px] uppercase tracking-wider">Welcome</span>
+        <span class="font-bold text-white text-sm truncate max-w-[150px]" id="auth-user">---</span>
+    </div>
+    <div class="flex items-center gap-3">
+        <span class="bg-gray-800 px-2 py-1 rounded text-[10px] font-mono text-blue-400 border border-gray-700" id="auth-role">---</span>
+        <button onclick="logout()" class="text-red-400 hover:text-white text-[10px] font-bold border border-red-900/50 bg-red-900/10 px-3 py-1.5 rounded transition">EXIT</button>
+    </div>
+</div>
+
+<div class="w-full max-w-3xl mx-auto px-4 py-6 flex-1">
+    <div class="mb-6 bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-gray-800 tracking-tight">SignOS <span class="text-blue-500">Core</span></h1>
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-wide mt-1">Production Portal</p>
+        </div>
+        <div class="md:text-right">
+            <span id="env-badge" class="inline-block bg-gray-100 text-gray-600 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 w-full text-center md:w-auto">
+                Loading...
+            </span>
+        </div>
+    </div>
+
+    <div id="loader" class="text-center py-20 text-gray-400 animate-pulse tracking-widest text-xs font-bold">
+        CONNECTING TO BACKEND...
+    </div>
+
+    <div id="menu-container" class="hidden space-y-8"></div>
+
+    <div id="admin-workflow" class="hidden mt-10 pt-8 border-t-2 border-dashed border-gray-200">
+        <div class="flex justify-between items-end mb-4 px-1">
+            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">ADMIN TOOLS</h3>
+            <span id="super-badge" class="hidden bg-purple-100 text-purple-700 border border-purple-200 text-[9px] font-bold px-2 py-0.5 rounded shadow-sm">SUPER USER</span>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <a href="admin_roadmap.html" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:border-orange-500 active:scale-95 transition flex flex-col items-center text-center gap-2">
+                <span class="text-2xl">🚧</span>
+                <span class="text-xs font-bold text-gray-700">Roadmap</span>
+            </a>
+            <a href="admin_viewer.html" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:border-blue-500 active:scale-95 transition flex flex-col items-center text-center gap-2">
+                <span class="text-2xl">⚙️</span>
+                <span class="text-xs font-bold text-gray-700">Logs</span>
+            </a>
+            <a id="btn-backup" href="admin_backup.html" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:border-green-500 active:scale-95 transition flex flex-col items-center text-center gap-2">
+                <span class="text-2xl">💾</span>
+                <span class="text-xs font-bold text-gray-700">Backup</span>
+            </a>
+            <a href="admin_changelog.html" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:border-purple-500 active:scale-95 transition flex flex-col items-center text-center gap-2">
+                <span class="text-2xl">📜</span>
+                <span class="text-xs font-bold text-gray-700">History</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// 1. SAFETY VALVE
+function val(obj, key) {
+    if (!obj) return "";
+    return obj[key] || obj[key.toUpperCase()] || obj[key.toLowerCase()] || "";
+}
+
+// 2. STYLE MAP
+const ICON_STYLES = {
+    blue: "bg-blue-50 text-blue-600",
+    green: "bg-green-50 text-green-600",
+    purple: "bg-purple-50 text-purple-600",
+    red: "bg-red-50 text-red-600",
+    orange: "bg-orange-50 text-orange-600",
+    slate: "bg-slate-50 text-slate-600",
+    teal: "bg-teal-50 text-teal-600",
+    indigo: "bg-indigo-50 text-indigo-600",
+    pink: "bg-pink-50 text-pink-600",
+    yellow: "bg-yellow-50 text-yellow-600",
+    gray: "bg-gray-100 text-gray-600"
+};
+
+// 3. RENDER LOGIC 
+function renderMenu(data, role) {
+    const container = document.getElementById('menu-container');
+    container.innerHTML = "";
+
+    // Get Categories
+    const cats = [...new Set(data.map(i => val(i, 'Category')))].filter(c => c);
+
+    // Define Custom Sort Order
+    const sortOrder = ["Rigid Signs", "Roll Media", "Services", "System"];
+    
+    cats.sort((a, b) => {
+        const idxA = sortOrder.indexOf(a);
+        const idxB = sortOrder.indexOf(b);
+        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
+
+    cats.forEach(cat => {
+        const section = document.createElement('div');
+        section.innerHTML = `<h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">${cat}</h2>`;
+        
+        const grid = document.createElement('div');
+        grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3";
+
+        data.filter(i => val(i, 'Category') === cat).forEach(mod => {
+            
+            // --- NEW: TWIN-ENGINE PERMISSION CHECK ---
+            const checkTrue = (v) => v === true || String(v).toUpperCase() === "TRUE";
+            
+            let isAllowed = false;
+            if (role === 'SUPER') {
+                isAllowed = true;
+            } else if (role === 'ADMIN') {
+                isAllowed = IS_DEV_ENV ? checkTrue(val(mod, 'Dev_ADMIN')) : checkTrue(val(mod, 'Live_ADMIN'));
+            } else if (role === 'SALES') {
+                isAllowed = IS_DEV_ENV ? checkTrue(val(mod, 'Dev_SALES')) : checkTrue(val(mod, 'Live_SALES'));
+            } else if (role === 'PROD') {
+                isAllowed = IS_DEV_ENV ? checkTrue(val(mod, 'Dev_PROD')) : checkTrue(val(mod, 'Live_PROD'));
+            }
+
+            if (!isAllowed && role !== 'SUPER') return;
+
+            // Version Logic
+            const liveVer = val(mod, 'Live_Ver');
+            const devVer = val(mod, 'Dev_Ver');
+
+            let verText = "";
+            let verClass = "";
+
+            if (IS_DEV_ENV) {
+                if (!devVer || devVer === '') return;
+                verText = `DEV ${devVer}`;
+                verClass = "bg-orange-100 text-orange-800 border-orange-200";
+            } else {
+                if (!liveVer || liveVer === '') return;
+                verText = `v${liveVer.replace('v','')}`; // Shorten for mobile
+                verClass = "bg-green-100 text-green-800 border-green-200";
+            }
+
+            // Render Item
+            const displayName = val(mod, 'Display_Name');
+            const fileLink = val(mod, 'File_Link');
+            const iconColor = val(mod, 'Icon');
+            const iconPath = val(mod, 'Icon_Path');
+            
+            let targetMode = (role === 'PROD') ? 'production' : (role === 'ADMIN' || role === 'SUPER' ? 'dev' : 'sales');
+
+            const link = document.createElement('a');
+            link.href = `${fileLink}?mode=${targetMode}`;
+            
+            link.className = "relative bg-white p-4 rounded-xl shadow-sm border border-gray-200 active:scale-98 active:bg-gray-50 transition-all duration-100 flex items-center justify-between group";
+
+            const colorClass = ICON_STYLES[(iconColor || 'blue').toLowerCase()] || ICON_STYLES['blue'];
+            const draftBadge = (!isAllowed && role === 'SUPER') 
+                ? `<div class="absolute -top-2 -right-2 text-[8px] font-bold bg-purple-600 text-white px-2 py-0.5 rounded-full shadow-sm z-10">HIDDEN</div>` 
+                : '';
+
+            const iconHtml = iconPath 
+                ? `<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="${iconPath}"></path></svg>` 
+                : `<span class="text-xl font-bold">●</span>`;
+
+            link.innerHTML = `
+                ${draftBadge}
+                <div class="flex items-center gap-4 w-full">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${colorClass} shadow-inner">
+                        ${iconHtml}
+                    </div>
+                    <div class="flex-1 min-w-0"> 
+                        <h3 class="font-bold text-gray-800 text-sm truncate">${displayName}</h3>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${verClass}">${verText}</span>
+                        </div>
+                    </div>
+                    <div class="text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(link);
+        });
+
+        if (grid.children.length > 0) {
+            section.appendChild(grid);
+            container.appendChild(section);
+        }
+    });
+}
+
+// 4. MAIN INIT
+window.onload = async function() {
+    const user = sessionStorage.getItem('signos_user');
+    const role = sessionStorage.getItem('signos_role');
+    
+    if (!user) {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    document.getElementById('auth-user').innerText = user;
+    document.getElementById('auth-role').innerText = role;
+
+    // Environment Badge Logic
+    const envEl = document.getElementById('env-badge');
+    if (IS_DEV_ENV) {
+        envEl.innerHTML = `<span class="text-orange-600 font-bold">⚠️ DEV MODE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${clientIP}</span>`;
+    } else {
+        envEl.innerHTML = `<span class="text-green-600 font-bold">● LIVE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${clientIP}</span>`;
+    }
+
+    // IP Address Fix
+    const ipWatcher = setInterval(() => {
+        if (clientIP !== 'Unknown') {
+            if (IS_DEV_ENV) {
+                envEl.innerHTML = `<span class="text-orange-600 font-bold">⚠️ DEV MODE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${clientIP}</span>`;
+            } else {
+                envEl.innerHTML = `<span class="text-green-600 font-bold">● LIVE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${clientIP}</span>`;
+            }
+            clearInterval(ipWatcher);
+        }
+    }, 100);
+    setTimeout(() => clearInterval(ipWatcher), 5000);
+
+    // Admin Visibility
+    if (role === 'ADMIN' || role === 'SUPER') {
+        document.getElementById('admin-workflow').classList.remove('hidden');
+        if (role === 'SUPER') document.getElementById('super-badge').classList.remove('hidden');
+        
+        // Backup Permission Check
+        const perms = JSON.parse(sessionStorage.getItem('signos_perms') || '{}');
+        const btnBackup = document.getElementById('btn-backup');
+        if (role !== 'SUPER' && perms.backup !== 'Run' && perms.backup !== 'Full') {
+            if(btnBackup) btnBackup.classList.add('hidden');
+        }
+    }
+
+    // --- FETCH MENU DATA ---
+    try {
+        const response = await fetch(`${SCRIPT_URL}?tab=SYS_Modules&ip=${clientIP}&user=${user}&role=${role}&req=table`);
+        const data = await response.json();
+
+        // Safety Check
+        if (data.error) throw new Error(data.error);
+        if (!Array.isArray(data)) throw new Error("Invalid Data Format");
+
+        // Hide Loader & Render
+        document.getElementById('loader').classList.add('hidden');
+        document.getElementById('menu-container').classList.remove('hidden');
+        
+        renderMenu(data, role);
+
+    } catch (e) {
+        document.getElementById('loader').innerText = "CONNECTION FAILED: " + e.message;
+        document.getElementById('loader').classList.add('text-red-500', 'font-bold');
+        console.error("Menu Load Error:", e);
+    }
+};
+</script>
+</body>
+</html>

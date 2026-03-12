@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Backup v1.4 | SignOS Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+<div class="max-w-md mx-auto w-full bg-white shadow-2xl overflow-hidden min-h-screen sm:min-h-0 sm:my-10 sm:rounded-xl border border-gray-200">
+
+    <!-- AUTH HEADER -->
+    <div class="bg-gray-900 text-white px-4 py-2 flex justify-between items-center text-xs border-b border-gray-700">
+        <div class="flex gap-3">
+            <span class="tracking-wide">USER: <span class="font-bold text-gray-200 uppercase" id="auth-user">---</span></span>
+            <span class="tracking-wide">ROLE: <span class="font-bold text-red-400 uppercase" id="auth-role">---</span></span>
+        </div>
+        <button onclick="logout()" class="font-bold text-red-400 hover:text-white uppercase tracking-wider text-[10px]">Logout</button>
+    </div>
+
+    <!-- MODULE HEADER -->
+    <div class="bg-red-900 px-6 py-4 text-white flex justify-between items-center">
+        <a href="#" onclick="goBack()" class="text-gray-300 hover:text-white text-xs font-bold uppercase">← Dashboard</a>
+        <div class="text-center">
+            <h2 class="text-lg font-bold">Log Backup Utility</h2>
+            <div class="text-[10px] font-bold text-red-200 mt-0.5">SUPERUSER ACCESS ONLY</div>
+        </div>
+        <div class="w-4"></div> <!-- Spacer -->
+    </div>
+
+    <!-- CONTENT -->
+    <div class="p-6 space-y-6">
+        
+        <div class="bg-orange-50 border-l-4 border-orange-500 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-xs text-orange-700 font-bold">System Impact Warning</p>
+                    <p class="text-[10px] text-orange-600 mt-1">
+                        This tool manually triggers the <code>archiveDailyLogs</code> API function. 
+                        This exports current logs to a text file in Google Drive. 
+                        <br><strong>It does NOT delete live data</strong> (Safe Mode).
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Verify Admin PIN</label>
+            <input type="password" id="admin-pin" placeholder="Enter PIN..." class="w-full border border-gray-300 p-3 rounded text-lg font-bold text-center tracking-widest text-gray-800 focus:border-red-500 outline-none">
+        </div>
+
+        <button onclick="runExport()" id="btn-run" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded shadow-lg transition flex justify-center items-center gap-2 group">
+            <span id="btn-text">GENERATE BACKUP</span>
+            <svg id="icon-run" class="w-5 h-5 text-gray-400 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <div id="loading" class="hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        </button>
+
+    </div>
+
+    <!-- RESULTS -->
+    <div id="result-area" class="hidden bg-gray-50 border-t border-gray-200 p-6 text-center">
+        <div class="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <h3 class="text-green-800 font-bold text-lg mb-1">Backup Complete</h3>
+        <p class="text-[10px] text-gray-500 mb-4">Rows Archived: <span id="row-count" class="font-bold text-gray-800">0</span></p>
+        <a href="#" id="file-link" target="_blank" class="block w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded text-xs uppercase tracking-wide shadow">Open in Google Drive ↗</a>
+    </div>
+
+    <div id="error-area" class="hidden bg-red-50 border-t border-red-200 p-6 text-center">
+        <p class="text-xs font-bold text-red-600" id="error-text">Unknown Error</p>
+    </div>
+
+</div>
+
+<script>
+    // 1. On Load: Check Permissions
+    window.onload = function() {
+        const u = sessionStorage.getItem('signos_user');
+        const r = sessionStorage.getItem('signos_role');
+        const permsRaw = sessionStorage.getItem('signos_perms');
+        const perms = permsRaw ? JSON.parse(permsRaw) : { backup: "None" };
+
+        // STRICT SECURITY GATE
+        if (perms.backup !== 'Run' && perms.backup !== 'Full') {
+            alert("ACCESS DENIED: You do not have Backup permissions.");
+            window.location.href = 'menu.html';
+            return;
+        }
+
+        document.getElementById('auth-user').innerText = u || 'GUEST';
+        document.getElementById('auth-role').innerText = r || 'VIEW';
+    };
+
+    // 2. The Missing Function
+    async function runExport() {
+        const pin = document.getElementById('admin-pin').value;
+        const btn = document.getElementById('btn-run');
+        const loader = document.getElementById('loading');
+        const icon = document.getElementById('icon-run');
+        const btnText = document.getElementById('btn-text');
+
+        // Reset UI
+        document.getElementById('result-area').classList.add('hidden');
+        document.getElementById('error-area').classList.add('hidden');
+
+        if(!pin) { alert("Please enter your PIN."); return; }
+
+        // Lock UI
+        btn.disabled = true;
+        loader.classList.remove('hidden');
+        icon.classList.add('hidden');
+        btnText.innerText = "PROCESSING...";
+
+        try {
+            // Call API
+            // ADDED BACKTICKS (` `) around the string
+const url = `${SCRIPT_URL}?req=manual_archive&pin=${pin}&ip=${clientIP}`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.status === "success") {
+                // Success UI
+                document.getElementById('result-area').classList.remove('hidden');
+                document.getElementById('row-count').innerText = data.rows_archived || 0;
+                document.getElementById('file-link').href = data.url;
+            } else {
+                throw new Error(data.message || "API Error");
+            }
+        } catch (e) {
+            // Error UI
+            document.getElementById('error-area').classList.remove('hidden');
+            document.getElementById('error-text').innerText = e.message;
+        } finally {
+            // Unlock UI
+            btn.disabled = false;
+            loader.classList.add('hidden');
+            icon.classList.remove('hidden');
+            btnText.innerText = "GENERATE BACKUP";
+        }
+    }
+</script>
+
+
+</body>
+</html>

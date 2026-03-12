@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACM Signs Retail</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <script src="logic_acm.js"></script>
+    <style>
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10">
+
+<!-- Main Card: Island Mode -->
+<div id="main-card" class="max-w-md mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200">
+
+    <!-- INPUTS -->
+    <div class="p-6 space-y-4">
+        <div class="grid grid-cols-3 gap-3">
+            <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
+            <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width</label><input type="number" id="w" value="24" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
+            <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height</label><input type="number" id="h" value="18" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
+        </div>
+
+        <div id="sheet-warn" class="hidden bg-yellow-50 text-yellow-700 text-[10px] font-bold px-3 py-1.5 rounded border border-yellow-200 transition-opacity">
+            ⚠️ Parent sheet size limit reached. Dimensions auto-adjusted.
+        </div>
+
+        <div class="flex flex-col items-center justify-center bg-gray-50 py-1.5 rounded border border-gray-100">
+            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Producing from: 4' x 8' Sheet</span>
+            <span class="text-[8px] font-bold text-blue-500 uppercase tracking-wide mt-0.5">*Note: 5'x10' available via Custom Quote</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Thickness</label>
+                <select id="thickness" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
+                    <option value="3mm">3mm Standard</option>
+                    <option value="6mm">6mm Heavy Duty</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sides</label>
+                <select id="sides" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
+                    <option value="1">1-Sided</option>
+                    <option value="2">2-Sided</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Color</label>
+                <select id="color" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
+                    <option value="White">White</option>
+                    <option value="Black">Black</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cutting Method</label>
+                <select id="shape" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
+                    <option value="Rectangle">Standard (Square/Rectangle)</option>
+                    <option value="CNC Simple">CNC (Simple Shape)</option>
+                    <option value="CNC Complex">CNC (Complex Shape)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
+        <div class="flex justify-between items-end mb-2">
+            <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
+            <span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span>
+        </div>
+        
+        <div class="border-t border-blue-200/50 my-3"></div>
+
+        <!-- LINE ITEMS -->
+        <div class="space-y-1 text-xs text-blue-900/70 pt-1">
+            <div class="flex justify-between"><span>Printed Signs (<span id="lbl-sqft">0</span> sqft):</span><span id="ui-print" class="font-bold">$0.00</span></div>
+            <div class="flex justify-between text-orange-700 hidden" id="row-router"><span>CNC Router Fee:</span><span id="ui-router" class="font-bold">$0.00</span></div>
+        </div>
+
+        <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
+            <div>
+                <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
+                <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $50</span>
+                <div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div>
+            </div>
+            <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
+        </div>
+    </div>
+
+    <!-- DESCRIPTION GENERATOR -->
+    <div class="bg-gray-50 p-4 border-t border-gray-200">
+        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
+        <textarea id="job-desc" class="w-full text-xs p-2 border rounded bg-white h-20 text-gray-600 font-mono outline-none" readonly></textarea>
+    </div>
+
+</div>
+
+<script>
+let backendData = {};
+
+function enforceSheetLimits(maxShort, maxLong) {
+    let wEl = document.getElementById('w');
+    let hEl = document.getElementById('h');
+    let warnEl = document.getElementById('sheet-warn');
+    if (!wEl || !hEl) return;
+    
+    let w = parseFloat(wEl.value) || 0;
+    let h = parseFloat(hEl.value) || 0;
+    let didClamp = false;
+
+    if (w > maxLong) { w = maxLong; wEl.value = w; didClamp = true; }
+    if (h > maxLong) { h = maxLong; hEl.value = h; didClamp = true; }
+    if (w > maxShort && h > maxShort) {
+        if (w > h) { h = maxShort; hEl.value = h; } else { w = maxShort; wEl.value = w; }
+        didClamp = true;
+    }
+
+    if (warnEl) {
+        if (didClamp) {
+            warnEl.classList.remove('hidden');
+            clearTimeout(warnEl.timeoutId);
+            warnEl.timeoutId = setTimeout(() => warnEl.classList.add('hidden'), 3000);
+        }
+    }
+}
+
+function runCalc() {
+    if(!backendData.Retail_Min_Order) return;
+    enforceSheetLimits(60, 120); // ACM supports up to 5x10 sheets
+
+    try {
+        const inputs = {
+            qty: parseFloat(document.getElementById('qty').value) || 1,
+            w: parseFloat(document.getElementById('w').value) || 24,
+            h: parseFloat(document.getElementById('h').value) || 18,
+            thickness: document.getElementById('thickness').value, 
+            sides: parseInt(document.getElementById('sides').value) || 1,
+            color: document.getElementById('color').value,
+            shape: document.getElementById('shape').value
+        };
+
+        const result = calculateACM(inputs, backendData);
+        if (!result || !result.retail) return;
+
+        const ret = result.retail;
+        const fmt = (n) => "$" + (n || 0).toFixed(2);
+        const totalSqFt = ((inputs.w * inputs.h) / 144) * inputs.qty;
+
+        document.getElementById('lbl-sqft').innerText = totalSqFt.toFixed(1);
+        document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+        document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+        document.getElementById('ui-print').innerText = fmt(ret.printTotal);
+
+        if (ret.routerFee > 0) {
+            document.getElementById('row-router').classList.remove('hidden');
+            document.getElementById('ui-router').innerText = fmt(ret.routerFee);
+        } else { 
+            document.getElementById('row-router').classList.add('hidden'); 
+        }
+
+        const minOrder = parseFloat(backendData.Retail_Min_Order || 50);
+        document.getElementById('ui-min-text').innerText = `Shop Minimum: $${minOrder}`;
+        document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+
+        const sideTxt = inputs.sides === 2 ? "Double-Sided" : "Single-Sided";
+        const cutTxt = inputs.shape === 'Rectangle' ? 'Square/Rectangle Cut' : 'Custom CNC Cut';
+        
+        document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ${inputs.thickness} ${inputs.color} ACM Signs.\n${sideTxt}. ${cutTxt}.`;
+
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+// API FETCH & NATIVE STATUS BAR UPDATER
+window.addEventListener('load', async () => {
+    if (typeof injectHeader === 'function') injectHeader("ACM Signs");
+    
+    const statusText = document.getElementById("status-text");
+    const statusDot = document.getElementById("status-dot");
+
+    try {
+        const req = await fetch(`${SCRIPT_URL}?req=view_module&tab=PROD_ACM_Signs`);
+        backendData = await req.json();
+        
+        if(backendData.error) throw new Error(backendData.error);
+        
+        if(statusText) {
+            statusText.innerText = "ONLINE";
+            statusText.className = "font-bold text-green-500";
+            if(statusDot) {
+                statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                statusDot.classList.remove("animate-pulse");
+            }
+        }
+        
+        runCalc(); 
+    } catch(e) {
+        if(statusText) {
+            statusText.innerText = "OFFLINE";
+            statusText.className = "font-bold text-red-500";
+        }
+        console.error(e);
+    }
+});
+</script>
+</body>
+</html>

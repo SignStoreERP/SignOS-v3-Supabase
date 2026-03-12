@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>System Activity v2.1 | SignOS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <style>
+        .timeline-line::before { content: ''; position: absolute; left: 19px; top: 40px; bottom: -20px; width: 2px; background: #e5e7eb; z-index: 0; }
+        .timeline-item:last-child .timeline-line::before { display: none; }
+        
+        /* Smooth Scrolling */
+        html { scroll-behavior: smooth; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Filter Buttons */
+        .btn-filter { transition: all 0.2s ease; }
+        .btn-filter.active-all { background-color: #1f2937; color: white; border-color: #1f2937; }
+        .btn-filter.active-live { background-color: #16a34a; color: white; border-color: #16a34a; }
+        .btn-filter.active-dev { background-color: #f97316; color: white; border-color: #f97316; }
+
+        /* Graph Animations */
+        .graph-bar { transition: height 0.5s ease-out; }
+        .graph-bar:hover { opacity: 0.8; }
+        .tooltip { display: none; }
+        .graph-bar:hover .tooltip { display: block; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans flex flex-col">
+
+    <div class="bg-gray-900 text-white px-4 py-3 flex justify-between items-center shadow-md shrink-0 sticky top-0 z-50">
+        <div class="flex flex-col">
+            <span class="text-[10px] uppercase text-gray-400 tracking-wider">System Activity</span>
+            <span class="font-bold text-sm text-white" id="auth-user">---</span>
+        </div>
+        <a href="menu.html" class="text-xs font-bold text-gray-300 border border-gray-600 px-3 py-1.5 rounded hover:bg-gray-800 transition active:scale-95">
+            EXIT
+        </a>
+    </div>
+
+    <div class="w-full max-w-3xl mx-auto px-4 py-6 flex-1">
+
+        <div class="mb-6 flex flex-col gap-4">
+            <div class="flex justify-between items-end border-b border-gray-200 pb-4">
+                <h1 class="text-2xl font-black text-gray-800 tracking-tight">Changelog</h1>
+                <div class="text-right">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">Recent Activity</span>
+                    <div class="text-xl font-black text-blue-600 leading-none" id="stat-count">0</div>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-2">
+                <div class="flex justify-between items-end h-24 gap-2" id="activity-graph">
+                    <div class="w-full text-center text-xs text-gray-400 self-center">Loading Activity...</div>
+                </div>
+                <div class="flex justify-between mt-2 text-[9px] font-bold text-gray-400 uppercase tracking-wider" id="graph-labels">
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-3">
+            <div class="relative">
+                <input type="text" id="inp-search" onkeyup="renderTimeline()" placeholder="Search commits, authors, or hashes..." 
+                    class="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 focus:outline-none focus:border-blue-500 transition">
+                <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">Start Date</label>
+                    <input type="date" id="date-start" onchange="renderTimeline()" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-gray-400 uppercase ml-1">End Date</label>
+                    <input type="date" id="date-end" onchange="renderTimeline()" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none">
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mb-8">
+            <button onclick="setFilter('ALL')" id="btn-all" class="btn-filter active-all px-2 py-3 rounded-lg border bg-white text-gray-500 font-bold text-xs uppercase tracking-wide shadow-sm active:scale-95">All</button>
+            <button onclick="setFilter('LIVE')" id="btn-live" class="btn-filter px-2 py-3 rounded-lg border bg-white text-gray-500 font-bold text-xs uppercase tracking-wide shadow-sm active:scale-95">Live</button>
+            <button onclick="setFilter('DEV')" id="btn-dev" class="btn-filter px-2 py-3 rounded-lg border bg-white text-gray-500 font-bold text-xs uppercase tracking-wide shadow-sm active:scale-95">Dev</button>
+        </div>
+
+        <div id="loader" class="text-center py-10 text-gray-400 animate-pulse tracking-widest text-xs font-bold">FETCHING HISTORY...</div>
+        
+        <div id="timeline-container" class="space-y-6 pb-12 relative"></div>
+
+        <div class="text-center pb-8">
+            <button id="btn-load-more" onclick="loadMore()" class="hidden w-full bg-gray-200 text-gray-600 font-bold py-3 rounded-lg text-xs uppercase tracking-widest hover:bg-gray-300 active:scale-95 transition">
+                Load Older Items
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        let allData = [];
+        let currentFilter = 'ALL';
+        let visibleCount = 20;
+        const PAGE_SIZE = 20;
+
+        // --- HELPER: Safe Data Retrieval ---
+        function val(obj, key) {
+            if (!obj) return "";
+            return obj[key] || obj[key.toUpperCase()] || obj[key.toLowerCase()] || "";
+        }
+
+        // --- INIT ---
+        window.onload = async function() {
+            const user = sessionStorage.getItem('signos_user');
+            if (!user) { window.location.href = 'index.html'; return; }
+            document.getElementById('auth-user').innerText = user;
+
+            try {
+                const response = await fetch(`${SCRIPT_URL}?req=table&tab=SYS_Changelog&ip=${clientIP}&user=${user}`);
+                const json = await response.json();
+                
+                if (json.error) throw new Error(json.error);
+
+                // Sort Newest First (Safe Sort)
+                allData = json.sort((a, b) => new Date(val(b, 'Timestamp')) - new Date(val(a, 'Timestamp')));
+
+                document.getElementById('loader').classList.add('hidden');
+                
+                // 1. Render Visuals
+                renderGraph();
+                renderTimeline();
+
+            } catch (e) {
+                document.getElementById('loader').innerText = "FAILED TO LOAD HISTORY";
+                document.getElementById('loader').classList.add('text-red-500');
+                console.error(e);
+            }
+        };
+
+        // --- FILTER LOGIC ---
+        function setFilter(mode) {
+            currentFilter = mode;
+            
+            document.querySelectorAll('.btn-filter').forEach(b => {
+                b.className = "btn-filter px-2 py-3 rounded-lg border bg-white text-gray-500 font-bold text-xs uppercase tracking-wide shadow-sm active:scale-95";
+            });
+
+            const activeClass = mode === 'ALL' ? 'active-all' : (mode === 'LIVE' ? 'active-live' : 'active-dev');
+            document.getElementById('btn-' + mode.toLowerCase()).classList.add(activeClass);
+            document.getElementById('btn-' + mode.toLowerCase()).classList.remove('bg-white', 'text-gray-500');
+
+            renderTimeline();
+        }
+
+        function loadMore() {
+            visibleCount += PAGE_SIZE;
+            renderTimeline();
+        }
+
+        // --- GRAPH RENDERER (FIXED) ---
+        function renderGraph() {
+            const graphContainer = document.getElementById('activity-graph');
+            const labelContainer = document.getElementById('graph-labels');
+            graphContainer.innerHTML = "";
+            labelContainer.innerHTML = "";
+
+            // 1. Generate Last 7 Days Keys
+            const days = [];
+            for(let i=6; i>=0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                try {
+                    // BUG FIX: Added [0] to ensure we get a String "YYYY-MM-DD", not an Array
+                    days.push(d.toISOString().split('T')[0]); 
+                } catch(e) { continue; }
+            }
+
+            // 2. Count Commits per Day
+            const counts = {};
+            days.forEach(d => counts[d] = 0);
+
+            allData.forEach(row => {
+                const ts = val(row, 'Timestamp');
+                if(!ts) return;
+                try {
+                    const dateKey = new Date(ts).toISOString().split('T')[0];
+                    if (counts[dateKey] !== undefined) counts[dateKey]++;
+                } catch(e) {}
+            });
+
+            // 3. Find Max for Scaling
+            const maxVal = Math.max(...Object.values(counts), 1); // Avoid div/0
+
+            // 4. Draw Bars
+            days.forEach(day => {
+                const count = counts[day] || 0;
+                const heightPct = (count / maxVal) * 100;
+                
+                // Day Label (e.g., "Mon")
+                const dayName = new Date(day).toLocaleDateString('en-US', { weekday: 'short' });
+                const isToday = day === new Date().toISOString().split('T')[0];
+                const barColor = isToday ? "bg-blue-600" : "bg-blue-300";
+
+                // Bar HTML
+                const bar = document.createElement('div');
+                bar.className = `w-full ${barColor} rounded-t-sm relative graph-bar`;
+                bar.style.height = (heightPct < 10 ? 10 : heightPct) + "%"; // Min height 10%
+                bar.innerHTML = `<div class="tooltip absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[9px] font-bold px-2 py-1 rounded shadow-lg z-10">${count} Changes</div>`;
+                graphContainer.appendChild(bar);
+
+                // Label HTML
+                const lbl = document.createElement('div');
+                lbl.className = `w-full text-center ${isToday ? "text-blue-600" : ""}`;
+                lbl.innerText = dayName;
+                labelContainer.appendChild(lbl);
+            });
+            
+            // Update Stat Count
+            const todayKey = new Date().toISOString().split('T')[0];
+            document.getElementById('stat-count').innerText = counts[todayKey] || 0;
+        }
+
+        // --- TIMELINE RENDERER (SEARCH & RANGE FIXED) ---
+        function renderTimeline() {
+            const container = document.getElementById('timeline-container');
+            const loadBtn = document.getElementById('btn-load-more');
+            container.innerHTML = "";
+
+            // Inputs
+            const searchVal = document.getElementById('inp-search').value.toLowerCase();
+            const startVal = document.getElementById('date-start').value;
+            const endVal = document.getElementById('date-end').value;
+
+            // Filter Data
+            const filtered = allData.filter(row => {
+                // 1. Environment Filter
+                const env = val(row, 'Environment') || "DEV";
+                if (currentFilter !== 'ALL') {
+                    if (currentFilter === 'LIVE' && env !== 'LIVE') return false;
+                    if (currentFilter === 'DEV' && env === 'LIVE') return false;
+                }
+
+                // 2. Search Filter
+                if (searchVal) {
+                    const text = (val(row, 'Message') + val(row, 'Author') + val(row, 'Commit Hash')).toLowerCase();
+                    if (!text.includes(searchVal)) return false;
+                }
+
+                // 3. Date Range Filter
+                if (startVal || endVal) {
+                    const rowDate = new Date(val(row, 'Timestamp')).toISOString().split('T')[0];
+                    if (startVal && rowDate < startVal) return false;
+                    if (endVal && rowDate > endVal) return false;
+                }
+
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 py-10">No matching activity found.</div>';
+                loadBtn.classList.add('hidden');
+                return;
+            }
+
+            // Pagination Slicing
+            const slicedData = filtered.slice(0, visibleCount);
+
+            // Toggle Load More
+            if (visibleCount >= filtered.length) loadBtn.classList.add('hidden');
+            else loadBtn.classList.remove('hidden');
+
+            // Render Items
+            slicedData.forEach(row => {
+                const ts = val(row, 'Timestamp');
+                const author = val(row, 'Author');
+                const msg = val(row, 'Message');
+                const hash = val(row, 'Commit Hash').substring(0,7);
+                const link = val(row, 'GitHub Link');
+                const env = val(row, 'Environment') || "DEV";
+
+                const d = new Date(ts);
+                const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                const isLive = env === 'LIVE';
+                const badgeColor = isLive ? "bg-green-100 text-green-800 border-green-200" : "bg-orange-100 text-orange-800 border-orange-200";
+                const icon = isLive ? "🚀" : "🛠️";
+                const iconBg = isLive ? "bg-green-50 text-green-600" : "bg-orange-50 text-orange-500";
+
+                // Clean Message
+                let fmtMsg = msg.replace(/(https:\/\/github\.com[^\s]+)/g, '').trim(); 
+
+                const item = document.createElement('div');
+                item.className = "timeline-item relative pl-8";
+                item.innerHTML = `
+                    <div class="timeline-line"></div>
+                    
+                    <div class="absolute left-0 top-1 w-8 flex justify-center z-10">
+                        <div class="w-6 h-6 ${iconBg} rounded-full flex items-center justify-center text-xs shadow-sm border border-white ring-2 ring-gray-50">
+                            ${icon}
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition group">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-black text-gray-500 uppercase tracking-wide mb-0.5">${author}</span>
+                                <span class="text-xs font-bold text-gray-800">${dateStr} <span class="text-gray-400 font-normal">at ${timeStr}</span></span>
+                            </div>
+                            <span class="text-[9px] font-bold px-2 py-1 rounded border ${badgeColor}">${env}</span>
+                        </div>
+
+                        <p class="text-sm text-gray-600 leading-snug font-medium mb-3">${fmtMsg}</p>
+
+                        <div class="flex justify-between items-center border-t border-gray-100 pt-3 mt-1">
+                            <span class="font-mono text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">#${hash}</span>
+                            <a href="${link}" target="_blank" class="flex items-center gap-1 text-[10px] font-bold text-blue-500 uppercase tracking-wide hover:text-blue-700">
+                                Code 
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </a>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+    </script>
+</body>
+</html>

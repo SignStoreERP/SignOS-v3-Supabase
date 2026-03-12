@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignOS News & Docs v5.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <style>
+        .newsletter-section { border-top: 1px solid #e5e7eb; padding-top: 3rem; margin-top: 3rem; }
+        .feature-card { transition: all 0.2s; border: 1px solid #e5e7eb; background: white; cursor: pointer; }
+        .feature-card:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .badge-new { background: #ef4444; color: white; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 999; text-transform: uppercase; letter-spacing: 0.05em; }
+        .roadmap-tag { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+        .tag-done { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .tag-sprint { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        
+        /* Article Overlay Logic */
+        #article-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 100; overflow-y: auto; }
+        #article-overlay.active { display: block; }
+        
+        .hide-scroll::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans flex flex-col">
+
+    <!-- STANDARD ERP HEADER -->
+    <div class="bg-gray-900 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
+        <div class="flex flex-col">
+            <span class="text-[10px] font-bold text-blue-400 uppercase tracking-widest leading-none mb-1">SignOS Knowledge Base</span>
+            <div class="flex items-center gap-2">
+                <h1 class="text-sm font-black leading-tight" id="module-title">News & Docs v5.1</h1>
+                <span id="env-badge" class="px-1.5 py-0.5 rounded text-[8px] font-black bg-blue-600 text-white uppercase tracking-tighter">ONLINE</span>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <div class="hidden md:flex flex-col items-end">
+                <span class="text-[10px] font-bold text-gray-300 uppercase tracking-tight" id="auth-user">---</span>
+                <span class="text-[9px] text-blue-500 font-bold uppercase tracking-tighter" id="auth-role">---</span>
+            </div>
+            <div class="h-8 w-[1px] bg-gray-700 hidden md:block"></div>
+            <button onclick="goBack()" class="text-gray-300 hover:text-white text-[10px] font-bold border border-gray-600 px-3 py-1.5 rounded transition uppercase tracking-widest">Menu</button>
+            <button onclick="logout()" class="text-red-400 hover:text-red-300 text-[10px] font-bold border border-red-900/50 bg-red-950/20 px-3 py-1.5 rounded transition uppercase tracking-widest">Logout</button>
+        </div>
+    </div>
+
+    <!-- MAIN NEWSLETTER BODY -->
+    <main class="max-w-4xl mx-auto w-full p-4 md:p-12 space-y-16 bg-white shadow-xl my-8 rounded-2xl border border-gray-200">
+        
+        <!-- HEADER SECTION -->
+        <header class="text-center space-y-4">
+            <div class="flex justify-center"><span class="badge-new">Release: Feb 23, 2026</span></div>
+            <h2 class="text-4xl font-black text-gray-900 tracking-tighter italic uppercase">The SignOS Dispatch</h2>
+            <div class="h-1 w-24 bg-blue-600 mx-auto rounded-full"></div>
+            <p class="text-gray-500 text-sm max-w-md mx-auto">Modernizing production and quoting for The Sign Store team.</p>
+        </header>
+
+        <!-- SECTION 1: TOP STORY (Grid Layout) -->
+        <section id="top-story" class="relative group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 shadow-sm bg-slate-50" onclick="openArticle('release')">
+            <div class="grid md:grid-cols-2 gap-8 items-center p-8">
+                <div class="space-y-4">
+                    <span class="text-[10px] font-black text-blue-600 uppercase tracking-widest">Grand Release Article</span>
+                    <h3 class="text-2xl font-bold text-slate-900 leading-tight">Sales Empowerment: 8 Production Modules Activated</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">The Sign Store catalog is now active. Learn how our new retail logic automates pricing across our core product lines.</p>
+                    <div class="flex gap-4">
+                        <button class="bg-blue-600 text-white px-6 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition shadow-lg">Read Article</button>
+                    </div>
+                </div>
+                
+                <!-- GIF Column (Shrinks vertically, stacks on mobile) -->
+                <div class="flex items-center justify-center overflow-hidden rounded-xl border border-slate-200 shadow-inner bg-white max-h-[400px]">
+                     <img src="https://i.imgur.com/2XcoCY4.gif" alt="SignOS Release Demo" class="w-full h-auto object-contain transition-transform group-hover:scale-105 duration-700">
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: APPROVED CALCULATORS GRID -->
+        <section id="active-modules" class="bg-blue-50/50 rounded-3xl p-8 border border-blue-100">
+            <div class="flex items-center justify-between mb-8">
+                <h3 class="text-[11px] font-black text-blue-900 uppercase tracking-[0.2em]">Retail Ready: Active Modules</h3>
+                <span class="badge-new">NEW</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <a href="Calculator_YardSign.html" class="feature-card p-5 rounded-2xl flex flex-col items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black">YR</div>
+                    <span class="text-[10px] font-black text-gray-900 uppercase">Yard Signs</span>
+                </a>
+                <a href="Calculator_Coro.html" class="feature-card p-5 rounded-2xl flex flex-col items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-black">CR</div>
+                    <span class="text-[10px] font-black text-gray-900 uppercase">Coroplast</span>
+                </a>
+                <a href="Calculator_ACM.html" class="feature-card p-5 rounded-2xl flex flex-col items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-black">AM</div>
+                    <span class="text-[10px] font-black text-gray-900 uppercase">ACM Signs</span>
+                </a>
+                <a href="Calculator_PVC.html" class="feature-card p-5 rounded-2xl flex flex-col items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">PV</div>
+                    <span class="text-[10px] font-black text-gray-900 uppercase">PVC Signs</span>
+                </a>
+                <a href="Calculator_Foam.html" class="feature-card p-5 rounded-2xl flex flex-col items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-black">FM</div>
+                    <span class="text-[10px] font-black text-gray-900 uppercase">Foam Core</span>
+                </a>
+                <a href="Calculator_Banner.html" class="feature-card p-5 rounded-2xl flex flex-col items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-black">BN</div>
+                    <span class="text-[10px] font-black text-gray-900 uppercase">Banners</span>
+                </a>
+                <a href="Calculator_Decal.html" class="feature-card p-5 rounded-2xl flex flex-col items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-pink-100 text-pink-700 flex items-center justify-center font-black">DC</div>
+                    <span class="text-[10px] font-black text-gray-900 uppercase">Digital Print</span>
+                </a>
+                <a href="Calculator_CutVinyl.html" class="feature-card p-5 rounded-2xl flex flex-col items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-yellow-100 text-yellow-700 flex items-center justify-center font-black">CV</div>
+                    <span class="text-[10px] font-black text-gray-900 uppercase">Cut Vinyl</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- SECTION 3: HOW TO USE / HOW IT WORKS -->
+        <section class="newsletter-section">
+            <div class="grid md:grid-cols-2 gap-16">
+                <div class="space-y-6">
+                    <h3 class="text-xl font-black text-gray-900 uppercase tracking-tighter">Sales Quoting Guide</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed">Sales representatives have exclusive access to the **Retail Interface**. Your workflow is simplified to focus on high-speed customer service.</p>
+                    <ul class="space-y-4">
+                        <li class="flex gap-4">
+                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center shrink-0 font-bold">1</span>
+                            <div class="text-[11px]">
+                                <b class="block text-gray-900 uppercase">Select Product</b>
+                                <p class="text-gray-500">Pick the correct module above to load substrate-specific logic.</p>
+                            </div>
+                        </li>
+                        <li class="flex gap-4">
+                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center shrink-0 font-bold">2</span>
+                            <div class="text-[11px]">
+                                <b class="block text-gray-900 uppercase">Enter Variables</b>
+                                <p class="text-gray-500">Input dimensions, quantity, and finishes. All variables must be set for accuracy.</p>
+                            </div>
+                        </li>
+                        <li class="flex gap-4">
+                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center shrink-0 font-bold">3</span>
+                            <div class="text-[11px]">
+                                <b class="block text-gray-900 uppercase">Get Price</b>
+                                <p class="text-gray-500">The total updates instantly. You only see the market-based Retail total.</p>
+                            </div>
+                        </li>
+                    </ul>
+                    <button onclick="openArticle('guide')" class="text-blue-600 font-black text-[10px] uppercase tracking-widest hover:underline flex items-center gap-2">View Detailed Tutorial &rarr;</button>
+                </div>
+                <div class="bg-gray-50 rounded-2xl p-8 border border-dashed border-gray-300">
+                    <h3 class="text-xs font-black text-gray-400 uppercase mb-6 tracking-widest">How it Works</h3>
+                    <div class="space-y-6">
+                        <div class="flex gap-4 items-start">
+                            <div class="p-2 rounded bg-orange-100 text-orange-600 font-black text-[10px]">SYNC</div>
+                            <div>
+                                <h4 class="text-[10px] font-black text-gray-900 uppercase">Master Data Engine</h4>
+                                <p class="text-[10px] text-gray-500 leading-tight mt-1">A central Master Data sheet feeds all retail pricing curves and estimation costs. One update here syncs the whole shop.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4 items-start">
+                            <div class="p-2 rounded bg-orange-100 text-orange-600 font-black text-[10px]">AUTH</div>
+                            <div>
+                                <h4 class="text-[10px] font-black text-gray-900 uppercase">Permissions Control</h4>
+                                <p class="text-[10px] text-gray-500 leading-tight mt-1">Defined users and roles control what you see. Admins can toggle modules or update logic globally via the Cloud Matrix.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4 items-start">
+                            <div class="p-2 rounded bg-orange-100 text-orange-600 font-black text-[10px]">BOM</div>
+                            <div>
+                                <h4 class="text-[10px] font-black text-gray-900 uppercase">The Physics Basis</h4>
+                                <p class="text-[10px] text-gray-500 leading-tight mt-1">Every calculation considers raw material cost and specialized labor tasks (weeding, routing, printing).</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: PROJECT PROGRESS -->
+        <section class="newsletter-section bg-slate-900 rounded-3xl p-10 text-white">
+            <header class="flex justify-between items-center mb-10">
+                <div>
+                    <h3 class="text-2xl font-black tracking-tighter uppercase italic">Registry Status</h3>
+                    <p class="text-slate-400 text-xs">Progress derived from SYS_Roadmap & Actions.</p>
+                </div>
+                <span class="text-[10px] bg-slate-800 px-3 py-1 rounded-full text-slate-400 font-mono tracking-widest uppercase">Sync: Online</span>
+            </header>
+
+            <div class="grid md:grid-cols-2 gap-12">
+                <div>
+                    <h4 class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-6">Upcoming Features</h4>
+                    <div class="space-y-4">
+                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                            <div class="flex justify-between mb-2">
+                                <span class="roadmap-tag tag-sprint">Analytics</span>
+                                <span class="text-[9px] text-slate-500 font-mono">#1002</span>
+                            </div>
+                            <h5 class="text-xs font-bold uppercase text-slate-100 italic">Profit Heatmap Engine</h5>
+                            <p class="text-[10px] text-slate-400 mt-1 leading-normal">Charting pricing "sweet spots" to maximize margins on high-volume runs.</p>
+                        </div>
+                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                            <div class="flex justify-between mb-2">
+                                <span class="roadmap-tag tag-sprint">Manufacturing</span>
+                                <span class="text-[9px] text-slate-500 font-mono">#1003</span>
+                            </div>
+                            <h5 class="text-xs font-bold uppercase text-slate-100 italic">Channel Letter Core</h5>
+                            <p class="text-[10px] text-slate-400 mt-1 leading-normal">Calculating Coil, Trim Cap, and LEDs for custom fabricated signage.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-[10px] font-black text-green-400 uppercase tracking-widest mb-6">Recent Completions</h4>
+                    <div class="space-y-4">
+                        <div class="flex gap-4 items-start bg-slate-800/20 p-4 rounded-xl">
+                            <span class="roadmap-tag tag-done">DONE</span>
+                            <div>
+                                <h5 class="text-xs font-bold uppercase text-slate-200">The Cloud Matrix Engine</h5>
+                                <p class="text-[10px] text-slate-500 mt-1 leading-tight">Deployed admin override system for global material pricing management.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4 items-start bg-slate-800/20 p-4 rounded-xl">
+                            <span class="roadmap-tag tag-done">DONE</span>
+                            <div>
+                                <h5 class="text-xs font-bold uppercase text-slate-200">Auth & Telemetry v2</h5>
+                                <p class="text-[10px] text-slate-500 mt-1 leading-tight">Standardized PIN-based login and session tracking for all calculators.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ARTICLE OVERLAY -->
+    <div id="article-overlay" onclick="closeArticleOnClickAway(event)">
+        <div class="max-w-3xl mx-auto my-20 p-8 md:p-16 bg-white rounded-3xl shadow-2xl relative" onclick="event.stopPropagation()">
+            <button onclick="closeArticle()" class="absolute top-8 right-8 text-gray-400 hover:text-gray-900 transition font-black text-xl">✕</button>
+            <div id="article-content" class="prose prose-slate prose-sm max-w-none">
+                <!-- Content Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- CONTENT DATABASE ---
+    const ARTICLES = {
+        release: `
+            <span class="text-blue-600 font-black uppercase text-[10px] tracking-widest">Official Release - Feb 23, 2026</span>
+            <h1 class="text-3xl font-black text-slate-900 mb-6">Sales Floor Empowerment: 8 Core Modules Live</h1>
+            <p class="text-slate-600 leading-relaxed text-base">We have activated 8 product families for production-ready retail quoting. This marks our shift from manual calculations to an automated, market-driven logic system.</p>
+            
+            <div class="grid gap-4 mt-8">
+                <div class="border-l-4 border-blue-600 pl-4 bg-gray-50 p-3 rounded-r-lg">
+                    <h4 class="text-xs font-black text-gray-900 uppercase">Yard Signs</h4>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">Standard 18x24 signage with automated H-Stake bundling and tiered bulk discounts.</p>
+                </div>
+                <div class="border-l-4 border-purple-500 pl-4 bg-gray-50 p-3 rounded-r-lg">
+                    <h4 class="text-xs font-black text-gray-900 uppercase">Custom Coroplast</h4>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">Calculates 4mm and 10mm sizes, routing automatically between direct and vinyl print methods.</p>
+                </div>
+                <div class="border-l-4 border-slate-600 pl-4 bg-gray-50 p-3 rounded-r-lg">
+                    <h4 class="text-xs font-black text-gray-900 uppercase">ACM Signs</h4>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">Aluminum composite panels. Automatically distinguishes Shear cuts from CNC Routing fees.</p>
+                </div>
+                <div class="border-l-4 border-indigo-600 pl-4 bg-gray-50 p-3 rounded-r-lg">
+                    <h4 class="text-xs font-black text-gray-900 uppercase">PVC Signs</h4>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">Retail Sintra boards. Logic includes a 10% deduction if no lamination is selected.</p>
+                </div>
+                <div class="border-l-4 border-orange-600 pl-4 bg-gray-50 p-3 rounded-r-lg">
+                    <h4 class="text-xs font-black text-gray-900 uppercase">Foam Core</h4>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">Temporary indoor display boards. Automatically respects the global $50 shop minimum.</p>
+                </div>
+                <div class="border-l-4 border-green-600 pl-4 bg-gray-50 p-3 rounded-r-lg">
+                    <h4 class="text-xs font-black text-gray-900 uppercase">Banners</h4>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">13oz-18oz scrim vinyl with finishing math for pole pockets and wind slits.</p>
+                </div>
+                <div class="border-l-4 border-pink-600 pl-4 bg-gray-50 p-3 rounded-r-lg">
+                    <h4 class="text-xs font-black text-gray-900 uppercase">Digital Print</h4>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">Standard decals on IJ35 or IJ180, calculating Die-cut vs Kiss-cut production time.</p>
+                </div>
+                <div class="border-l-4 border-yellow-500 pl-4 bg-gray-50 p-3 rounded-r-lg">
+                    <h4 class="text-xs font-black text-gray-900 uppercase">Cut Vinyl</h4>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">Solid color lettering. Uses "Intricate Weeding" labor multipliers for small/complex text.</p>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100 my-12 text-center">
+                <p class="text-blue-800 text-xs font-bold leading-relaxed">NOTE: Laying the groundwork to shift The Sign Store from static, sheet based pricing to agile, market based pricing.</p>
+            </div>
+        `,
+        guide: `
+            <span class="text-blue-600 font-black uppercase text-[10px] tracking-widest">Training Tutorial</span>
+            <h1 class="text-3xl font-black text-slate-900 mb-6 italic">Mastering the Quoting Flow</h1>
+            
+            <div class="space-y-16">
+                <div>
+                    <img src="https://i.imgur.com/s66wweQ.jpeg" class="rounded-2xl shadow-lg border border-slate-200 mb-6">
+                    <h3 class="font-black text-slate-900 uppercase text-xs tracking-widest">Step 1: Size and Quantity</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Input the width and height of the finished product. Set the quantity. The system instantly begins mapping the order to the Master Retail Curve.</p>
+                </div>
+                <div>
+                    <img src="https://i.imgur.com/hSz9t6d.jpeg" class="rounded-2xl shadow-lg border border-slate-200 mb-6">
+                    <h3 class="font-black text-slate-900 uppercase text-xs tracking-widest">Step 2: Define Product Variables</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Select options such as material thickness, sides, or custom cuts. These selections trigger background labor multipliers (e.g. CNC setup fees).</p>
+                </div>
+                <div>
+                    <img src="https://i.imgur.com/QLcIduk.jpeg" class="rounded-2xl shadow-lg border border-slate-200 mb-6">
+                    <h3 class="font-black text-slate-900 uppercase text-xs tracking-widest">Step 3: Check Retail Price</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Review the calculated total. This is your market-competitive price. Note that quantity discounts apply automatically as you increase volume.</p>
+                </div>
+                <div>
+                    <img src="https://i.imgur.com/IJkq0g5.jpeg" class="rounded-2xl shadow-lg border border-slate-200 mb-6">
+                    <h3 class="font-black text-slate-900 uppercase text-xs tracking-widest">Step 4: Sync with Workflow</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Click 'Copy Description' to grab the technical specs. Paste this directly into QuickBooks or Freshdesk to maintain data integrity for the production team.</p>
+                </div>
+            </div>
+        `
+    };
+
+    const openArticle = (id) => {
+        document.getElementById('article-content').innerHTML = ARTICLES[id] || 'Content not found.';
+        const overlay = document.getElementById('article-overlay');
+        overlay.classList.add('active');
+        overlay.scrollTop = 0; // Ensure article starts at the top
+        document.body.style.overflow = 'hidden';
+    };
+
+    const closeArticle = () => {
+        document.getElementById('article-overlay').classList.remove('active');
+        document.body.style.overflow = 'auto';
+    };
+
+    const closeArticleOnClickAway = (event) => {
+        if (event.target.id === 'article-overlay') {
+            closeArticle();
+        }
+    };
+
+    // --- AUTH & INITIALIZATION ---
+    window.onload = function() {
+        const u = sessionStorage.getItem('signos_user') || 'GUEST';
+        const r = sessionStorage.getItem('signos_role') || 'SALES';
+        
+        document.getElementById('auth-user').innerText = u;
+        document.getElementById('auth-role').innerText = r;
+
+        if (window.location.href.includes('signos-app')) {
+            const badge = document.getElementById('env-badge');
+            badge.innerText = "DEV MODE";
+            badge.className = "px-1.5 py-0.5 rounded text-[8px] font-black bg-orange-500 text-white uppercase tracking-tighter";
+        }
+    };
+</script>
+</body>
+</html>

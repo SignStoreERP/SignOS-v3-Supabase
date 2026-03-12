@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignOS Secure Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- CORE SYSTEM (Telemetry & Config) -->
+    <script src="signos-core.js"></script>
+    
+    <style>
+        .key-btn { transition: all 0.1s; user-select: none; touch-action: manipulation; }
+        .key-btn:active { transform: scale(0.95); background-color: #e5e7eb; }
+        
+        .shake { animation: shake 0.5s; }
+        @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); } }
+    </style>
+
+    <script>
+        // AUTO-FORWARD: Specific to Gateway only
+        if (sessionStorage.getItem("signos_user")) {
+            const role = sessionStorage.getItem("signos_role");
+            let mode = (role === 'PROD') ? 'production' : (role === 'ADMIN' ? 'admin' : 'sales');
+            window.location.href = `menu.html?mode=${mode}`;
+        }
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <div class="max-w-sm w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200" id="login-card">
+        
+        <!-- HEADER -->
+        <div class="bg-gray-900 px-6 py-6 text-center">
+            <h1 class="text-2xl font-black text-white tracking-tight">SignOS ERP</h1>
+            <p class="text-gray-400 text-[10px] mt-1 uppercase tracking-widest">Secure Access Gateway</p>
+        </div>
+
+        <div class="p-6">
+            <!-- DISPLAY -->
+            <div class="mb-6 relative">
+                <div class="h-12 bg-gray-50 rounded border border-gray-200 flex items-center justify-center">
+                    <span id="pin-display" class="text-2xl text-gray-800 font-mono tracking-[0.5em] h-8"></span>
+                </div>
+            </div>
+
+            <!-- KEYPAD -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <button onclick="press(1)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">1</button>
+                <button onclick="press(2)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">2</button>
+                <button onclick="press(3)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">3</button>
+                <button onclick="press(4)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">4</button>
+                <button onclick="press(5)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">5</button>
+                <button onclick="press(6)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">6</button>
+                <button onclick="press(7)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">7</button>
+                <button onclick="press(8)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">8</button>
+                <button onclick="press(9)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">9</button>
+                <button onclick="clearPin()" class="key-btn h-14 bg-red-50 border border-red-100 rounded-lg text-sm font-bold text-red-500">CLR</button>
+                <button onclick="press(0)" class="key-btn h-14 bg-white border border-gray-200 rounded-lg text-xl font-bold text-gray-700 shadow-sm">0</button>
+                <button onclick="submitPin()" class="key-btn h-14 bg-blue-600 rounded-lg text-sm font-bold text-white shadow-md shadow-blue-200" id="btn-go">ENTER</button>
+            </div>
+
+            <!-- STATUS MSG -->
+            <div id="status-msg" class="text-center text-[10px] font-bold text-gray-400 h-4 uppercase tracking-wide">Authorized Personnel Only</div>
+        </div>
+
+        <div class="bg-gray-50 border-t border-gray-100 p-3 text-center">
+            <p class="text-[9px] text-gray-400">v3.5 | System Status: <span class="text-green-500 font-bold">ONLINE</span></p>
+        </div>
+    </div>
+
+    <script>
+        let currentPin = "";
+
+        function press(num) {
+            if (currentPin.length < 6) {
+                currentPin += num;
+                updateDisplay();
+            }
+        }
+
+        function clearPin() {
+            currentPin = "";
+            updateDisplay();
+            resetStatus();
+        }
+
+        function updateDisplay() {
+            document.getElementById("pin-display").innerText = "•".repeat(currentPin.length);
+        }
+
+        function resetStatus() {
+            const msg = document.getElementById("status-msg");
+            msg.innerText = "AUTHORIZED PERSONNEL ONLY";
+            msg.className = "text-center text-[10px] font-bold text-gray-400 h-4 uppercase tracking-wide";
+        }
+
+        async function submitPin() {
+            if (currentPin.length < 6) return;
+            
+            const msg = document.getElementById("status-msg");
+            const btn = document.getElementById("btn-go");
+            
+            msg.innerText = "AUTHENTICATING...";
+            msg.className = "text-center text-[10px] font-bold text-blue-500 h-4 uppercase tracking-wide animate-pulse";
+            btn.disabled = true;
+
+            try {
+                const userAgent = encodeURIComponent(navigator.userAgent);
+                const response = await fetch(`${SCRIPT_URL}?req=auth&pin=${currentPin}&ip=${clientIP}&meta=${userAgent}`);
+                const data = await response.json();
+
+                if (data.status === "success") {
+                    msg.innerText = `WELCOME, ${data.name.toUpperCase()}`;
+                    msg.className = "text-center text-[10px] font-bold text-green-600 h-4 uppercase tracking-wide";
+                    
+                    sessionStorage.setItem("signos_user", data.name);
+                    sessionStorage.setItem("signos_role", data.role);
+                    
+                    // SAVE PERMISSIONS OBJECT
+                    const perms = data.permissions || { roadmap: "None", backup: "None" };
+                    sessionStorage.setItem("signos_perms", JSON.stringify(perms));
+                    
+                    let mode = (data.role === "PROD") ? 'production' : (data.role === "ADMIN" ? 'admin' : 'sales');
+                    sessionStorage.setItem("signos_mode", mode);
+                    
+                    setTimeout(() => { window.location.href = `menu.html?mode=${mode}`; }, 500);
+                } else {
+                    throw new Error(data.message || "Invalid PIN");
+                }
+            } catch (e) {
+                msg.innerText = e.message.toUpperCase();
+                msg.className = "text-center text-[10px] font-bold text-red-500 h-4 uppercase tracking-wide";
+                document.getElementById("login-card").classList.add("shake");
+                setTimeout(() => document.getElementById("login-card").classList.remove("shake"), 500);
+                
+                currentPin = "";
+                updateDisplay();
+                btn.disabled = false;
+            }
+        }
+
+        // --- FIXED: PHYSICAL KEYBOARD SUPPORT ---
+        document.addEventListener('keydown', function(event) {
+            // Prevent interfering with normal browser shortcuts (like Ctrl+R to refresh)
+            if (event.ctrlKey || event.altKey || event.metaKey) return;
+
+            const key = event.key;
+
+            // 1. Validate and accept number inputs (0-9) - FIX applied here
+            if (/^[1-8, 11]$/.test(key)) {
+                press(key);
+            } 
+            // 2. Handle 'Enter' key to submit
+            else if (key === 'Enter') {
+                submitPin();
+            } 
+            // 3. Handle 'Backspace' to delete the last number
+            else if (key === 'Backspace') {
+                if (currentPin.length > 0) {
+                    currentPin = currentPin.slice(0, -1);
+                    updateDisplay();
+                    resetStatus();
+                }
+            } 
+            // 4. Handle 'Escape' or 'c' to clear the entire PIN
+            else if (key === 'Escape' || key.toLowerCase() === 'c') {
+                clearPin();
+            }
+        });
+    </script>
+</body>
+</html>

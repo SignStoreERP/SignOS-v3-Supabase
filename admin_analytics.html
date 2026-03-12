@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing Analytics v6.2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="signos-core.js"></script>
+
+<script src="cost_yard.js"></script>
+<script src="cost_coro.js"></script>
+<script src="cost_pvc.js"></script>
+<script src="cost_foam.js"></script>
+<script src="cost_banner.js"></script>
+<script src="cost_acm.js"></script>
+<script src="cost_acrylic.js"></script>
+<script src="cost_cut.js"></script>
+<script src="cost_decal.js"></script>
+<script src="cost_wrap.js"></script>
+<script src="cost_wall.js"></script>
+<script src="cost_engraved.js"></script>
+
+<style>
+    body { background-color: #f1f5f9; font-family: 'Inter', sans-serif; overflow-x: hidden; overflow-y: auto; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    #signos-island { min-height: calc(100vh - 2rem); margin: 0 auto; max-width: 1600px; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1); }
+    .sticky-col { position: sticky; left: 0; background-color: #f8fafc; z-index: 20; border-right: 2px solid #e2e8f0; }
+    .sticky-row { position: sticky; top: 0; background-color: #f8fafc; z-index: 30; border-bottom: 2px solid #e2e8f0; }
+    .heatmap-cell { min-width: 80px; height: 48px; transition: all 0.1s; cursor: crosshair; border: 1px solid #f1f5f9; }
+    /* Crosshair Hover CSS */
+    .heatmap-table-container { overflow: auto; position: relative; }
+    .row-hover { background-color: #eff6ff !important; }
+    .col-hover { background-color: #eff6ff !important; }
+    .heatmap-cell:hover { transform: scale(1.05); z-index: 40; box-shadow: 0 5px 10px rgba(0,0,0,0.1); border-color: #3b82f6; background-color: #dbeafe !important; }
+</style>
+</head>
+<body class="p-0 sm:p-4">
+
+<div id="signos-island" class="bg-white rounded-2xl flex flex-col border border-gray-200">
+    <div id="main-card" class="w-full shrink-0 border-b border-gray-800"></div>
+
+    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+        
+        <div class="w-full lg:w-64 bg-slate-50 border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col shrink-0">
+            <div class="p-4 bg-gray-100 border-b border-gray-200"><label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block text-center">Module Select</label></div>
+            <div class="max-h-48 overflow-y-auto p-3 space-y-1 custom-scrollbar border-b border-gray-200" id="module-nav"></div>
+            <div class="p-4 bg-gray-100 border-b border-gray-200"><label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Base Specifications</label></div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar" id="product-specific-controls"></div>
+            <div class="p-4 bg-white border-t border-gray-200 shrink-0">
+                <button onclick="generateMatrix()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-lg shadow-md uppercase tracking-widest text-[10px] transition">Run Simulation</button>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col bg-slate-50 relative min-w-0">
+            <div class="h-auto lg:h-14 bg-white border-b border-gray-200 flex flex-col lg:flex-row lg:items-center justify-between p-4 lg:px-6 z-10 shrink-0 gap-3">
+                <div class="flex items-center space-x-4">
+                    <div class="flex bg-gray-100 p-1 rounded-xl" id="view-toggles">
+                        <button onclick="setView('chart')" id="btn-view-chart" class="px-4 py-1.5 text-[10px] font-black rounded-lg bg-white shadow-sm text-blue-600 uppercase transition">Line Chart</button>
+                        <button onclick="setView('heatmap')" id="btn-view-heatmap" class="px-4 py-1.5 text-[10px] font-black rounded-lg text-gray-400 hover:text-gray-600 uppercase transition">Heatmap</button>
+                    </div>
+                    <div class="flex items-center space-x-2 border-l border-gray-200 pl-4 ml-2">
+                        <label class="text-[10px] font-black text-gray-400 uppercase">Data Stream:</label>
+                        <select id="hm-analysis-mode" onchange="generateMatrix()" class="text-[10px] font-bold bg-transparent border-none text-blue-600 uppercase outline-none cursor-pointer">
+                            <option value="margin" selected>Net Margin (%)</option>
+                            <option value="retail">Market (Retail + Profit)</option>
+                            <option value="cost">Physics (Hard Cost)</option>
+                        </select>
+                    </div>
+                    <div id="wrap-install-toggle" class="hidden items-center space-x-2 border-l border-gray-200 pl-4 ml-2">
+                        <label class="flex items-center gap-1.5 cursor-pointer bg-blue-50 px-2 py-1 rounded shadow-inner border border-blue-200 hover:bg-blue-100 transition">
+                            <input type="checkbox" id="global-install" class="w-3 h-3 text-blue-600 rounded cursor-pointer" onchange="generateMatrix()">
+                            <span class="text-[9px] font-black text-blue-800 uppercase tracking-widest">Include Install</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div id="canvas-area" class="flex-1 relative flex flex-col p-4 overflow-hidden min-h-[400px]">
+                <div id="initial-state" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 z-40 transition-all duration-300">
+                    <span class="text-5xl mb-4 text-blue-500">📊</span>
+                    <h2 class="text-xl font-black text-gray-800 uppercase tracking-widest">Pricing Analytics</h2>
+                    <p class="text-sm text-gray-500 font-bold mt-2 uppercase">Select a product to begin.</p>
+                </div>
+                <div id="loader" class="absolute inset-0 bg-gray-900/60 z-50 hidden flex flex-col items-center justify-center backdrop-blur-sm transition-all rounded-xl">
+                    <div class="animate-spin rounded-full h-14 w-14 border-4 border-white border-t-blue-500 mb-4"></div>
+                    <span class="text-xs font-black text-white tracking-widest uppercase">Computing Matrix...</span>
+                </div>
+
+                <div id="view-chart" class="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-4 relative min-h-0">
+                    <canvas id="physicsChart"></canvas>
+                </div>
+
+                <div id="view-heatmap" class="hidden flex-1 overflow-auto custom-scrollbar bg-white rounded-2xl border border-gray-200 shadow-sm relative min-h-0 flex flex-col heatmap-table-container">
+                    <div class="flex-1 overflow-auto custom-scrollbar">
+                        <table class="border-collapse text-[11px] w-full table-fixed" id="heatmap-table">
+                            <thead id="heatmap-head" class="sticky-row"></thead>
+                            <tbody id="heatmap-body" onmouseleave="clearCrosshairs()"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full lg:w-[400px] bg-white border-t lg:border-t-0 lg:border-l border-gray-200 flex flex-col shrink-0 z-10 shadow-[-4px_0_15px_rgba(0,0,0,0.03)] min-h-[400px] lg:min-h-0">
+            <div class="p-4 bg-gray-900 border-b border-gray-800 shrink-0 flex justify-between items-center">
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Point Inspection</label>
+                <button onclick="toggleSandbox()" class="text-[9px] bg-gray-700 text-gray-300 hover:text-white px-2 py-1 rounded transition uppercase font-black">⚙️ Live Overrides</button>
+            </div>
+            <div id="inspection-meta" class="p-4 bg-slate-50 border-b border-gray-200 text-center flex flex-col items-center justify-center min-h-[100px] shrink-0">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest italic">Select a point on the chart to inspect.</span>
+            </div>
+            
+            <div id="sandbox-panel" class="hidden bg-gray-800 p-4 border-b border-gray-700 shrink-0 shadow-inner">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[10px] font-black text-blue-400 uppercase tracking-widest">Local Variable Sandbox</span>
+                    <button onclick="resetSandbox()" class="text-[9px] text-gray-400 hover:text-red-400 uppercase font-bold">Reset</button>
+                </div>
+                <div id="sandbox-inputs" class="max-h-48 overflow-y-auto custom-scrollbar space-y-2 pr-2"></div>
+                <button onclick="recalcLocalPoint()" class="w-full mt-3 bg-blue-600 hover:bg-blue-500 text-white font-black py-2 rounded shadow text-[10px] uppercase tracking-widest transition">Apply to Point</button>
+            </div>
+
+            <div id="receipt-container" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-gray-50"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ALL_MODULES = new Array(
+        { id: 'yard', name: 'Yard Signs', config: window.YARD_CONFIG },
+        { id: 'coro', name: 'Custom Coroplast', config: window.CORO_CONFIG },
+        { id: 'pvc', name: 'PVC Signs', config: window.PVC_CONFIG },
+        { id: 'foam', name: 'Foam Core', config: window.FOAM_CONFIG },
+        { id: 'acm', name: 'ACM Signs', config: window.ACM_CONFIG },
+        { id: 'acrylic', name: 'Acrylic Signs', config: window.ACRYLIC_CONFIG },
+        { id: 'banner', name: 'Vinyl Banners', config: window.BANNER_CONFIG },
+        { id: 'cut', name: 'Cut Vinyl', config: window.CUT_CONFIG },
+        { id: 'decal', name: 'Digital Graphics', config: window.DECAL_CONFIG },
+        { id: 'wrap', name: 'Vehicle Wraps', config: window.WRAP_CONFIG },
+        { id: 'wall', name: 'Interior Wall Wraps', config: window.WALL_CONFIG },
+        { id: 'engraved', name: 'ADA Quoter', config: window.ENGRAVED_CONFIG }
+    );
+    
+    const MODULES = ALL_MODULES.filter(m => m.config);
+    const X_STEPS_YARD = new Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30, 40, 50, 100, 200, 300, 400, 500, 1000);
+    const ADA_SIZES = [{w: 3, h: 2}, {w: 4, h: 4}, {w: 6, h: 6}, {w: 8, h: 6}, {w: 8, h: 8}, {w: 10, h: 10}, {w: 12, h: 12}, {w: 12, h: 16}, {w: 16, h: 16}, {w: 24, h: 24}];
+
+    let activeConfig = null;
+    let backendData = {};
+    let customSimData = {}; // Holds local sandbox tweaks
+    let chartInstance = null;
+    let currentView = 'chart';
+    let currentChartDataMap = {};
+    let activePointKey = null;
+
+    window.onload = () => {
+        injectHeader("Pricing Analytics v6.2", true);
+        renderProductMenu();
+    };
+
+    function renderProductMenu() {
+        const nav = document.getElementById('module-nav');
+        nav.innerHTML = "";
+        
+        MODULES.forEach(m => {
+            const btn = document.createElement('button');
+            btn.className = "w-full text-left px-3 py-2 rounded text-xs font-black uppercase tracking-widest text-gray-700 bg-white border border-gray-200 hover:border-blue-400 hover:text-blue-600 transition";
+            btn.innerText = m.name;
+            
+            btn.onclick = async () => {
+                document.querySelectorAll('#module-nav button').forEach(b => b.classList.remove('bg-blue-600', 'text-white'));
+                btn.classList.add('bg-blue-600', 'text-white');
+                btn.classList.remove('bg-white', 'text-gray-700');
+                
+                activeConfig = m.config;
+                activeConfig.id = m.id; 
+
+                const tgInstall = document.getElementById('wrap-install-toggle');
+                if (m.id === 'wrap' || m.id === 'wall') {
+                    tgInstall.classList.remove('hidden'); tgInstall.classList.add('flex');
+                } else {
+                    tgInstall.classList.add('hidden'); tgInstall.classList.remove('flex');
+                }
+
+                currentChartDataMap = {};
+                activePointKey = null;
+                customSimData = {};
+                document.getElementById('initial-state').classList.add('hidden');
+                document.getElementById('loader').classList.remove('hidden');
+                document.getElementById('receipt-container').innerHTML = '';
+                document.getElementById('inspection-meta').innerHTML = '<span class="text-xs font-bold text-gray-400 uppercase tracking-widest italic">Select a point on the chart to inspect.</span>';
+
+                try {
+                    const req = await fetch(`${SCRIPT_URL}?req=view_module&tab=${activeConfig.tab}`);
+                    backendData = await req.json();
+                    customSimData = { ...backendData }; // Reset sandbox to baseline
+                    buildSandboxInputs();
+
+                    renderProductSpecificControls();
+                    generateMatrix();
+                } catch(e) { console.error("Fetch failed", e); } 
+                finally { document.getElementById('loader').classList.add('hidden'); }
+            };
+            nav.appendChild(btn);
+        });
+    }
+
+    function renderProductSpecificControls() {
+        const ctrlBox = document.getElementById('product-specific-controls');
+        ctrlBox.innerHTML = "";
+        if (!activeConfig) return;
+
+        let html = `<div><label class="block text-[9px] font-black text-blue-600 uppercase mb-1">Simulate Base Qty</label><input type="number" id="chart-qty" value="1" min="1" class="w-full border border-blue-300 bg-blue-50 rounded px-2 py-1.5 text-xs font-black focus:ring-2 focus:ring-blue-500 outline-none shadow-inner"></div>`;
+
+        activeConfig.controls.forEach(c => {
+            if (c.id === 'w' || c.id === 'h' || c.id === 'qty') return; 
+            html += `<div><label class="block text-[9px] font-black text-gray-500 uppercase mb-1">${c.label}</label>`;
+            if (c.type === 'select') {
+                html += `<select id="ctrl_${c.id}" class="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs font-black focus:ring-2 focus:ring-blue-500 outline-none shadow-sm cursor-pointer">`;
+                c.opts.forEach(o => { html += `<option value="${o.v}">${o.t}</option>`; });
+                html += `</select></div>`;
+            } else if (c.type === 'toggle') {
+                html += `<label class="flex items-center gap-2 cursor-pointer bg-white border border-gray-200 p-1.5 rounded shadow-sm hover:bg-gray-50"><input type="checkbox" id="ctrl_${c.id}" ${c.def ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded cursor-pointer"><span class="text-[10px] font-bold text-gray-700 uppercase">Enable</span></label></div>`;
+            } else {
+                html += `<input type="number" id="ctrl_${c.id}" value="${c.def}" class="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs font-black focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"></div>`;
+            }
+        });
+        ctrlBox.innerHTML = html;
+    }
+
+    function toggleSandbox() { document.getElementById('sandbox-panel').classList.toggle('hidden'); }
+    
+    function buildSandboxInputs() {
+        let html = '';
+        const buildSection = (arr, color) => {
+            arr.forEach(i => {
+                const v = customSimData[i.key] !== undefined ? customSimData[i.key] : '';
+                html += `<div class="flex justify-between items-center gap-2"><label class="text-[9px] font-bold text-gray-400 truncate flex-1">${i.label}</label><input type="text" id="sbx_${i.key}" value="${v}" class="w-16 bg-gray-900 border border-gray-600 text-gray-200 text-xs font-mono text-center rounded outline-none focus:border-${color}-500 py-0.5"></div>`;
+            });
+        };
+        if(activeConfig.retails) buildSection(activeConfig.retails, 'blue');
+        if(activeConfig.costs) buildSection(activeConfig.costs, 'red');
+        document.getElementById('sandbox-inputs').innerHTML = html;
+    }
+
+    function resetSandbox() { customSimData = { ...backendData }; buildSandboxInputs(); if(activePointKey) recalcLocalPoint(); }
+
+    function recalcLocalPoint() {
+        if(!activeConfig || !activePointKey) return;
+        const payload = currentChartDataMap[activePointKey];
+        if(!payload) return;
+        
+        // Harvest Sandbox values
+        const updateVals = (arr) => {
+            arr.forEach(i => {
+                let v = document.getElementById(`sbx_${i.key}`).value;
+                if(v==='TRUE'||v==='true') customSimData[i.key] = true;
+                else if(v==='FALSE'||v==='false') customSimData[i.key] = false;
+                else if(v !== "") customSimData[i.key] = parseFloat(v);
+            });
+        };
+        if(activeConfig.retails) updateVals(activeConfig.retails);
+        if(activeConfig.costs) updateVals(activeConfig.costs);
+
+        // Recalculate JUST this point
+        const res = activeConfig.engine(payload.inputs, customSimData);
+        
+        const mode = document.getElementById('hm-analysis-mode').value;
+        const margin = res.metrics.margin;
+        let displayStr = mode === 'margin' ? (margin*100).toFixed(1) + '%' : '$' + (mode === 'retail' ? (res.retail.unitPrice || res.retail.grandTotal/payload.inputs.qty) : res.cost.total/payload.inputs.qty).toFixed(2);
+        
+        payload.res = res; // Save it back
+        renderInspection(activePointKey, displayStr);
+    }
+
+    function setView(view) {
+        currentView = view;
+        document.getElementById('view-chart').classList.toggle('hidden', view !== 'chart');
+        document.getElementById('view-heatmap').classList.toggle('hidden', view !== 'heatmap');
+        document.getElementById('btn-view-heatmap').className = view === 'heatmap' ? 'px-4 py-1.5 text-[10px] font-black rounded-lg bg-white shadow-sm text-blue-600 uppercase transition' : 'px-4 py-1.5 text-[10px] font-black rounded-lg text-gray-400 hover:text-gray-600 uppercase transition';
+        document.getElementById('btn-view-chart').className = view === 'chart' ? 'px-4 py-1.5 text-[10px] font-black rounded-lg bg-white shadow-sm text-blue-600 uppercase transition' : 'px-4 py-1.5 text-[10px] font-black rounded-lg text-gray-400 hover:text-gray-600 uppercase transition';
+        generateMatrix();
+    }
+
+    function getMarginColor(margin) {
+        let mPct = Math.max(0, Math.min(1, margin));
+        let hue = mPct * 120; 
+        return `background-color: hsl(${hue}, 85%, 85%); color: hsl(${hue}, 90%, 20%);`;
+    }
+
+    function generateMatrix() {
+        if(!activeConfig) return;
+        currentChartDataMap = {};
+        if (currentView === 'chart') drawLineChart(customSimData);
+        else drawHeatmap(customSimData);
+    }
+
+    function getProductBounds(id) {
+        if (id === 'acm') return { w: 10, h: 5, sqft: 50, stepW: 1, stepH: 1 }; 
+        if (id === 'pvc') return { w: 10, h: 5, sqft: 50, stepW: 1, stepH: 1 }; 
+        if (id === 'banner') return { w: 12, h: 5, sqft: 60, stepW: 1, stepH: 1 };
+        if (id === 'wrap' || id === 'wall') return { w: 40, h: 10, sqft: 400, stepW: 2, stepH: 1 };
+        if (id === 'decal' || id === 'cut') return { w: 10, h: 5, sqft: 50, stepW: 1, stepH: 1 };
+        if (id === 'ada') return { w: 24, h: 24, sqft: 576, stepW: 4, stepH: 2 }; 
+        return { w: 8, h: 4, sqft: 32, stepW: 1, stepH: 1 }; 
+    }
+
+    function drawLineChart(simData) {
+        const id = activeConfig.id;
+        const mode = document.getElementById('hm-analysis-mode').value;
+        const bounds = getProductBounds(id);
+        const globalInstall = document.getElementById('global-install') ? document.getElementById('global-install').checked : false;
+        
+        let steps = [];
+        let labels = [];
+
+        if (id === 'yard') { steps = [...X_STEPS_YARD]; labels = steps; }
+        else if (id === 'ada') { steps = ADA_SIZES; labels = steps.map(s => `${s.w}x${s.h}"`); }
+        else if (id === 'wrap' || id === 'wall') {
+            for(let i=1; i<=10; i++) steps.push(i);
+            labels = steps.map(s => `${s} Panel(s)`);
+        } else {
+            const maxVal = bounds.sqft;
+            for(let i=1; i<=maxVal; i++) steps.push(i);
+            labels = steps;
+        }
+
+        let baseInputs = { qty: parseInt(document.getElementById('chart-qty').value) || 1 };
+        activeConfig.controls.forEach(c => {
+            if (c.id === 'w' || c.id === 'h' || c.id === 'qty') return;
+            const el = document.getElementById('ctrl_' + c.id);
+            if (el) baseInputs[c.id] = c.type === 'toggle' ? el.checked : (isNaN(el.value) ? el.value : parseFloat(el.value));
+        });
+
+        const permutations = new Array();
+
+        if (id === 'yard') {
+            permutations.push({ label: "Single-Sided (No Stakes)", inputs: { ...baseInputs, sides: 1, hasStakes: false } });
+            permutations.push({ label: "Double-Sided (No Stakes)", inputs: { ...baseInputs, sides: 2, hasStakes: false } });
+            permutations.push({ label: "Single-Sided (With Stakes)", inputs: { ...baseInputs, sides: 1, hasStakes: true } });
+            permutations.push({ label: "Double-Sided (With Stakes)", inputs: { ...baseInputs, sides: 2, hasStakes: true } });
+        } else if (id === 'coro') {
+            permutations.push({ label: "4mm Single-Sided", inputs: { ...baseInputs, thickness: '4mm', sides: 1 } });
+            permutations.push({ label: "4mm Double-Sided", inputs: { ...baseInputs, thickness: '4mm', sides: 2 } });
+            permutations.push({ label: "10mm Single-Sided", inputs: { ...baseInputs, thickness: '10mm', sides: 1 } });
+            permutations.push({ label: "10mm Double-Sided", inputs: { ...baseInputs, thickness: '10mm', sides: 2 } });
+        } else if (id === 'acm') {
+            permutations.push({ label: "3mm Single-Sided", inputs: { ...baseInputs, thickness: '3mm', sides: 1 } });
+            permutations.push({ label: "3mm Double-Sided", inputs: { ...baseInputs, thickness: '3mm', sides: 2 } });
+            permutations.push({ label: "6mm Single-Sided", inputs: { ...baseInputs, thickness: '6mm', sides: 1 } });
+            permutations.push({ label: "6mm Double-Sided", inputs: { ...baseInputs, thickness: '6mm', sides: 2 } });
+        } else if (id === 'pvc') {
+            permutations.push({ label: "3mm Single-Sided", inputs: { ...baseInputs, thickness: '3mm', sides: 1 } });
+            permutations.push({ label: "3mm Double-Sided", inputs: { ...baseInputs, thickness: '3mm', sides: 2 } });
+            permutations.push({ label: "6mm Single-Sided", inputs: { ...baseInputs, thickness: '6mm', sides: 1 } });
+            permutations.push({ label: "6mm Double-Sided", inputs: { ...baseInputs, thickness: '6mm', sides: 2 } });
+        } else if (id === 'foam') {
+            permutations.push({ label: "3/16\" Single-Sided", inputs: { ...baseInputs, thickness: '3/16', sides: 1 } });
+            permutations.push({ label: "3/16\" Double-Sided", inputs: { ...baseInputs, thickness: '3/16', sides: 2 } });
+        } else if (id === 'acrylic') {
+            permutations.push({ label: "1/4\" Thick", inputs: { ...baseInputs, thickness: '0.25', color: 'White', method: 'standard', shape: 'Rectangle' } });
+            permutations.push({ label: "1/2\" Thick", inputs: { ...baseInputs, thickness: '0.5', color: 'White', method: 'standard', shape: 'Rectangle' } });
+            permutations.push({ label: "3/4\" Thick", inputs: { ...baseInputs, thickness: '0.75', color: 'White', method: 'standard', shape: 'Rectangle' } });
+            permutations.push({ label: "1\" Thick", inputs: { ...baseInputs, thickness: '1', color: 'White', method: 'standard', shape: 'Rectangle' } });
+        } else if (id === 'banner') {
+            permutations.push({ label: "13oz Standard", inputs: { ...baseInputs, material: '13oz' } });
+        } else if (id === 'decal') {
+            permutations.push({ label: "Standard (Cal)", inputs: { ...baseInputs, material: 'Standard' } });
+            permutations.push({ label: "Premium (Cast)", inputs: { ...baseInputs, material: 'Cast' } });
+            permutations.push({ label: "Clear (Oracal 3640)", inputs: { ...baseInputs, material: 'Clear' } });
+            permutations.push({ label: "Reflective", inputs: { ...baseInputs, material: 'Reflective' } });
+        } else if (id === 'cut') {
+            permutations.push({ label: "Flat (751)", inputs: { ...baseInputs, material: '751' } });
+            permutations.push({ label: "Vehicle (951)", inputs: { ...baseInputs, material: '951' } });
+        } else if (id === 'wrap' || id === 'wall') {
+            const defMat = id === 'wall' ? 'smooth' : 'wrap';
+            permutations.push({ label: "Solid Media", inputs: { ...baseInputs, material: defMat } });
+            permutations.push({ label: "Window Perf", inputs: { ...baseInputs, material: 'perf6040' } });
+        } else if (id === 'ada') {
+            permutations.push({ label: "Standard (1/8\" Core)", inputs: { ...baseInputs, signType: 'Standard' } });
+            permutations.push({ label: "Layered (PVC Backer)", inputs: { ...baseInputs, signType: 'Layered_PVC' } });
+            permutations.push({ label: "Premium Layered (Acrylic)", inputs: { ...baseInputs, signType: 'Layered_Acrylic' } });
+        }
+
+        const datasets = new Array();
+        const lineColors = new Array('#3b82f6', '#10b981', '#8b5cf6', '#f97316'); 
+        const renderKey = mode === 'retail' ? 'ret' : (mode === 'cost' ? 'cst' : 'marg');
+
+        permutations.forEach((perm, index) => {
+            const dataTarget = new Array(); 
+            const dataLabor = new Array();
+
+            steps.forEach((stepVal, stepIndex) => {
+                let runInputs = { ...perm.inputs };
+                
+                if (id === 'yard') {
+                    runInputs.qty = stepVal;
+                    runInputs.w = 24; runInputs.h = 18; // Specific fix for Yard
+                } else if (id === 'ada') {
+                    runInputs.w = stepVal.w;
+                    runInputs.h = stepVal.h;
+                } else if (id === 'wrap' || id === 'wall') {
+                    runInputs.install = globalInstall ? 'Yes' : 'No';
+                    const panelH = id === 'wall' ? 96 : 72;
+                    runInputs.panels = [{ label: "Panel", qty: stepVal, w: 52, h: panelH, material: runInputs.material, included: false }];
+                } else {
+                    runInputs.w = 12; 
+                    runInputs.h = stepVal * 12;
+                }
+
+                if (typeof activeConfig.dynamicUI === 'function') runInputs = activeConfig.dynamicUI(runInputs);
+
+                try {
+                    const res = activeConfig.engine(runInputs, simData);
+                    const pointKey = 'ch-' + index + '-' + stepIndex; 
+                    currentChartDataMap[pointKey] = { res, inputs: runInputs };
+
+                    if (!res || !res.retail) { dataTarget.push(null); dataLabor.push(null); return; }
+
+                    const unitRet = res.retail.unitPrice || (res.retail.grandTotal / runInputs.qty);
+                    const unitCst = res.cost.total / runInputs.qty;
+                    const margin = res.metrics.margin;
+
+                    dataTarget.push({ ret: unitRet, cst: unitCst, prof: unitRet - unitCst, marg: margin * 100 });
+
+                    if (id === 'wrap' || id === 'wall') {
+                        let laborSum = 0;
+                        if(Array.isArray(res.cost.breakdown)) res.cost.breakdown.forEach(b => { if(b.label.includes('Install')) laborSum += b.total; });
+                        dataLabor.push({cst: laborSum / runInputs.qty});
+                    }
+                } catch(e) {
+                    dataTarget.push(null); dataLabor.push(null);
+                }
+            });
+
+            // Map specifically to primitives for safe Chart.js parsing
+            datasets.push({
+                type: 'line', label: perm.label, 
+                data: dataTarget.map(d => d ? d[renderKey] : null),
+                borderColor: lineColors[index % lineColors.length], backgroundColor: lineColors[index % lineColors.length],
+                borderWidth: 3, tension: 0.1, pointRadius: 4, _permIndex: index
+            });
+
+            if ((id === 'wrap' || id === 'wall') && mode === 'cost') {
+                datasets.push({
+                    type: 'line', label: perm.label + " (Install Labor)", 
+                    data: dataLabor.map(d => d ? d.cst : null),
+                    borderColor: '#f43f5e', borderDash: [1], borderWidth: 2, tension: 0.1, pointRadius: 0, _permIndex: index
+                });
+            }
+        });
+
+        if (chartInstance) chartInstance.destroy();
+        const ctx = document.getElementById('physicsChart').getContext('2d');
+
+        let xTitle = id === 'yard' ? 'Quantity Ordered' : (id === 'ada' ? 'Physical Size (WxH)' : 'Total Square Footage (Size)');
+        if(id === 'wrap' || id === 'wall') xTitle = "Panels Installed";
+        let yTitle = mode === 'margin' ? 'Net Margin (%)' : 'Money / Unit ($)';
+
+        chartInstance = new Chart(ctx, {
+            data: { labels: labels, datasets: datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const permIndex = ctx.dataset._permIndex;
+                                const pointKey = 'ch-' + permIndex + '-' + ctx.dataIndex;
+                                const payload = currentChartDataMap[pointKey];
+                                if(!payload || !payload.res) return "No Data";
+
+                                const d = {
+                                    ret: payload.res.retail.unitPrice || (payload.res.retail.grandTotal / payload.inputs.qty),
+                                    cst: payload.res.cost.total / payload.inputs.qty,
+                                    marg: payload.res.metrics.margin * 100
+                                };
+                                d.prof = d.ret - d.cst;
+
+                                if(ctx.dataset.label.includes('Install')) return `Labor Cost: $${ctx.raw.toFixed(2)}`;
+
+                                return [
+                                    `${ctx.dataset.label}`,
+                                    `🛒 Gross Retail: $${d.ret.toFixed(2)}`,
+                                    `⚙️ Hard Cost: $${d.cst.toFixed(2)}`,
+                                    `💰 Net Profit: $${d.prof.toFixed(2)}`,
+                                    `📊 Margin: ${d.marg.toFixed(1)}%`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: xTitle, font: { weight: 'bold' } }, grid: { display: false } },
+                    y: { title: { display: true, text: yTitle, font: { weight: 'bold' } }, beginAtZero: false } 
+                },
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const el = elements;
+                        const permIndex = chartInstance.data.datasets[el.datasetIndex]._permIndex;
+                        const pointKey = 'ch-' + permIndex + '-' + el.index;
+                        
+                        const payload = currentChartDataMap[pointKey];
+                        if(!payload) return;
+                        
+                        const margin = payload.res.metrics.margin;
+                        const unitRet = payload.res.retail.unitPrice || (payload.res.retail.grandTotal/payload.inputs.qty);
+                        const unitCst = payload.res.cost.total/payload.inputs.qty;
+                        let displayStr = mode === 'margin' ? (margin*100).toFixed(1) + '%' : '$' + (mode === 'retail' ? unitRet : unitCst).toFixed(2);
+                        
+                        activePointKey = pointKey;
+                        renderInspection(pointKey, displayStr);
+                    }
+                }
+            }
+        });
+    }
+
+    // Interactive Heatmap Crosshairs
+    function highlightCol(index) {
+        const table = document.getElementById('heatmap-table');
+        for(let i = 0; i < table.rows.length; i++) {
+            if(table.rows[i].cells[index]) table.rows[i].cells[index].classList.add('col-hover');
+        }
+    }
+    function clearCrosshairs() {
+        document.querySelectorAll('.col-hover').forEach(el => el.classList.remove('col-hover'));
+    }
+
+    function drawHeatmap(simData) {
+        const mode = document.getElementById('hm-analysis-mode').value;
+        const bounds = getProductBounds(activeConfig.id);
+        const globalInstall = document.getElementById('global-install') ? document.getElementById('global-install').checked : false;
+        
+        let axisStepsW = new Array();
+        let axisStepsH = new Array();
+        
+        if (activeConfig.id === 'ada') {
+            axisStepsW = [2-7];
+            axisStepsH = [2-5, 7, 8];
+        } else {
+            for(let i=bounds.stepW||1; i<=bounds.w; i+=(bounds.stepW||1)) axisStepsW.push(i);
+            for(let i=bounds.stepH||1; i<=bounds.h; i+=(bounds.stepH||1)) axisStepsH.push(i);
+        }
+        
+        const header = document.getElementById('heatmap-head');
+        const body = document.getElementById('heatmap-body');
+        
+        let headHtml = '<tr class="bg-slate-100 text-slate-400 font-black text-[9px]"><th class="p-3 border border-slate-200 sticky-col sticky-row z-40">H \\ W</th>';
+        axisStepsW.forEach(w => {
+            headHtml += '<th class="p-2 border border-slate-200 z-30">' + w + (activeConfig.id === 'ada' ? '"' : (activeConfig.id === 'wrap' || activeConfig.id === 'wall' ? ' ft' : '\'')) + '</th>';
+        });
+        header.innerHTML = headHtml + '</tr>';
+
+        let baseInputs = { qty: parseInt(document.getElementById('chart-qty').value) || 1 };
+        activeConfig.controls.forEach(c => {
+            if (c.id === 'w' || c.id === 'h' || c.id === 'qty') return;
+            const el = document.getElementById('ctrl_' + c.id);
+            if (el) baseInputs[c.id] = c.type === 'toggle' ? el.checked : (isNaN(el.value) ? el.value : parseFloat(el.value));
+        });
+
+        let bodyHtml = '';
+        axisStepsH.forEach((h, rIndex) => {
+            bodyHtml += `<tr onmouseover="this.classList.add('row-hover')" onmouseout="this.classList.remove('row-hover')"><th class="bg-slate-100 p-2 border border-slate-200 sticky-col z-20 text-slate-400 text-[9px]">${h}${activeConfig.id === 'ada' ? '"' : (activeConfig.id === 'wrap' || activeConfig.id === 'wall' ? ' ft' : '\'')}</th>`;
+            
+            axisStepsW.forEach((w, cIndex) => {
+                let inputs = { ...baseInputs };
+                if (activeConfig.id === 'ada') { inputs.w = w; inputs.h = h; } 
+                else if (activeConfig.id === 'wrap' || activeConfig.id === 'wall') {
+                    inputs.w = w * 12; inputs.h = h * 12;
+                    inputs.material = inputs.material || (activeConfig.id === 'wall' ? 'smooth' : 'wrap');
+                    inputs.install = globalInstall ? 'Yes' : 'No';
+                    inputs.panels = [{ label: "Panel", qty: 1, w: inputs.w, h: inputs.h, material: inputs.material, included: false }];
+                } else { inputs.w = w * 12; inputs.h = h * 12; }
+
+                if (activeConfig.id === 'cut') inputs.material = inputs.material || '751';
+                if (activeConfig.id === 'decal') inputs.material = inputs.material || 'Standard';
+
+                if (typeof activeConfig.dynamicUI === 'function') inputs = activeConfig.dynamicUI(inputs);
+
+                try {
+                    const res = activeConfig.engine(inputs, simData);
+                    const pointKey = 'hm-' + w + '-' + h;
+                    currentChartDataMap[pointKey] = { res, inputs };
+
+                    let val = 0, display = "";
+                    let cellClass = "heatmap-cell border border-gray-100 text-center relative group text-slate-700 font-black";
+                    const margin = res.metrics ? res.metrics.margin : 0;
+                    let bgStyle = getMarginColor(margin);
+
+                    if (mode === 'retail') {
+                        val = res.retail.unitPrice || (res.retail.grandTotal/inputs.qty);
+                        display = "$" + val.toFixed(2);
+                    } else if (mode === 'cost') {
+                        val = res.cost.total / inputs.qty;
+                        display = "$" + val.toFixed(2);
+                    } else {
+                        display = (margin * 100).toFixed(1) + "%";
+                        if (margin < 0) cellClass += " loss-alert";
+                    }
+
+                    bodyHtml += `<td class="${cellClass}" style="${bgStyle}" onclick="activePointKey='${pointKey}'; renderInspection('${pointKey}', '${display}')">${display}</td>`;
+
+                } catch(e) { bodyHtml += `<td class="heatmap-cell bg-gray-50 text-gray-300">ERR</td>`; }
+            });
+            bodyHtml += '</tr>';
+        });
+        body.innerHTML = bodyHtml;
+    }
+
+    // INTERACTIVE DUAL-LEDGER RENDERER
+    function renderInspection(pointKey, valDisplay) {
+        const payload = currentChartDataMap[pointKey];
+        if (!payload) return;
+        const res = payload.res;
+        const inputs = payload.inputs;
+
+        document.getElementById('inspection-meta').innerHTML = `
+            <div class="flex flex-col items-center">
+                <span class="text-blue-600 font-black text-3xl tracking-tighter mb-1">${valDisplay}</span>
+                <span class="text-[10px] font-black text-gray-500 bg-gray-100 px-3 py-1 rounded-full uppercase border border-gray-200">Size: ${inputs.w}" x ${inputs.h}"</span>
+                <span class="text-[9px] font-bold text-gray-400 uppercase mt-2">Simulated Qty: ${inputs.qty}</span>
+            </div>
+        `;
+
+        const container = document.getElementById('receipt-container');
+        const fmt = (n) => "$" + (parseFloat(n)||0).toFixed(2);
+
+        let html = '';
+
+        // 1. RETAIL LEDGER
+        if (Array.isArray(res.retail.breakdown)) {
+            html += `<div class="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden mb-4"><div class="bg-blue-600 text-white p-2 text-center border-b border-blue-700"><h3 class="text-[10px] font-black uppercase tracking-widest">Market Ledger</h3></div><div class="p-0">`;
+            res.retail.breakdown.forEach((item, idx) => {
+                html += `
+                <div class="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition group">
+                    <div class="flex items-center p-3 cursor-pointer" onclick="toggleMathDetails('math-ret-${idx}')">
+                        <input type="checkbox" checked onchange="event.stopPropagation(); recalcLedgers();" class="ledger-ret-checkbox w-4 h-4 text-blue-600 rounded mr-3 cursor-pointer" data-val="${item.total}">
+                        <div class="flex-1 flex justify-between items-center"><span class="text-[11px] font-bold text-gray-700">${item.label}</span><span class="text-xs font-black text-blue-700">${fmt(item.total)}</span></div>
+                    </div>
+                    <div id="math-ret-${idx}" class="hidden px-10 pb-3 text-[9px] font-mono text-gray-500 bg-gray-50 border-t border-gray-100 border-dashed"><div class="pt-2"><b>Math:</b> <span class="text-blue-600">${item.formula}</span></div></div>
+                </div>`;
+            });
+            html += `</div><div class="bg-blue-50 p-3 border-t-2 border-blue-200 flex justify-between items-center"><span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Retail Total:</span><span id="ledger-ret-total" class="text-lg font-black text-blue-900">${fmt(res.retail.grandTotal)}</span></div></div>`;
+        }
+
+        // 2. COST LEDGER
+        if (Array.isArray(res.cost.breakdown)) {
+            html += `<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"><div class="bg-gray-800 text-white p-2 text-center border-b border-gray-900"><h3 class="text-[10px] font-black uppercase tracking-widest">Physics Ledger</h3></div><div class="p-0">`;
+            res.cost.breakdown.forEach((item, idx) => {
+                html += `
+                <div class="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition group">
+                    <div class="flex items-center p-3 cursor-pointer" onclick="toggleMathDetails('math-cst-${idx}')">
+                        <input type="checkbox" checked onchange="event.stopPropagation(); recalcLedgers();" class="ledger-cst-checkbox w-4 h-4 text-gray-600 rounded mr-3 cursor-pointer" data-val="${item.total}">
+                        <div class="flex-1 flex justify-between items-center"><span class="text-[11px] font-bold text-gray-700">${item.label}</span><span class="text-xs font-black text-gray-700">${fmt(item.total)}</span></div>
+                    </div>
+                    <div id="math-cst-${idx}" class="hidden px-10 pb-3 text-[9px] font-mono text-gray-500 bg-gray-50 border-t border-gray-100 border-dashed"><div class="pt-2"><b>Math:</b> <span class="text-gray-600">${item.formula}</span></div></div>
+                </div>`;
+            });
+            html += `</div><div class="bg-gray-100 p-3 border-t-2 border-gray-300 flex justify-between items-center"><span class="text-[10px] font-black text-gray-600 uppercase tracking-widest">Hard Cost Total:</span><span id="ledger-cst-total" class="text-lg font-black text-gray-900">${fmt(res.cost.total)}</span></div></div>`;
+        } else {
+            html += `<div class="p-4 text-center text-gray-400 text-xs italic">Legacy receipt renderer fallback required.</div>`;
+        }
+
+        container.innerHTML = html;
+    }
+
+    function toggleMathDetails(id) {
+        const el = document.getElementById(id);
+        if(el) el.classList.toggle('hidden');
+    }
+
+    function recalcLedgers() {
+        let retTot = 0, cstTot = 0;
+        document.querySelectorAll('.ledger-ret-checkbox').forEach(cb => { if(cb.checked) retTot += parseFloat(cb.getAttribute('data-val')); });
+        document.querySelectorAll('.ledger-cst-checkbox').forEach(cb => { if(cb.checked) cstTot += parseFloat(cb.getAttribute('data-val')); });
+        const retEl = document.getElementById('ledger-ret-total');
+        const cstEl = document.getElementById('ledger-cst-total');
+        if(retEl) retEl.innerText = "$" + retTot.toFixed(2);
+        if(cstEl) cstEl.innerText = "$" + cstTot.toFixed(2);
+    }
+</script>
+</body>
+</html>
