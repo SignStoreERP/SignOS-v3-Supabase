@@ -50,8 +50,8 @@
     </div>
 
     <script>
-        // Initialize Supabase Client using variables from signos-core.js
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // FIX: Renamed from 'supabase' to 'supabaseClient' to prevent naming collisions with the CDN
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -65,8 +65,8 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
 
-            // 1. Authenticate with Supabase Auth
-            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            // 1. Authenticate with Supabase Auth (using supabaseClient)
+            const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
                 email: email,
                 password: password,
             });
@@ -78,8 +78,8 @@
                 return;
             }
 
-            // 2. Fetch specific role and name from your custom 'staff' table
-            const { data: staffData, error: staffError } = await supabase
+            // 2. Fetch specific role and name from your custom 'staff' table (using supabaseClient)
+            const { data: staffData, error: staffError } = await supabaseClient
                 .from('staff')
                 .select('first_name, role')
                 .eq('id', authData.user.id)
@@ -107,3 +107,4 @@
     </script>
 </body>
 </html>
+
