@@ -202,7 +202,7 @@ function renderMenu(data, role) {
 window.onload = async function() {
     const user = sessionStorage.getItem('signos_user');
     const role = sessionStorage.getItem('signos_role');
-    
+
     if (!user) {
         window.location.href = 'index.html';
         return;
@@ -213,20 +213,18 @@ window.onload = async function() {
 
     // Environment Badge Logic
     const envEl = document.getElementById('env-badge');
-    if (IS_DEV_ENV) {
-        envEl.innerHTML = `<span class="text-orange-600 font-bold">⚠️ DEV MODE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${clientIP}</span>`;
-    } else {
-        envEl.innerHTML = `<span class="text-green-600 font-bold">● LIVE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${clientIP}</span>`;
-    }
-
-    // IP Address Fix
+    const setEnvBadge = () => {
+        if (typeof IS_DEV_ENV !== 'undefined' && IS_DEV_ENV) {
+            envEl.innerHTML = `<span class="text-orange-600 font-bold">⚠️ DEV MODE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${typeof clientIP !== 'undefined' ? clientIP : ''}</span>`;
+        } else {
+            envEl.innerHTML = `<span class="text-green-600 font-bold">● LIVE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${typeof clientIP !== 'undefined' ? clientIP : ''}</span>`;
+        }
+    };
+    
+    setEnvBadge();
     const ipWatcher = setInterval(() => {
-        if (clientIP !== 'Unknown') {
-            if (IS_DEV_ENV) {
-                envEl.innerHTML = `<span class="text-orange-600 font-bold">⚠️ DEV MODE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${clientIP}</span>`;
-            } else {
-                envEl.innerHTML = `<span class="text-green-600 font-bold">● LIVE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${clientIP}</span>`;
-            }
+        if (typeof clientIP !== 'undefined' && clientIP !== 'Unknown') {
+            setEnvBadge();
             clearInterval(ipWatcher);
         }
     }, 100);
@@ -237,7 +235,6 @@ window.onload = async function() {
         document.getElementById('admin-workflow').classList.remove('hidden');
         if (role === 'SUPER') document.getElementById('super-badge').classList.remove('hidden');
         
-        // Backup Permission Check
         const perms = JSON.parse(sessionStorage.getItem('signos_perms') || '{}');
         const btnBackup = document.getElementById('btn-backup');
         if (role !== 'SUPER' && perms.backup !== 'Run' && perms.backup !== 'Full') {
@@ -245,48 +242,51 @@ window.onload = async function() {
         }
     }
 
-// --- FETCH MENU DATA FROM SUPABASE ---
-try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=*`, {
-        headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-        }
-    });
+    // --- FETCH MENU DATA FROM SUPABASE ---
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=*`, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
 
-    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-    
-    // Convert Postgres snake_case keys back to the Title_Case expected by your renderMenu logic
-    const rawData = await response.json();
-    const data = rawData.map(item => ({
-        Module_ID: item.id,
-        Display_Name: item.display_name,
-        File_Link: item.file_link,
-        Dev_Status: item.dev_status,
-        Live_Ver: item.live_ver,
-        Dev_Ver: item.dev_ver,
-        Live_SALES: item.live_sales,
-        Live_PROD: item.live_prod,
-        Live_ADMIN: item.live_admin,
-        Dev_SALES: item.dev_sales,
-        Dev_PROD: item.dev_prod,
-        Dev_ADMIN: item.dev_admin,
-        Category: item.category,
-        Icon: item.icon,
-        Icon_Path: item.icon_path
-    }));
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        
+        const rawData = await response.json();
+        
+        // Remap Postgres snake_case column names to the Title_Case your UI expects
+        const data = rawData.map(item => ({
+            Module_ID: item.id,
+            Display_Name: item.display_name,
+            File_Link: item.file_link,
+            Dev_Status: item.dev_status,
+            Live_Ver: item.live_ver,
+            Dev_Ver: item.dev_ver,
+            Live_SALES: item.live_sales,
+            Live_PROD: item.live_prod,
+            Live_ADMIN: item.live_admin,
+            Dev_SALES: item.dev_sales,
+            Dev_PROD: item.dev_prod,
+            Dev_ADMIN: item.dev_admin,
+            Category: item.category,
+            Icon: item.icon,
+            Icon_Path: item.icon_path
+        }));
 
-    document.getElementById('loader').classList.add('hidden');
-    document.getElementById('menu-container').classList.remove('hidden');
+        document.getElementById('loader').classList.add('hidden');
+        document.getElementById('menu-container').classList.remove('hidden');
 
-    renderMenu(data, role);
+        renderMenu(data, role);
 
-} catch (e) {
-    document.getElementById('loader').innerText = "CONNECTION FAILED: " + e.message;
-    document.getElementById('loader').classList.add('text-red-500', 'font-bold');
-    console.error("Menu Load Error:", e);
-}
+    } catch (e) {
+        document.getElementById('loader').innerText = "CONNECTION FAILED: " + e.message;
+        document.getElementById('loader').classList.add('text-red-500', 'font-bold');
+        console.error("Menu Load Error:", e);
+    }
+};
 </script>
 </body>
 </html>
+
 
