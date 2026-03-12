@@ -2,8 +2,8 @@
 const IS_DEV_ENV = window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1');
 
 // --- SUPABASE API ROUTING ---
-const SUPABASE_URL = "https://YOUR_PROJECT_ID.supabase.co"; // <-- INSERT YOUR URL HERE
-const SUPABASE_ANON_KEY = "YOUR_ANON_KEY"; // <-- INSERT YOUR ANON KEY HERE
+const SUPABASE_URL = "https://agmxqdcnmfprnuktpmjq.supabase.co"; // <-- INSERT YOUR URL HERE
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnbXhxZGNubWZwcm51a3RwbWpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNzExMzcsImV4cCI6MjA4ODg0NzEzN30.AHxH92Jo1BQyjtYN5Un5ZWcol6eiNjY5APQhcWTTuik"; // <-- INSERT YOUR ANON KEY HERE
 
 let clientIP = "Unknown";
 const currentHost = window.location.hostname;
