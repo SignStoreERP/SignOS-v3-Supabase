@@ -125,16 +125,17 @@ function runCalc() {
 // API FETCH & NATIVE STATUS BAR UPDATER
 window.addEventListener('load', async () => {
     if (typeof injectHeader === 'function') injectHeader("Yard Signs");
-    
+
     const statusText = document.getElementById("status-text");
     const statusDot = document.getElementById("status-dot");
 
     try {
-        const req = await fetch(`${SCRIPT_URL}?req=view_module&tab=PROD_Yard_Signs`);
-        backendData = await req.json();
-        
-        if(backendData.error) throw new Error(backendData.error);
-        
+        // --- NEW SUPABASE API CALL ---
+        const payload = await SignOS.fetchProductData('PROD_Yard_Signs');
+        backendData = payload.config; // The RPC wraps the matrix data inside .config
+
+        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
+
         if(statusText) {
             statusText.innerText = "ONLINE";
             statusText.className = "font-bold text-green-500";
@@ -143,8 +144,9 @@ window.addEventListener('load', async () => {
                 statusDot.classList.remove("animate-pulse");
             }
         }
-        
-        runCalc(); 
+
+        runCalc();
+
     } catch(e) {
         if(statusText) {
             statusText.innerText = "OFFLINE";
