@@ -1,9 +1,14 @@
 // SignOS Core System v3.0 (Supabase Edition)
 const IS_DEV_ENV = window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1');
 
-// --- SUPABASE API ROUTING ---
-const SUPABASE_URL = "https://agmxqdcnmfprnuktpmjq.supabase.co"; // <-- INSERT YOUR URL HERE
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnbXhxZGNubWZwcm51a3RwbWpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNzExMzcsImV4cCI6MjA4ODg0NzEzN30.AHxH92Jo1BQyjtYN5Un5ZWcol6eiNjY5APQhcWTTuik"; // <-- INSERT YOUR ANON KEY HERE
+// --- TRUE HYBRID ROUTING ---
+// 1. Database Connections (Always point to Cloud because Local DB is empty)
+const SUPABASE_URL = "https://agmxqdcnmfprnuktpmjq.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnbXhxZGNubWZwcm51a3RwbWpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNzExMzcsImV4cCI6MjA4ODg0NzEzN30.AHxH92Jo1BQyjtYN5Un5ZWcol6eiNjY5APQhcWTTuik";
+
+// 2. Edge Function Connections (Point to Docker if local, Cloud if live)
+const EDGE_URL = IS_DEV_ENV ? "http://127.0.0.1:54321" : SUPABASE_URL;
+const EDGE_KEY = IS_DEV_ENV ? "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH" : SUPABASE_ANON_KEY;
 
 let clientIP = "Unknown";
 const currentHost = window.location.hostname;
@@ -39,10 +44,7 @@ function goBack() {
 function injectHeader(title, showMenu = true) {
     const u = sessionStorage.getItem('signos_user') || 'GUEST';
     const r = sessionStorage.getItem('signos_role') || 'VIEW';
-    
-    // Target the main card to keep the "Island" look
     const container = document.getElementById('main-card') || document.querySelector('.max-w-md') || document.body;
-    
     const html = `
     <!-- TOP UTILITY BAR -->
     <div class="bg-gray-800 px-4 py-1 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700 shrink-0">
@@ -54,14 +56,12 @@ function injectHeader(title, showMenu = true) {
             Logout
         </button>
     </div>
-
     <!-- MAIN NAV BAR -->
     <div class="bg-gray-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
         ${showMenu ? `
         <a href="#" onclick="goBack()" class="text-gray-400 hover:text-white text-xs font-bold uppercase flex items-center gap-1">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg> MENU
         </a>` : '<div></div>'}
-        
         <div class="text-center">
             <h2 class="text-lg font-bold">${title}</h2>
             <div class="flex items-center justify-center gap-2 text-[10px] mt-0.5">
@@ -70,12 +70,10 @@ function injectHeader(title, showMenu = true) {
                 <span id="version-display" class="text-gray-500 font-mono hidden"></span>
             </div>
         </div>
-        
         <button onclick="location.reload()" class="text-gray-400 hover:text-white" title="Refresh Data">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
         </button>
     </div>`;
-    
     container.insertAdjacentHTML('afterbegin', html);
 }
 
@@ -134,6 +132,7 @@ async function submitFeedback() {
     const btn = document.getElementById('btn-fb-send');
 
     if(!title) { alert("Title required"); return; }
+
     btn.innerText = "SENDING..."; btn.disabled = true;
 
     try {
@@ -141,7 +140,7 @@ async function submitFeedback() {
         alert("Ticket Submitted!");
         document.getElementById('glb-feedback-modal').classList.add('hidden');
         document.getElementById('fb-title').value = ""; document.getElementById('fb-desc').value = "";
-    } catch(e) { alert("Error: " + e.message); } 
+    } catch(e) { alert("Error: " + e.message); }
     finally { btn.innerText = "SUBMIT TICKET"; btn.disabled = false; }
 }
 
@@ -169,7 +168,7 @@ SignOS.fetchProductData = async function(productId, refTables = []) {
 
         const json = await response.json();
         return json;
-        
+
     } catch (error) {
         console.error("SignOS Backend Connection Failed:", error);
         return { error: error.message };
