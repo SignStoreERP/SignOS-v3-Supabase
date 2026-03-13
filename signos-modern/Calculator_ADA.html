@@ -8,7 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
     <script src="signos-core.js"></script>
     <script src="signos-ui.js"></script>
-    <script src="cost_ada.js"></script>
     <script src="signos-builder.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -873,7 +872,25 @@
 
         try {
             const dataToUse = customSimData || backendData;
-            const result = calculateADA(inputs, dataToUse);
+      // Twin-Engine Routing: Target the local Edge Function
+      const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
+
+      const response = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': EDGE_KEY,
+          'Authorization': `Bearer ${EDGE_KEY}`
+        },
+        body: JSON.stringify({ inputs: inputs, config: dataToUse })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Server Blocked Request: ${response.status} - ${errText}`);
+      }
+
+      const result = await response.json();
             if (!result || !result.retail) return;
 
             const ret = result.retail;
