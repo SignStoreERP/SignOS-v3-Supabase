@@ -152,7 +152,6 @@
             
             const series = document.getElementById('material').value;
             
-            // FIXED: Handles Specialty series mapping + lowercase Supabase columns
             const filtered = allColors.filter(c => {
                 const seriesId = String(c.Series_ID || c.series_id || '');
                 const typeStr = String(c.Type || c.type || '').toLowerCase();
@@ -161,11 +160,9 @@
                 const isAvailable = (inStock === true || String(inStock).toUpperCase() === 'TRUE');
                 if (!isAvailable) return false;
 
-                // Route "Specialty" to match 6510/7510 Series or Metallic/Fluorescent Types
                 if (series === 'Specialty') {
                     return seriesId.includes('6510') || seriesId.includes('7510') || typeStr.includes('metallic') || typeStr.includes('fluorescent');
                 }
-                
                 return seriesId.includes(String(series));
             }).map(c => ({
                 Code: c.Color_Code || c.color_code || '',
@@ -178,10 +175,11 @@
                 return;
             }
 
+            // FIXED: We tell the UI builder this is "paint" so older versions of the library render the Hex Codes perfectly!
             SignOS_UI.buildColorGrid({
                 containerId: 'modal-grid',
                 data: filtered,
-                type: 'vinyl',
+                type: 'paint', 
                 onSelect: (item) => {
                     selectedColor = allColors.find(c => {
                         const matchCode = (c.Color_Code === item.Code || c.color_code === item.Code);
@@ -212,6 +210,7 @@
             
             const swatch = document.getElementById('ui-color-swatch');
             
+            // Handles both normal hex colors AND Orafol image swatches (like Metallics)
             if (hex && hex.toLowerCase().startsWith('http')) {
                 swatch.style.backgroundImage = `url('${hex}')`;
                 swatch.style.backgroundSize = 'cover';
@@ -253,7 +252,9 @@
                 const ret = result.retail;
                 const fmt = (n) => "$" + (n || 0).toFixed(2);
 
-                // FIXED: Removed the lbl-sqft update that was throwing the null error!
+                const totalSqFt = ((inputs.w * inputs.h) / 144) * inputs.qty;
+                
+                document.getElementById('lbl-sqft').innerText = totalSqFt.toFixed(1);
                 document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
                 document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
 
@@ -291,12 +292,17 @@
             const statusDot = document.getElementById("status-dot");
             
             try {
-                const payload = await SignOS.fetchProductData('PROD_Cut', ['REF_Colors_Vinyl']);
+                // FIXED: Requesting BOTH exact and lowercase formats to force the RPC to return the table
+                const payload = await SignOS.fetchProductData('PROD_Cut', ['REF_Colors_Vinyl', 'ref_colors_vinyl']);
                 backendData = payload.config;
                 if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
                 
-                // FIXED: Adding fallback safety for Supabase lowercase data responses
-                allColors = payload.tables['REF_Colors_Vinyl'] || payload.tables['ref_colors_vinyl'] || [];
+                // Safely extract the table regardless of which case Supabase returned
+                const tableUpper = payload.tables['REF_Colors_Vinyl'] || [];
+                const tableLower = payload.tables['ref_colors_vinyl'] || [];
+                allColors = tableUpper.length > 0 ? tableUpper : tableLower;
+                
+                console.log(`✅ Successfully loaded ${allColors.length} vinyl colors from Supabase.`);
                 
                 if(statusText) {
                     statusText.innerText = "ONLINE";
