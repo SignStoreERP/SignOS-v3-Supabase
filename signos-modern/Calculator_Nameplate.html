@@ -166,13 +166,15 @@
     </div>
 
 <script>
-    let backendData = {}, rowmarkData = [], pmsData = [], swData = [], systemFonts = [];
+    let backendData = {}, rowmarkFront = [], rowmarkRev = [], pmsData = [], swData = [], systemFonts = [];
     let activePaintSystem = 'PMS', selectedMat = null, selectedPaint = null, currentMode = 'front';
     let lineSettings = [
         { text: 'SAMPLE', font: '', height: 1.0, caseType: 'upper' },
         { text: '', font: '', height: 0.375, caseType: 'title' },
         { text: '', font: '', height: 0.375, caseType: 'title' }
     ];
+    let customSimData = null; 
+    let lastSimResult = null;
 
     // --- UI ACCORDION & BUTTONS ---
     function toggleAccordion(contentId, arrowId) {
@@ -184,9 +186,11 @@
         document.getElementById('lines-per-sign').value = num;
         for(let i=1; i<=3; i++) {
             const btn = document.getElementById('btn-line-'+i);
-            btn.className = i === num 
-                ? "px-2 py-0.5 text-[10px] font-black rounded bg-white text-indigo-700 shadow-sm transition outline-none" 
-                : "px-2 py-0.5 text-[10px] font-black rounded text-indigo-600 hover:text-indigo-800 transition outline-none";
+            if(btn) {
+                btn.className = i === num 
+                    ? "px-2 py-0.5 text-[10px] font-black rounded bg-white text-indigo-700 shadow-sm transition outline-none" 
+                    : "px-2 py-0.5 text-[10px] font-black rounded text-indigo-600 hover:text-indigo-800 transition outline-none";
+            }
         }
         updateLineControls();
     }
@@ -194,6 +198,7 @@
     function updateLineControls() {
         const count = parseInt(document.getElementById('lines-per-sign').value) || 1;
         const container = document.getElementById('line-controls-container');
+        if(!container) return;
         container.innerHTML = '';
         
         for (let i = 0; i < count; i++) {
@@ -250,8 +255,11 @@
         currentMode = mode;
         const isFront = mode === 'front';
         document.getElementById('btn-front').className = `flex-1 py-2 text-xs font-bold rounded transition-all ${isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
-        document.getElementById('btn-reverse').className = `flex-1 py-2 text-xs font-bold rounded transition-all ${!isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
-        document.getElementById('reverse-tabs').classList.toggle('hidden', isFront);
+        document.getElementById('btn-rev').className = `flex-1 py-2 text-xs font-bold rounded transition-all ${!isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
+        
+        const tabs = document.getElementById('reverse-tabs');
+        if(tabs) tabs.classList.toggle('hidden', isFront);
+        
         if(isFront) {
             document.getElementById('mat-container').classList.remove('hidden');
             document.getElementById('paint-container').classList.add('hidden');
@@ -267,8 +275,12 @@
         const inactiveClass = "flex-1 py-1.5 text-[10px] font-black rounded text-blue-300 hover:text-white hover:bg-blue-800/50 transition border border-transparent uppercase tracking-widest";
         document.getElementById('btn-pms').className = sys === 'PMS' ? activeClass : inactiveClass;
         document.getElementById('btn-sw').className = sys === 'SW' ? activeClass : inactiveClass;
-        document.getElementById('paint-search').placeholder = sys === 'PMS' ? "Search PMS Colors..." : "Search SW Colors...";
-        document.getElementById('paint-search').value = "";
+        
+        const searchEl = document.getElementById('paint-search');
+        if(searchEl) {
+            searchEl.placeholder = sys === 'PMS' ? "Search PMS Colors..." : "Search SW Colors...";
+            searchEl.value = "";
+        }
         buildPaintSwatches();
     }
 
@@ -291,50 +303,55 @@
 
     // --- GLOBAL UI BUILDERS ---
     function updateSwatches() {
-        const filtered = rowmarkData.filter(c => currentMode === 'reverse' ? c.Series.includes('Reverse') : !c.Series.includes('Reverse'));
-        SignOS_UI.buildColorGrid({
-            containerId: 'rowmark-grid',
-            data: filtered,
-            type: 'rowmark',
-            isReverse: currentMode === 'reverse',
-            onSelect: (item) => {
-                selectedMat = item;
-                if (currentMode === 'reverse') handleReverseAutoPaint(item);
-                updateMaterialLabel();
-                runCalc();
-            }
-        });
+        const activeData = currentMode === 'reverse' ? rowmarkRev : rowmarkFront;
         
-        // Force default selection to [1-181] Black Face / White Text
-        setTimeout(() => {
-            const targetBtn = document.querySelector('#rowmark-grid button[data-code="222-402"]') || document.querySelector('#rowmark-grid button');
-            if(targetBtn) targetBtn.click();
-        }, 50);
+        if (typeof SignOS_UI !== 'undefined' && SignOS_UI.buildColorGrid) {
+            SignOS_UI.buildColorGrid({
+                containerId: 'rowmark-grid',
+                data: activeData,
+                type: 'rowmark',
+                isReverse: currentMode === 'reverse',
+                onSelect: (item) => {
+                    selectedMat = item;
+                    if (currentMode === 'reverse') handleReverseAutoPaint(item);
+                    updateMaterialLabel();
+                    runCalc();
+                }
+            });
+            
+            // Force default selection to Black Face / White Text
+            setTimeout(() => {
+                const targetBtn = document.querySelector('#rowmark-grid button[data-code="222-402"]') || document.querySelector('#rowmark-grid button');
+                if(targetBtn) targetBtn.click();
+            }, 50);
+        }
     }
 
     function buildPaintSwatches() {
-        SignOS_UI.buildColorGrid({
-            containerId: 'paint-grid',
-            data: activePaintSystem === 'PMS' ? pmsData : swData,
-            type: 'paint',
-            activeRingClass: 'ring-blue-900',
-            showCustom: true,
-            onCustom: () => {
-                selectedPaint = { Code: 'CUSTOM', Name: 'Custom Manual Color', Hex_Code: '#e2e8f0' };
-                document.getElementById('custom-pms-wrap').classList.remove('hidden');
-                document.getElementById('selected-paint-label').innerText = "Custom Color Mode Active";
-                updateMaterialLabel();
-                runCalc();
-            },
-            onSelect: (item) => {
-                selectedPaint = item;
-                document.getElementById('custom-pms-wrap').classList.add('hidden');
-                document.getElementById('pms-code').value = '';
-                document.getElementById('selected-paint-label').innerText = `[${item.Code}] ${item.Name}`;
-                updateMaterialLabel();
-                runCalc();
-            }
-        });
+        if (typeof SignOS_UI !== 'undefined' && SignOS_UI.buildColorGrid) {
+            SignOS_UI.buildColorGrid({
+                containerId: 'paint-grid',
+                data: activePaintSystem === 'PMS' ? pmsData : swData,
+                type: 'paint',
+                activeRingClass: 'ring-blue-900',
+                showCustom: true,
+                onCustom: () => {
+                    selectedPaint = { Code: 'CUSTOM', Name: 'Custom Manual Color', Hex_Code: '#e2e8f0' };
+                    document.getElementById('custom-pms-wrap').classList.remove('hidden');
+                    document.getElementById('selected-paint-label').innerText = "Custom Color Mode Active";
+                    updateMaterialLabel();
+                    runCalc();
+                },
+                onSelect: (item) => {
+                    selectedPaint = item;
+                    document.getElementById('custom-pms-wrap').classList.add('hidden');
+                    document.getElementById('pms-code').value = '';
+                    document.getElementById('selected-paint-label').innerText = `[${item.Code}] ${item.Name}`;
+                    updateMaterialLabel();
+                    runCalc();
+                }
+            });
+        }
     }
 
     function updateCustomPMS() {
@@ -352,7 +369,7 @@
         } else {
             let paintName = "TBD";
             if (selectedPaint && selectedPaint.Code !== 'CUSTOM') paintName = selectedPaint.Name;
-            else if (document.getElementById('pms-code').value) paintName = document.getElementById('pms-code').value;
+            else if (document.getElementById('pms-code') && document.getElementById('pms-code').value) paintName = document.getElementById('pms-code').value;
             document.getElementById('selected-color-label').innerText = `[${selectedMat.Item_Code}] ${selectedMat.Cap_Color} Face / ${paintName} Text ${thickTxt}`;
         }
     }
@@ -360,10 +377,10 @@
     // --- CALCULATION ENGINE ---
     async function runCalc() {
         if(!backendData.Retail_Min_Order || !selectedMat) return;
-        SignOS_Canvas.enforceSheetLimits('w', 'h', 'sheet-warn', 24, 48);
+        if(typeof SignOS_Canvas !== 'undefined') SignOS_Canvas.enforceSheetLimits('w', 'h', 'sheet-warn', 24, 48);
         
         try {
-            const pmsCode = document.getElementById('pms-code').value.trim();
+            const pmsCode = document.getElementById('pms-code') ? document.getElementById('pms-code').value.trim() : "";
             const isReverse = currentMode === 'reverse';
             let finalPaintName = "";
             let activePaintHex = "#FFFFFF";
@@ -396,29 +413,33 @@
                 mounting: document.getElementById('mounting') ? document.getElementById('mounting').value : 'None'
             };
 
+            const dataToUse = customSimData || backendData;
+
             const fnUrl = `${EDGE_URL}/functions/v1/calculate-nameplate`;
             const response = await fetch(fnUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                body: JSON.stringify({ inputs: inputs, config: backendData })
+                body: JSON.stringify({ inputs: inputs, config: dataToUse })
             });
             
             if (!response.ok) throw new Error(`Server Error: ${response.status}`);
             const result = await response.json();
 
             if (!result || !result.retail) return;
+            lastSimResult = result;
+            
             const ret = result.retail;
             const fmt = (n) => "$" + (n || 0).toFixed(2);
             const totalSqin = (inputs.w * inputs.h) * inputs.qty;
             
-            document.getElementById('lbl-sqin').innerText = totalSqin.toFixed(1);
-            document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-            document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-            document.getElementById('ui-print').innerText = fmt(ret.printTotal);
+            if(document.getElementById('lbl-sqin')) document.getElementById('lbl-sqin').innerText = totalSqin.toFixed(1);
+            if(document.getElementById('ui-unit')) document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+            if(document.getElementById('ui-total')) document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+            if(document.getElementById('ui-print')) document.getElementById('ui-print').innerText = fmt(ret.printTotal);
 
-            const minOrder = parseFloat(backendData.Retail_Min_Order || 35);
-            document.getElementById('ui-min-text').innerText = `Shop Min: $${minOrder}`;
-            document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+            const minOrder = parseFloat(dataToUse.Retail_Min_Order || 35);
+            if(document.getElementById('ui-min-text')) document.getElementById('ui-min-text').innerText = `Shop Min: $${minOrder}`;
+            if(document.getElementById('min-badge')) document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
 
             let sublineHtml = '';
             ret.breakdown.forEach(item => {
@@ -426,11 +447,11 @@
                     sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${item.unit.toFixed(2)})</span>`;
                 }
             });
-            document.getElementById('ui-subline').innerHTML = sublineHtml;
+            if(document.getElementById('ui-subline')) document.getElementById('ui-subline').innerHTML = sublineHtml;
 
             // BOUNDED TEXT PREVIEW MATH
             const linesCount = parseInt(document.getElementById('lines-per-sign').value) || 1;
-            const mode = document.getElementById('overflow-mode').value;
+            const mode = document.getElementById('overflow-mode') ? document.getElementById('overflow-mode').value : 'shrink';
             const canvas = document.getElementById('preview-canvas');
             const warn = document.getElementById('overflow-warn-box');
             const warnBright = document.getElementById('bright-warn-box');
@@ -476,99 +497,91 @@
             if(warnBright) warnBright.classList.toggle('hidden', !selectedMat.Cap_Color.includes('Bright'));
 
             let brandTxt = `Rowmark ${inputs.mat.Series} (${inputs.mat.Thickness})`;
-            const bevelTxt = document.getElementById('bevel-edges').value === 'Yes' ? 'Bevel Edges. ' : 'Straight Cut Edge. ';
+            const bevelTxt = document.getElementById('bevel-edges') && document.getElementById('bevel-edges').value === 'Yes' ? 'Bevel Edges. ' : 'Straight Cut Edge. ';
             let explicitNotes = `${bevelTxt}No backers. No hardware. No installation. No raised copy. No braille.`;
             let combinedText = lineSettings.slice(0, linesCount).map(ls => formatLineCase(ls.text, ls.caseType)).filter(Boolean).join(' / ');
 
-            document.getElementById('job-desc').value = inputs.isReverse
-            ? `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Reverse Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.paint} painted text.\nCopy: ${combinedText}\n\n${explicitNotes}`
-            : `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Front Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.mat.Core_Color} text.\nCopy: ${combinedText}\n\n${explicitNotes}`;
+            if(document.getElementById('job-desc')) {
+                document.getElementById('job-desc').value = inputs.isReverse
+                ? `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Reverse Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.paint} painted text.\nCopy: ${combinedText}\n\n${explicitNotes}`
+                : `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Front Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.mat.Core_Color} text.\nCopy: ${combinedText}\n\n${explicitNotes}`;
+            }
 
+            if (customSimData && typeof renderLedgerUI === 'function') {
+                renderLedgerUI(result);
+                if(typeof dimInactiveSandboxVars === 'function') dimInactiveSandboxVars();
+            }
         } catch(e) { console.error("Cloud Engine Error:", e); }
     }
 
-    function copyTicket(btn) {
-        const desc = document.getElementById('job-desc');
-        desc.select(); desc.setSelectionRange(0, 99999);
-        navigator.clipboard.writeText(desc.value);
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = "✅ COPIED TO CLIPBOARD!";
-        btn.classList.add('bg-green-100', 'text-green-800', 'border-green-300');
-        btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
-        setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-300');
-            btn.classList.add('bg-white', 'text-gray-700', 'border-gray-300');
-        }, 2500);
-    }
+    window.addEventListener('load', async () => {
+        if (typeof injectHeader === 'function') injectHeader("Nameplates & Sliders");
 
-        window.addEventListener('load', async () => {
-            if (typeof injectHeader === 'function') injectHeader("Nameplates & Sliders");
+        const btnSandbox = document.getElementById('btn-sandbox');
+        if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
+            btnSandbox.classList.remove('hidden');
+        }
 
-            if(window.SignOS_UI && SignOS_UI.Camera3D) {
-                SignOS_UI.Camera3D.init('zoom-stage');
-            }
+        if(window.SignOS_UI && SignOS_UI.Camera3D) {
+            SignOS_UI.Camera3D.init('zoom-stage');
+        }
 
-            const statusText = document.getElementById("status-text");
-            const statusDot = document.getElementById("status-dot");
+        const statusText = document.getElementById("status-text");
+        const statusDot = document.getElementById("status-dot");
 
-            try {
-                const payload = await SignOS.fetchProductData('PROD_Nameplates');
-                backendData = payload.config;
+        try {
+            const payload = await SignOS.fetchProductData('PROD_Nameplates');
+            backendData = payload.config;
 
-                const fetchTable = async (table) => {
-                    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
-                        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                    });
-                    return res.ok ? await res.json() : [];
-                };
+            const fetchTable = async (table) => {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                return res.ok ? await res.json() : [];
+            };
 
-                // FIXED: Case-sensitive PostgREST endpoints updated!
-                const rawRowmark = await fetchTable('ref_colors_rowmark');
-                const rawSW = await fetchTable('ref_colors_paint'); 
-                const rawPMS = await fetchTable('ref_colors_pms'); 
-                const rawFonts = await fetchTable('ref_fonts');
+            const rawRowmark = await fetchTable('ref_colors_rowmark');
+            const rawSW = await fetchTable('ref_colors_paint'); 
+            const rawPMS = await fetchTable('ref_colors_pms'); 
+            const rawFonts = await fetchTable('ref_fonts');
 
-                rowmarkFront = rawRowmark.filter(r => r.Series && r.Series.includes('Mattes') && !r.Series.includes('Reverse')).map(c => ({
-                    Code: c.Item_Code, Name: `${c.Cap_Color} / ${c.Core_Color}`, Hex_Code: c.Cap_Hex, Core_Hex: c.Core_Hex
-                }));
+            rowmarkFront = rawRowmark.filter(r => r.Series && r.Series.includes('Mattes') && !r.Series.includes('Reverse')).map(c => ({
+                Code: c.Item_Code, Name: `${c.Cap_Color} / ${c.Core_Color}`, Hex_Code: c.Cap_Hex, Core_Hex: c.Core_Hex, Series: c.Series, Thickness: c.Thickness, Item_Code: c.Item_Code, Cap_Color: c.Cap_Color, Core_Color: c.Core_Color
+            }));
 
-                rowmarkRev = rawRowmark.filter(r => r.Series && r.Series.includes('Reverse')).map(c => ({
-                    Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex, Core_Hex: '#ffffff'
-                }));
+            rowmarkRev = rawRowmark.filter(r => r.Series && r.Series.includes('Reverse')).map(c => ({
+                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex, Core_Hex: '#ffffff', Series: c.Series, Thickness: c.Thickness, Item_Code: c.Item_Code, Cap_Color: c.Cap_Color, Core_Color: c.Core_Color
+            }));
 
-                swData = rawSW.map(p => ({
-                    Code: p['Color Code'] || p['Code'] || 'UNK', 
-                    Name: p['Color Name'] || p['Name'] || 'Unknown', 
-                    Hex_Code: p['HEX Code'] || p['Hex_Code'] || p['Hex Code'] || '#ffffff'
-                }));
+            swData = rawSW.map(p => ({
+                Code: p['Color Code'] || p['Code'] || 'UNK', 
+                Name: p['Color Name'] || p['Name'] || 'Unknown', 
+                Hex_Code: p['HEX Code'] || p['Hex_Code'] || p['Hex Code'] || '#ffffff'
+            }));
 
-                pmsData = rawPMS.map(p => ({
-                    Code: p['PMS Name / Code'] || 'UNK', 
-                    Name: p['PMS Name / Code'] || 'Unknown', 
-                    Hex_Code: p['HEX Code'] || '#ffffff'
-                }));
+            pmsData = rawPMS.map(p => ({
+                Code: p['PMS Name / Code'] || 'UNK', 
+                Name: p['PMS Name / Code'] || 'Unknown', 
+                Hex_Code: p['HEX Code'] || '#ffffff'
+            }));
 
-                systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
-                if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
+            systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
+            if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
 
-                let defaultFont = systemFonts.find(f => f.CSS_Family === 'Arimo') || systemFonts;
-                lineSettings.forEach(ls => ls.font = defaultFont ? defaultFont.CSS_Family : 'sans-serif');
+            let defaultFont = systemFonts.find(f => f.CSS_Family === 'Arimo') || systemFonts.slice().shift();
+            lineSettings.forEach(ls => ls.font = defaultFont ? defaultFont.CSS_Family : 'sans-serif');
 
-                if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
+            if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
 
-                setProduct('Front116');
-                setPaintSystem('PMS');
-                setMode('front'); 
-                updateLineControls();
-                
-                setTimeout(() => { processBulkList(); }, 200);
-
-            } catch(e) {
-                console.error("API Error:", e);
-                if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
-            }
-        });
+            setMode('front'); 
+            setPaintSystem('PMS');
+            updateLineControls();
+            
+        } catch(e) {
+            console.error("API Error:", e);
+            if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+        }
+    });
 </script>
 </body>
 </html>
