@@ -6,7 +6,6 @@
     <title>Acrylic Signs Retail</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
-    <script src="cost_acrylic.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
@@ -152,27 +151,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function runCalc() {
+async function runCalc() {
     if(!backendData.Retail_Min_Order) return;
     enforceSheetLimits(48, 96);
-
+    
     try {
         const inputs = {
             qty: parseFloat(document.getElementById('qty').value) || 1,
             w: parseFloat(document.getElementById('w').value) || 24,
             h: parseFloat(document.getElementById('h').value) || 18,
-            thickness: document.getElementById('thickness').value, 
+            thickness: document.getElementById('thickness').value,
             color: document.getElementById('color').value,
             shape: document.getElementById('shape').value
         };
 
-        const result = calculateAcrylic(inputs, backendData);
-        if (!result || !result.retail) return;
+        // FIXED: Pointing directly to the new Supabase Edge Function
+        const fnUrl = `${EDGE_URL}/functions/v1/calculate-acrylic`;
+        const response = await fetch(fnUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': EDGE_KEY,
+                'Authorization': `Bearer ${EDGE_KEY}`
+            },
+            body: JSON.stringify({ inputs: inputs, config: backendData })
+        });
 
+        if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+        const result = await response.json();
+
+        if (!result || !result.retail) return;
         const ret = result.retail;
         const fmt = (n) => "$" + (n || 0).toFixed(2);
-        const totalSqFt = ((inputs.w * inputs.h) / 144) * inputs.qty;
 
+        const totalSqFt = ((inputs.w * inputs.h) / 144) * inputs.qty;
         document.getElementById('lbl-sqft').innerText = totalSqFt.toFixed(1);
         document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
         document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
@@ -181,7 +193,9 @@ function runCalc() {
         if (ret.routerFee > 0) {
             document.getElementById('row-router').classList.remove('hidden');
             document.getElementById('ui-router').innerText = fmt(ret.routerFee);
-        } else { document.getElementById('row-router').classList.add('hidden'); }
+        } else {
+            document.getElementById('row-router').classList.add('hidden');
+        }
 
         const minOrder = parseFloat(backendData.Retail_Min_Order || 75);
         document.getElementById('ui-min-text').innerText = `Shop Minimum: $${minOrder}`;
@@ -189,11 +203,10 @@ function runCalc() {
 
         const cutTxt = inputs.shape === 'Rectangle' ? 'Square/Rectangle Cut' : 'CNC Custom Profile Cut';
         const thkTxt = document.getElementById('thickness').options[document.getElementById('thickness').selectedIndex].text;
-
         document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ${thkTxt} ${inputs.color} Acrylic Signs.\n${cutTxt}.`;
 
     } catch(e) {
-        console.error(e);
+        console.error("Cloud Calculation Error:", e);
     }
 }
 
