@@ -189,474 +189,480 @@
         </div>
     </div>
 
-    <script>
-        let backendData = {}, rowmarkFront = [], rowmarkRev = [], pmsData = [], swData = [], systemFonts = [];
-        let activePaintSystem = 'PMS', selectedMat = null, selectedPaint = null, currentMode = 'front';
-        let activeColorType = 'face';
-        let lineSettings = [
-            { text: 'SAMPLE', font: '', height: 1.0, caseType: 'upper' },
-            { text: '', font: '', height: 0.375, caseType: 'title' },
-            { text: '', font: '', height: 0.375, caseType: 'title' }
-        ];
+<script>
+    let backendData = {}, rowmarkFront = [], rowmarkRev = [], pmsData = [], swData = [], systemFonts = [];
+    let activePaintSystem = 'PMS', selectedMat = null, selectedPaint = null, currentMode = 'front';
+    let activeColorType = 'face';
+    let lineSettings = [
+        { text: 'SAMPLE', font: '', height: 1.0, caseType: 'upper' },
+        { text: '', font: '', height: 0.375, caseType: 'title' },
+        { text: '', font: '', height: 0.375, caseType: 'title' }
+    ];
+    let customSimData = null;
+    let lastSimResult = null;
 
-        // --- TYPOGRAPHY CONTROLS ---
-        function toggleAccordion(contentId, arrowId) {
-            document.getElementById(contentId).classList.toggle('hidden');
-            document.getElementById(arrowId).classList.toggle('rotate-180');
+    // --- TYPOGRAPHY CONTROLS ---
+    function toggleAccordion(contentId, arrowId) {
+        document.getElementById(contentId).classList.toggle('hidden');
+        document.getElementById(arrowId).classList.toggle('rotate-180');
+    }
+
+    function setLineCount(num) {
+        document.getElementById('lines-per-sign').value = num;
+        for(let i=1; i<=3; i++) {
+            const btn = document.getElementById('btn-line-'+i);
+            if(btn) btn.className = i === num ? "px-2 py-0.5 text-[10px] font-black rounded bg-white text-indigo-700 shadow-sm transition outline-none" : "px-2 py-0.5 text-[10px] font-black rounded text-indigo-600 hover:text-indigo-800 transition outline-none";
         }
+        updateLineControls();
+    }
 
-        function setLineCount(num) {
-            document.getElementById('lines-per-sign').value = num;
-            for(let i=1; i<=3; i++) {
-                const btn = document.getElementById('btn-line-'+i);
-                if(btn) btn.className = i === num ? "px-2 py-0.5 text-[10px] font-black rounded bg-white text-indigo-700 shadow-sm transition outline-none" : "px-2 py-0.5 text-[10px] font-black rounded text-indigo-600 hover:text-indigo-800 transition outline-none";
-            }
-            updateLineControls();
-        }
-
-        function updateLineControls() {
-            const count = parseInt(document.getElementById('lines-per-sign').value) || 1;
-            const container = document.getElementById('line-controls-container');
-            if(!container) return;
-            container.innerHTML = '';
+    function updateLineControls() {
+        const count = parseInt(document.getElementById('lines-per-sign').value) || 1;
+        const container = document.getElementById('line-controls-container');
+        if(!container) return;
+        container.innerHTML = '';
+        
+        for (let i = 0; i < count; i++) {
+            const ls = lineSettings[i];
+            let fontOpts = systemFonts.map(f => `<option value="${f.CSS_Family}" ${ls.font === f.CSS_Family ? 'selected' : ''}>${f.Font_Name}</option>`).join('');
+            if(fontOpts === '') fontOpts = '<option value="sans-serif">System Default</option>';
             
-            for (let i = 0; i < count; i++) {
-                const ls = lineSettings[i];
-                let fontOpts = systemFonts.map(f => `<option value="${f.CSS_Family}" ${ls.font === f.CSS_Family ? 'selected' : ''}>${f.Font_Name}</option>`).join('');
-                if(fontOpts === '') fontOpts = '<option value="sans-serif">System Default</option>';
-                
-                container.innerHTML += `
-                <div class="flex flex-col sm:flex-row items-center gap-1.5 bg-white border border-indigo-200 p-1.5 rounded shadow-sm">
-                    <span class="text-[9px] font-black text-indigo-700 w-full sm:w-6 text-left sm:text-center uppercase shrink-0">L${i+1}</span>
-                    <input type="text" value="${ls.text}" placeholder="Enter text..." oninput="updateLineSetting(${i}, 'text', this.value)" class="flex-1 w-full sm:w-auto bg-gray-50 border border-gray-200 rounded p-1 text-xs font-bold text-gray-800 outline-none focus:border-indigo-500 shadow-inner">
-                    <div class="flex items-center gap-1.5 w-full sm:w-auto shrink-0 justify-end">
-                        <select onchange="updateLineSetting(${i}, 'font', this.value)" class="w-20 border border-gray-200 rounded text-[9px] font-bold text-gray-700 outline-none focus:border-indigo-500 p-1 bg-white">${fontOpts}</select>
-                        <select onchange="updateLineSetting(${i}, 'caseType', this.value)" class="w-20 border border-gray-200 rounded text-[9px] font-bold text-gray-700 outline-none focus:border-indigo-500 p-1 bg-white">
-                            <option value="upper" ${ls.caseType === 'upper' ? 'selected' : ''}>UPPER</option>
-                            <option value="title" ${ls.caseType === 'title' ? 'selected' : ''}>Title</option>
-                            <option value="lower" ${ls.caseType === 'lower' ? 'selected' : ''}>lower</option>
-                            <option value="exact" ${ls.caseType === 'exact' ? 'selected' : ''}>As Typed</option>
-                        </select>
-                        <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 p-0.5 rounded shadow-inner">
-                            <input type="number" step="0.125" min="0.125" value="${ls.height}" onchange="updateLineSetting(${i}, 'height', this.value)" class="w-12 bg-transparent font-black text-indigo-900 text-[10px] text-center outline-none">
-                            <span class="text-indigo-800 font-black text-[9px] pr-1">"</span>
-                        </div>
+            container.innerHTML += `
+            <div class="flex flex-col sm:flex-row items-center gap-1.5 bg-white border border-indigo-200 p-1.5 rounded shadow-sm">
+                <span class="text-[9px] font-black text-indigo-700 w-full sm:w-6 text-left sm:text-center uppercase shrink-0">L${i+1}</span>
+                <input type="text" value="${ls.text}" placeholder="Enter text..." oninput="updateLineSetting(${i}, 'text', this.value)" class="flex-1 w-full sm:w-auto bg-gray-50 border border-gray-200 rounded p-1 text-xs font-bold text-gray-800 outline-none focus:border-indigo-500 shadow-inner">
+                <div class="flex items-center gap-1.5 w-full sm:w-auto shrink-0 justify-end">
+                    <select onchange="updateLineSetting(${i}, 'font', this.value)" class="w-20 border border-gray-200 rounded text-[9px] font-bold text-gray-700 outline-none focus:border-indigo-500 p-1 bg-white">${fontOpts}</select>
+                    <select onchange="updateLineSetting(${i}, 'caseType', this.value)" class="w-20 border border-gray-200 rounded text-[9px] font-bold text-gray-700 outline-none focus:border-indigo-500 p-1 bg-white">
+                        <option value="upper" ${ls.caseType === 'upper' ? 'selected' : ''}>UPPER</option>
+                        <option value="title" ${ls.caseType === 'title' ? 'selected' : ''}>Title</option>
+                        <option value="lower" ${ls.caseType === 'lower' ? 'selected' : ''}>lower</option>
+                        <option value="exact" ${ls.caseType === 'exact' ? 'selected' : ''}>As Typed</option>
+                    </select>
+                    <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 p-0.5 rounded shadow-inner">
+                        <input type="number" step="0.125" min="0.125" value="${ls.height}" onchange="updateLineSetting(${i}, 'height', this.value)" class="w-12 bg-transparent font-black text-indigo-900 text-[10px] text-center outline-none">
+                        <span class="text-indigo-800 font-black text-[9px] pr-1">"</span>
                     </div>
-                </div>`;
+                </div>
+            </div>`;
+        }
+        runCalc();
+    }
+
+    function updateLineSetting(index, field, val) {
+        if (field === 'height') lineSettings[index].height = isNaN(parseFloat(val)) || parseFloat(val) < 0.125 ? 0.125 : parseFloat(val);
+        else lineSettings[index][field] = val;
+        runCalc();
+    }
+
+    function formatLineCase(str, mode) {
+        if (!str) return "";
+        if (mode === 'upper') return str.toUpperCase();
+        if (mode === 'lower') return str.toLowerCase();
+        if (mode === 'title') return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+        return str;
+    }
+
+    // --- UI TOGGLES ---
+    function setMode(mode) {
+        currentMode = mode;
+        const isFront = mode === 'front';
+        
+        const btnFront = document.getElementById('btn-front');
+        const btnReverse = document.getElementById('btn-reverse');
+        if(btnFront) btnFront.className = `flex-1 py-2 text-xs font-bold rounded transition-all ${isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
+        if(btnReverse) btnReverse.className = `flex-1 py-2 text-xs font-bold rounded transition-all ${!isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
+        
+        const paintWrap = document.getElementById('paint-wrap');
+        if(paintWrap) paintWrap.classList.toggle('hidden', isFront);
+        
+        const activeData = isFront ? rowmarkFront : rowmarkRev;
+        if (selectedMat && activeData.length > 0) {
+            const isValid = activeData.find(c => c.Code === selectedMat.Code);
+            if (!isValid) {
+                // Safely toggle to 222-402 for Front, and 322-401 for Reverse defaults
+                selectedMat = activeData.find(c => c.Code === '222-402' || c.Code === '322-401') || activeData;
             }
+        }
+        
+        if (!isFront && (!selectedPaint || selectedPaint.Code === 'CUSTOM')) {
+            if(selectedMat) handleReverseAutoPaint(selectedMat);
+        }
+        
+        updateColorUI();
+        runCalc();
+    }
+
+    function setPaintSystem(sys) {
+        activePaintSystem = sys;
+        const activeClass = "flex-1 py-1.5 text-[10px] font-black rounded bg-blue-700 shadow-sm text-white transition uppercase tracking-widest border border-blue-600 focus:outline-none";
+        const inactiveClass = "flex-1 py-1.5 text-[10px] font-black rounded text-blue-300 hover:text-white hover:bg-blue-800/50 transition border border-transparent uppercase tracking-widest focus:outline-none";
+        
+        const btnPms = document.getElementById('btn-pms');
+        const btnSw = document.getElementById('btn-sw');
+        
+        if(btnPms) btnPms.className = sys === 'PMS' ? activeClass : inactiveClass;
+        if(btnSw) btnSw.className = sys === 'SW' ? activeClass : inactiveClass;
+        
+        const searchEl = document.getElementById('color-search');
+        if(searchEl) {
+            searchEl.placeholder = sys === 'PMS' ? "Search PMS Colors..." : "Search SW Colors...";
+            searchEl.value = "";
+        }
+        
+        const customWrap = document.getElementById('custom-pms-wrap');
+        if (customWrap) customWrap.classList.toggle('hidden', sys !== 'PMS');
+
+        renderColorGrid();
+    }
+
+    function handleReverseAutoPaint(mat) {
+        const isBlack = mat.Cap_Color.toLowerCase().includes('black');
+        const isWhite = mat.Cap_Color.toLowerCase().includes('white');
+        if (isBlack || isWhite) {
+            const targetCode = isBlack ? 'STD-WHT' : 'STD-BLK';
+            const list = activePaintSystem === 'PMS' ? pmsData : swData;
+            const defaultPaint = list.find(p => p.Code === targetCode);
+            if (defaultPaint) {
+                selectedPaint = defaultPaint;
+            }
+        }
+    }
+
+    // --- COLOR MODAL RENDER ENGINE ---
+    function openColorModal(type) {
+        activeColorType = type;
+        document.getElementById('modal-title').innerText = type === 'face' ? "Select Substrate Color" : "Select Paint Fill Color";
+        document.getElementById('color-search').value = '';
+        document.getElementById('color-modal').classList.remove('hidden');
+        
+        const paintTabs = document.getElementById('paint-tabs');
+        if (type === 'paint') {
+            paintTabs.classList.remove('hidden'); paintTabs.classList.add('flex');
+            setPaintSystem(activePaintSystem); 
+        } else {
+            paintTabs.classList.add('hidden'); paintTabs.classList.remove('flex');
+            document.getElementById('custom-pms-wrap').classList.add('hidden');
+            renderColorGrid();
+        }
+    }
+
+    function renderColorGrid() {
+        const grid = document.getElementById('modal-grid');
+        const search = document.getElementById('color-search').value.toLowerCase();
+        
+        let data = [];
+        if (activeColorType === 'face') {
+            data = currentMode === 'reverse' ? rowmarkRev : rowmarkFront;
+        } else {
+            data = activePaintSystem === 'PMS' ? pmsData : swData;
+        }
+
+        let html = '';
+        
+        if (activeColorType === 'paint' && activePaintSystem === 'PMS') {
+            html += `
+            <button onclick="selectColor('CUSTOM')" class="flex flex-col items-center justify-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] h-[76px] focus:outline-none border border-transparent hover:border-gray-300">
+                <div class="w-8 h-8 rounded-full border border-dashed border-gray-400 bg-gray-100 flex items-center justify-center shadow-sm shrink-0 text-gray-500 font-bold text-lg">+</div>
+                <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">Custom Match</span>
+            </button>`;
+        }
+
+        data.forEach(c => {
+            if (search && !c.Name.toLowerCase().includes(search) && !(c.Code && c.Code.toLowerCase().includes(search))) return;
+            
+            let bgStyle = `background-color: ${c.Hex_Code};`;
+            
+            // FIXED: Only split the thumbnail if the calculator is currently in Front Engrave mode!
+            if (activeColorType === 'face' && currentMode === 'front' && c.Core_Hex && c.Hex_Code !== '#e5e7eb' && c.Hex_Code !== 'Transparent') {
+                bgStyle = `background: linear-gradient(135deg, ${c.Hex_Code} 50%, ${c.Core_Hex} 50%);`;
+            }
+            
+            html += `
+            <button onclick="selectColor('${c.Code}')" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] focus:outline-none border border-transparent hover:border-gray-300">
+                <div class="w-10 h-10 rounded-full border border-gray-400 shadow-sm shrink-0" style="${bgStyle}"></div>
+                <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">${c.Name}</span>
+                <span class="text-[8px] font-black text-gray-400">${c.Code || ''}</span>
+            </button>`;
+        });
+
+        grid.innerHTML = html;
+    }
+
+    function selectColor(code) {
+        if (activeColorType === 'face') {
+            const list = currentMode === 'reverse' ? rowmarkRev : rowmarkFront;
+            selectedMat = list.find(c => c.Code === code);
+            if (currentMode === 'reverse') handleReverseAutoPaint(selectedMat);
+            closeModal();
+            updateColorUI();
             runCalc();
-        }
-
-        function updateLineSetting(index, field, val) {
-            if (field === 'height') lineSettings[index].height = isNaN(parseFloat(val)) || parseFloat(val) < 0.125 ? 0.125 : parseFloat(val);
-            else lineSettings[index][field] = val;
-            runCalc();
-        }
-
-        function formatLineCase(str, mode) {
-            if (!str) return "";
-            if (mode === 'upper') return str.toUpperCase();
-            if (mode === 'lower') return str.toLowerCase();
-            if (mode === 'title') return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
-            return str;
-        }
-
-        // --- UI TOGGLES ---
-        function setMode(mode) {
-            currentMode = mode;
-            const isFront = mode === 'front';
-            
-            const btnFront = document.getElementById('btn-front');
-            const btnReverse = document.getElementById('btn-reverse');
-            if(btnFront) btnFront.className = `flex-1 py-2 text-xs font-bold rounded transition-all ${isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
-            if(btnReverse) btnReverse.className = `flex-1 py-2 text-xs font-bold rounded transition-all ${!isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
-            
-            const paintWrap = document.getElementById('paint-wrap');
-            if(paintWrap) paintWrap.classList.toggle('hidden', isFront);
-            
-            const activeData = isFront ? rowmarkFront : rowmarkRev;
-            if (selectedMat && activeData.length > 0) {
-                const isValid = activeData.find(c => c.Code === selectedMat.Code);
-                if (!isValid) {
-                    selectedMat = activeData.find(c => c.Code === '222-402' || c.Code === '322-401') || activeData;
-                }
+        } else {
+            if (code === 'CUSTOM') {
+                selectedPaint = { Code: 'CUSTOM', Name: 'Custom Manual Color', Hex_Code: '#e2e8f0' };
+                document.getElementById('custom-pms-wrap').classList.remove('hidden');
+            } else {
+                const list = activePaintSystem === 'PMS' ? pmsData : swData;
+                selectedPaint = list.find(c => c.Code === code);
+                document.getElementById('custom-pms-wrap').classList.add('hidden');
+                closeModal();
+                updateColorUI();
+                runCalc();
             }
-            
-            if (!isFront && (!selectedPaint || selectedPaint.Code === 'CUSTOM')) {
-                if(selectedMat) handleReverseAutoPaint(selectedMat);
-            }
-            
+        }
+    }
+
+    function applyCustomPMS() {
+        const val = document.getElementById('pms-code').value.trim();
+        if (val) {
+            selectedPaint = { Code: 'CUSTOM', Name: `Custom: ${val}`, Hex_Code: '#e2e8f0' };
+            closeModal();
             updateColorUI();
             runCalc();
         }
+    }
 
-        function setPaintSystem(sys) {
-            activePaintSystem = sys;
-            const activeClass = "flex-1 py-1.5 text-[10px] font-black rounded bg-blue-700 shadow-sm text-white transition uppercase tracking-widest border border-blue-600 focus:outline-none";
-            const inactiveClass = "flex-1 py-1.5 text-[10px] font-black rounded text-blue-300 hover:text-white hover:bg-blue-800/50 transition border border-transparent uppercase tracking-widest focus:outline-none";
-            
-            const btnPms = document.getElementById('btn-pms');
-            const btnSw = document.getElementById('btn-sw');
-            
-            if(btnPms) btnPms.className = sys === 'PMS' ? activeClass : inactiveClass;
-            if(btnSw) btnSw.className = sys === 'SW' ? activeClass : inactiveClass;
-            
-            const searchEl = document.getElementById('color-search');
-            if(searchEl) {
-                searchEl.placeholder = sys === 'PMS' ? "Search PMS Colors..." : "Search SW Colors...";
-                searchEl.value = "";
+    function updateColorUI() {
+        if(selectedMat) {
+            const swatch = document.getElementById('ui-face-swatch');
+            if (currentMode === 'front' && selectedMat.Core_Hex) {
+                swatch.style.background = `linear-gradient(135deg, ${selectedMat.Hex_Code} 50%, ${selectedMat.Core_Hex} 50%)`;
+            } else {
+                swatch.style.background = selectedMat.Hex_Code;
             }
-            
-            const customWrap = document.getElementById('custom-pms-wrap');
-            if (customWrap) customWrap.classList.toggle('hidden', sys !== 'PMS');
-
-            renderColorGrid();
+            document.getElementById('ui-face-name').innerText = `[${selectedMat.Code}] ${selectedMat.Name}`;
         }
+        
+        if(selectedPaint) {
+            document.getElementById('ui-paint-swatch').style.background = selectedPaint.Hex_Code;
+            document.getElementById('ui-paint-name').innerText = `[${selectedPaint.Code}] ${selectedPaint.Name}`;
+        }
+    }
 
-        function handleReverseAutoPaint(mat) {
-            const isBlack = mat.Cap_Color.toLowerCase().includes('black');
-            const isWhite = mat.Cap_Color.toLowerCase().includes('white');
-            if (isBlack || isWhite) {
-                const targetCode = isBlack ? 'STD-WHT' : 'STD-BLK';
-                const list = activePaintSystem === 'PMS' ? pmsData : swData;
-                const defaultPaint = list.find(p => p.Code === targetCode);
-                if (defaultPaint) {
-                    selectedPaint = defaultPaint;
+    function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
+
+    // --- CALCULATION ENGINE ---
+    async function runCalc() {
+        if(!backendData.Retail_Min_Order || !selectedMat) return;
+        if(typeof SignOS_Canvas !== 'undefined') SignOS_Canvas.enforceSheetLimits('w', 'h', 'sheet-warn', 24, 48);
+        
+        try {
+            const isReverse = currentMode === 'reverse';
+            let finalPaintName = "";
+            let activePaintHex = "#FFFFFF";
+
+            if (isReverse) {
+                if (selectedPaint) {
+                    finalPaintName = `[${selectedPaint.Code}] ${selectedPaint.Name}`;
+                    activePaintHex = selectedPaint.Hex_Code;
+                } else {
+                    finalPaintName = "TBD / None Selected";
                 }
             }
-        }
 
-        // --- COLOR MODAL RENDER ENGINE ---
-        function openColorModal(type) {
-            activeColorType = type;
-            document.getElementById('modal-title').innerText = type === 'face' ? "Select Substrate Color" : "Select Paint Fill Color";
-            document.getElementById('color-search').value = '';
-            document.getElementById('color-modal').classList.remove('hidden');
-            
-            const paintTabs = document.getElementById('paint-tabs');
-            if (type === 'paint') {
-                paintTabs.classList.remove('hidden'); paintTabs.classList.add('flex');
-                setPaintSystem(activePaintSystem); 
-            } else {
-                paintTabs.classList.add('hidden'); paintTabs.classList.remove('flex');
-                document.getElementById('custom-pms-wrap').classList.add('hidden');
-                renderColorGrid();
-            }
-        }
+            const gapInput = document.getElementById('line-spacing');
+            const gapVal = gapInput ? parseFloat(gapInput.value) : 0.125;
+            const qtyEl = document.getElementById('qty');
 
-        function renderColorGrid() {
-            const grid = document.getElementById('modal-grid');
-            const search = document.getElementById('color-search').value.toLowerCase();
-            
-            let data = [];
-            if (activeColorType === 'face') {
-                data = currentMode === 'reverse' ? rowmarkRev : rowmarkFront;
-            } else {
-                data = activePaintSystem === 'PMS' ? pmsData : swData;
-            }
+            const inputs = {
+                qty: parseFloat(qtyEl ? qtyEl.value : 1) || 1,
+                w: parseFloat(document.getElementById('w').value) || 10,
+                h: parseFloat(document.getElementById('h').value) || 2,
+                isReverse: isReverse,
+                mat: selectedMat,
+                paint: finalPaintName,
+                gap: gapVal || 0,
+                paintHex: activePaintHex,
+                product: currentMode === 'front' ? 'Front116' : 'Rev116',
+                mounting: document.getElementById('mounting') ? document.getElementById('mounting').value : 'None'
+            };
 
-            let html = '';
-            
-            if (activeColorType === 'paint' && activePaintSystem === 'PMS') {
-                html += `
-                <button onclick="selectColor('CUSTOM')" class="flex flex-col items-center justify-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] h-[76px] focus:outline-none border border-transparent hover:border-gray-300">
-                    <div class="w-8 h-8 rounded-full border border-dashed border-gray-400 bg-gray-100 flex items-center justify-center shadow-sm shrink-0 text-gray-500 font-bold text-lg">+</div>
-                    <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">Custom Match</span>
-                </button>`;
-            }
+            const dataToUse = backendData;
 
-            data.forEach(c => {
-                if (search && !c.Name.toLowerCase().includes(search) && !(c.Code && c.Code.toLowerCase().includes(search))) return;
-                
-                let bgStyle = `background-color: ${c.Hex_Code};`;
-                if (activeColorType === 'face' && c.Core_Hex && c.Hex_Code !== '#e5e7eb' && c.Hex_Code !== 'Transparent') {
-                    bgStyle = `background: linear-gradient(135deg, ${c.Hex_Code} 50%, ${c.Core_Hex} 50%);`;
-                }
-                
-                html += `
-                <button onclick="selectColor('${c.Code}')" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] focus:outline-none border border-transparent hover:border-gray-300">
-                    <div class="w-10 h-10 rounded-full border border-gray-400 shadow-sm shrink-0" style="${bgStyle}"></div>
-                    <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">${c.Name}</span>
-                    <span class="text-[8px] font-black text-gray-400">${c.Code || ''}</span>
-                </button>`;
+            const fnUrl = `${EDGE_URL}/functions/v1/calculate-nameplate`;
+            const response = await fetch(fnUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                body: JSON.stringify({ inputs: inputs, config: dataToUse })
             });
-
-            grid.innerHTML = html;
-        }
-
-        function selectColor(code) {
-            if (activeColorType === 'face') {
-                const list = currentMode === 'reverse' ? rowmarkRev : rowmarkFront;
-                selectedMat = list.find(c => c.Code === code);
-                if (currentMode === 'reverse') handleReverseAutoPaint(selectedMat);
-                closeModal();
-                updateColorUI();
-                runCalc();
-            } else {
-                if (code === 'CUSTOM') {
-                    selectedPaint = { Code: 'CUSTOM', Name: 'Custom Manual Color', Hex_Code: '#e2e8f0' };
-                    document.getElementById('custom-pms-wrap').classList.remove('hidden');
-                } else {
-                    const list = activePaintSystem === 'PMS' ? pmsData : swData;
-                    selectedPaint = list.find(c => c.Code === code);
-                    document.getElementById('custom-pms-wrap').classList.add('hidden');
-                    closeModal();
-                    updateColorUI();
-                    runCalc();
-                }
-            }
-        }
-
-        function applyCustomPMS() {
-            const val = document.getElementById('pms-code').value.trim();
-            if (val) {
-                selectedPaint = { Code: 'CUSTOM', Name: `Custom: ${val}`, Hex_Code: '#e2e8f0' };
-                closeModal();
-                updateColorUI();
-                runCalc();
-            }
-        }
-
-        function updateColorUI() {
-            if(selectedMat) {
-                const swatch = document.getElementById('ui-face-swatch');
-                if (currentMode === 'front' && selectedMat.Core_Hex) {
-                    swatch.style.background = `linear-gradient(135deg, ${selectedMat.Hex_Code} 50%, ${selectedMat.Core_Hex} 50%)`;
-                } else {
-                    swatch.style.background = selectedMat.Hex_Code;
-                }
-                document.getElementById('ui-face-name').innerText = `[${selectedMat.Code}] ${selectedMat.Name}`;
-            }
             
-            if(selectedPaint) {
-                document.getElementById('ui-paint-swatch').style.background = selectedPaint.Hex_Code;
-                document.getElementById('ui-paint-name').innerText = `[${selectedPaint.Code}] ${selectedPaint.Name}`;
-            }
-        }
+            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+            const result = await response.json();
 
-        function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
-
-        // --- CALCULATION ENGINE ---
-        async function runCalc() {
-            if(!backendData.Retail_Min_Order || !selectedMat) return;
-            if(typeof SignOS_Canvas !== 'undefined') SignOS_Canvas.enforceSheetLimits('w', 'h', 'sheet-warn', 24, 48);
+            if (!result || !result.retail) return;
             
-            try {
-                const isReverse = currentMode === 'reverse';
-                let finalPaintName = "";
-                let activePaintHex = "#FFFFFF";
+            const ret = result.retail;
+            const fmt = (n) => "$" + (n || 0).toFixed(2);
+            const totalSqin = (inputs.w * inputs.h) * inputs.qty;
+            
+            if(document.getElementById('lbl-sqin')) document.getElementById('lbl-sqin').innerText = totalSqin.toFixed(1);
+            if(document.getElementById('ui-unit')) document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+            if(document.getElementById('ui-total')) document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+            if(document.getElementById('ui-print')) document.getElementById('ui-print').innerText = fmt(ret.printTotal);
 
-                if (isReverse) {
-                    if (selectedPaint) {
-                        finalPaintName = `[${selectedPaint.Code}] ${selectedPaint.Name}`;
-                        activePaintHex = selectedPaint.Hex_Code;
-                    } else {
-                        finalPaintName = "TBD / None Selected";
-                    }
+            const minOrder = parseFloat(dataToUse.Retail_Min_Order || 50);
+            if(document.getElementById('ui-min-text')) document.getElementById('ui-min-text').innerText = `Shop Min: $${minOrder}`;
+            if(document.getElementById('min-badge')) document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+
+            let sublineHtml = '';
+            ret.breakdown.forEach(item => {
+                if (item.label !== 'Shop Minimum Surcharge') {
+                    const safeUnit = item.unit || 0;
+                    sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${safeUnit.toFixed(2)})</span>`;
                 }
+            });
+            if(document.getElementById('ui-subline')) document.getElementById('ui-subline').innerHTML = sublineHtml;
 
-                const gapInput = document.getElementById('line-spacing');
-                const gapVal = gapInput ? parseFloat(gapInput.value) : 0.125;
-                const qtyEl = document.getElementById('qty');
+            // BOUNDED TEXT PREVIEW MATH
+            const linesCountEl = document.getElementById('lines-per-sign');
+            const linesCount = parseInt(linesCountEl ? linesCountEl.value : 1) || 1;
+            const modeEl = document.getElementById('overflow-mode');
+            const mode = modeEl ? modeEl.value : 'shrink';
+            const canvas = document.getElementById('preview-canvas');
+            const warn = document.getElementById('overflow-warn-box');
+            const warnBright = document.getElementById('bright-warn-box');
+            let hasOverflowWarn = false;
+            
+            const availableW = inputs.w - 0.5;
+            const availableH = inputs.h - 0.5;
+            const wrapperEl = document.getElementById('preview-wrapper');
+            const containerW = wrapperEl ? wrapperEl.clientWidth : 400;
+            const maxAllowedH = 160;
+            let scale = Math.min((containerW * 0.9) / inputs.w, maxAllowedH / inputs.h);
 
-                const inputs = {
-                    qty: parseFloat(qtyEl ? qtyEl.value : 1) || 1,
-                    w: parseFloat(document.getElementById('w').value) || 10,
-                    h: parseFloat(document.getElementById('h').value) || 2,
-                    isReverse: isReverse,
-                    mat: selectedMat,
-                    paint: finalPaintName,
-                    gap: gapVal || 0,
-                    paintHex: activePaintHex,
-                    product: currentMode === 'front' ? 'Front116' : 'Rev116',
-                    mounting: document.getElementById('mounting') ? document.getElementById('mounting').value : 'None'
-                };
+            if (canvas) {
+                canvas.style.width = `${inputs.w * scale}px`;
+                canvas.style.height = `${inputs.h * scale}px`;
+                // FIXED: Changed selectedMat.Cap_Hex to selectedMat.Hex_Code so Pine Green renders correctly
+                canvas.style.backgroundColor = selectedMat.Hex_Code;
+                let textColor = currentMode === 'front' ? selectedMat.Core_Hex : activePaintHex;
+                let renderedLines = [];
 
-                const dataToUse = backendData;
-
-                const fnUrl = `${EDGE_URL}/functions/v1/calculate-nameplate`;
-                const response = await fetch(fnUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                    body: JSON.stringify({ inputs: inputs, config: dataToUse })
-                });
-                
-                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-                const result = await response.json();
-
-                if (!result || !result.retail) return;
-                
-                const ret = result.retail;
-                const fmt = (n) => "$" + (n || 0).toFixed(2);
-                const totalSqin = (inputs.w * inputs.h) * inputs.qty;
-                
-                if(document.getElementById('lbl-sqin')) document.getElementById('lbl-sqin').innerText = totalSqin.toFixed(1);
-                if(document.getElementById('ui-unit')) document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-                if(document.getElementById('ui-total')) document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-                if(document.getElementById('ui-print')) document.getElementById('ui-print').innerText = fmt(ret.printTotal);
-
-                const minOrder = parseFloat(dataToUse.Retail_Min_Order || 50); // Global $50 Minimum Applied
-                if(document.getElementById('ui-min-text')) document.getElementById('ui-min-text').innerText = `Shop Min: $${minOrder}`;
-                if(document.getElementById('min-badge')) document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
-
-                let sublineHtml = '';
-                ret.breakdown.forEach(item => {
-                    if (item.label !== 'Shop Minimum Surcharge') {
-                        const safeUnit = item.unit || 0;
-                        sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${safeUnit.toFixed(2)})</span>`;
-                    }
-                });
-                if(document.getElementById('ui-subline')) document.getElementById('ui-subline').innerHTML = sublineHtml;
-
-                // BOUNDED TEXT PREVIEW MATH
-                const linesCountEl = document.getElementById('lines-per-sign');
-                const linesCount = parseInt(linesCountEl ? linesCountEl.value : 1) || 1;
-                const modeEl = document.getElementById('overflow-mode');
-                const mode = modeEl ? modeEl.value : 'shrink';
-                const canvas = document.getElementById('preview-canvas');
-                const warn = document.getElementById('overflow-warn-box');
-                const warnBright = document.getElementById('bright-warn-box');
-                let hasOverflowWarn = false;
-                
-                const availableW = inputs.w - 0.5;
-                const availableH = inputs.h - 0.5;
-                const wrapperEl = document.getElementById('preview-wrapper');
-                const containerW = wrapperEl ? wrapperEl.clientWidth : 400;
-                const maxAllowedH = 160;
-                let scale = Math.min((containerW * 0.9) / inputs.w, maxAllowedH / inputs.h);
-
-                if (canvas) {
-                    canvas.style.width = `${inputs.w * scale}px`;
-                    canvas.style.height = `${inputs.h * scale}px`;
-                    canvas.style.backgroundColor = selectedMat.Cap_Hex;
-                    let textColor = currentMode === 'front' ? selectedMat.Core_Hex : activePaintHex;
-                    let renderedLines = [];
-
-                    for(let i=0; i<linesCount; i++){
-                        let ls = lineSettings[i];
-                        let formattedText = formatLineCase(ls.text, ls.caseType);
-                        if(!formattedText) continue;
-                        let targetH = ls.height;
-                        let absoluteMax = typeof SignOS_Canvas !== 'undefined' ? SignOS_Canvas.calcMaxHeightForText(formattedText, ls.font, availableW) : 999;
-                        
-                        if(mode === 'shrink') {
-                            if (targetH > absoluteMax) targetH = Math.max(0.125, Math.floor(absoluteMax / 0.125) * 0.125);
-                        }
-                        if (targetH > absoluteMax) hasOverflowWarn = true;
-                        
-                        renderedLines.push({ text: formattedText, fontFam: ls.font, cssCqh: `${(targetH / inputs.h) * 100}cqh` });
-                    }
+                for(let i=0; i<linesCount; i++){
+                    let ls = lineSettings[i];
+                    let formattedText = formatLineCase(ls.text, ls.caseType);
+                    if(!formattedText) continue;
+                    let targetH = ls.height;
+                    let absoluteMax = typeof SignOS_Canvas !== 'undefined' ? SignOS_Canvas.calcMaxHeightForText(formattedText, ls.font, availableW) : 999;
                     
-                    let totalTextH = renderedLines.reduce((sum, line) => sum + (parseFloat(line.cssCqh) * inputs.h / 100 / 0.72 * 1.2), 0);
-                    let totalGapH = renderedLines.length > 1 ? (renderedLines.length - 1) * gapVal : 0;
-                    if ((totalTextH + totalGapH) > availableH && mode === 'strict') hasOverflowWarn = true;
+                    if(mode === 'shrink') {
+                        if (targetH > absoluteMax) targetH = Math.max(0.125, Math.floor(absoluteMax / 0.125) * 0.125);
+                    }
+                    if (targetH > absoluteMax) hasOverflowWarn = true;
                     
-                    let linesHtml = renderedLines.map(line => `<span class="whitespace-nowrap font-bold" style="color: ${textColor}; font-family: '${line.fontFam}', sans-serif; font-size: ${line.cssCqh}; line-height: 0.85; margin: 0; padding: 0; display: block;">${line.text}</span>`).join('');
-                    canvas.innerHTML = `<div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none" style="gap: ${(gapVal / inputs.h) * 100}cqh;">${linesHtml}</div>`;
+                    renderedLines.push({ text: formattedText, fontFam: ls.font, cssCqh: `${(targetH / inputs.h) * 100}cqh` });
                 }
-
-                if(warn) warn.classList.toggle('hidden', !hasOverflowWarn);
-                if(warnBright) warnBright.classList.toggle('hidden', !selectedMat.Cap_Color.includes('Bright'));
-
-                let brandTxt = `Rowmark ${inputs.mat.Series} (${inputs.mat.Thickness})`;
-                const bevelEl = document.getElementById('bevel-edges');
-                const bevelTxt = (bevelEl && bevelEl.value === 'Yes') ? 'Bevel Edges. ' : 'Straight Cut Edge. ';
-                let explicitNotes = `${bevelTxt}No backers. No hardware. No installation. No raised copy. No braille.`;
-                let combinedText = lineSettings.slice(0, linesCount).map(ls => formatLineCase(ls.text, ls.caseType)).filter(Boolean).join(' / ');
-
-                const descEl = document.getElementById('job-desc');
-                if(descEl) {
-                    descEl.value = inputs.isReverse
-                    ? `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Reverse Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.paint} painted text.\nCopy: ${combinedText}\n\n${explicitNotes}`
-                    : `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Front Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.mat.Core_Color} text.\nCopy: ${combinedText}\n\n${explicitNotes}`;
-                }
-
-            } catch(e) { console.error("Cloud Engine Error:", e); }
-        }
-
-        function copyTicket(btn) {
-            const desc = document.getElementById('job-desc');
-            if(!desc) return;
-            desc.select(); desc.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(desc.value);
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = "✅ COPIED TO CLIPBOARD!";
-            btn.classList.add('bg-green-100', 'text-green-800', 'border-green-300');
-            btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
-            setTimeout(() => {
-                btn.innerHTML = originalHTML;
-                btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-300');
-                btn.classList.add('bg-white', 'text-gray-700', 'border-gray-300');
-            }, 2500);
-        }
-
-        window.addEventListener('load', async () => {
-            if (typeof injectHeader === 'function') injectHeader("Nameplates & Sliders");
-
-            if(window.SignOS_UI && SignOS_UI.Camera3D) {
-                SignOS_UI.Camera3D.init('zoom-stage');
+                
+                let totalTextH = renderedLines.reduce((sum, line) => sum + (parseFloat(line.cssCqh) * inputs.h / 100 / 0.72 * 1.2), 0);
+                let totalGapH = renderedLines.length > 1 ? (renderedLines.length - 1) * gapVal : 0;
+                if ((totalTextH + totalGapH) > availableH && mode === 'strict') hasOverflowWarn = true;
+                
+                let linesHtml = renderedLines.map(line => `<span class="whitespace-nowrap font-bold" style="color: ${textColor}; font-family: '${line.fontFam}', sans-serif; font-size: ${line.cssCqh}; line-height: 0.85; margin: 0; padding: 0; display: block;">${line.text}</span>`).join('');
+                canvas.innerHTML = `<div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none" style="gap: ${(gapVal / inputs.h) * 100}cqh;">${linesHtml}</div>`;
             }
 
-            const statusText = document.getElementById("status-text");
-            const statusDot = document.getElementById("status-dot");
+            if(warn) warn.classList.toggle('hidden', !hasOverflowWarn);
+            if(warnBright) warnBright.classList.toggle('hidden', !selectedMat.Cap_Color.includes('Bright'));
 
-            try {
-                const payload = await SignOS.fetchProductData('PROD_Nameplates');
-                backendData = payload.config;
+            let brandTxt = `Rowmark ${inputs.mat.Series} (${inputs.mat.Thickness})`;
+            const bevelEl = document.getElementById('bevel-edges');
+            const bevelTxt = (bevelEl && bevelEl.value === 'Yes') ? 'Bevel Edges. ' : 'Straight Cut Edge. ';
+            let explicitNotes = `${bevelTxt}No backers. No hardware. No installation. No raised copy. No braille.`;
+            let combinedText = lineSettings.slice(0, linesCount).map(ls => formatLineCase(ls.text, ls.caseType)).filter(Boolean).join(' / ');
 
-                const fetchTable = async (table) => {
-                    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
-                        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                    });
-                    return res.ok ? await res.json() : [];
-                };
-
-                const rawRowmark = await fetchTable('ref_colors_rowmark');
-                const rawSW = await fetchTable('ref_colors_paint'); 
-                const rawPMS = await fetchTable('ref_colors_pms'); 
-                const rawFonts = await fetchTable('ref_fonts');
-
-                rowmarkFront = rawRowmark.filter(r => r.Series && r.Series.includes('Mattes') && !r.Series.includes('Reverse')).map(c => ({
-                    Code: c.Item_Code, Name: `${c.Cap_Color} / ${c.Core_Color}`, Hex_Code: c.Cap_Hex, Core_Hex: c.Core_Hex, Series: c.Series, Thickness: c.Thickness, Item_Code: c.Item_Code, Cap_Color: c.Cap_Color, Core_Color: c.Core_Color
-                }));
-
-                rowmarkRev = rawRowmark.filter(r => r.Series && r.Series.includes('Reverse')).map(c => ({
-                    Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex, Core_Hex: '#ffffff', Series: c.Series, Thickness: c.Thickness, Item_Code: c.Item_Code, Cap_Color: c.Cap_Color, Core_Color: c.Core_Color
-                }));
-
-                swData = rawSW.map(p => ({
-                    Code: p['Color Code'] || p['Code'] || 'UNK', 
-                    Name: p['Color Name'] || p['Name'] || 'Unknown', 
-                    Hex_Code: p['HEX Code'] || p['Hex_Code'] || p['Hex Code'] || '#ffffff'
-                }));
-
-                pmsData = rawPMS.map(p => ({
-                    Code: p['PMS Name / Code'] || 'UNK', 
-                    Name: p['PMS Name / Code'] || 'Unknown', 
-                    Hex_Code: p['HEX Code'] || '#ffffff'
-                }));
-
-                systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
-                if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
-
-                let defaultFont = systemFonts.find(f => f.CSS_Family === 'Arimo') || systemFonts;
-                lineSettings.forEach(ls => ls.font = defaultFont ? defaultFont.CSS_Family : 'sans-serif');
-
-                if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
-
-                // Auto-Select Default Mat on Load
-                selectedMat = rowmarkFront.find(c => c.Code === '222-402') || rowmarkFront;
-                updateColorUI();
-
-                setMode('front'); 
-                setPaintSystem('PMS');
-                updateLineControls();
-                
-            } catch(e) {
-                console.error("API Error:", e);
-                if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+            const descEl = document.getElementById('job-desc');
+            if(descEl) {
+                descEl.value = inputs.isReverse
+                ? `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Reverse Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.paint} painted text.\nCopy: ${combinedText}\n\n${explicitNotes}`
+                : `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Front Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.mat.Core_Color} text.\nCopy: ${combinedText}\n\n${explicitNotes}`;
             }
-        });
-    </script>
+
+        } catch(e) { console.error("Cloud Engine Error:", e); }
+    }
+
+    function copyTicket(btn) {
+        const desc = document.getElementById('job-desc');
+        if(!desc) return;
+        desc.select(); desc.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(desc.value);
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = "✅ COPIED TO CLIPBOARD!";
+        btn.classList.add('bg-green-100', 'text-green-800', 'border-green-300');
+        btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-300');
+            btn.classList.add('bg-white', 'text-gray-700', 'border-gray-300');
+        }, 2500);
+    }
+
+    window.addEventListener('load', async () => {
+        if (typeof injectHeader === 'function') injectHeader("Nameplates & Sliders");
+
+        if(window.SignOS_UI && SignOS_UI.Camera3D) {
+            SignOS_UI.Camera3D.init('zoom-stage');
+        }
+
+        const statusText = document.getElementById("status-text");
+        const statusDot = document.getElementById("status-dot");
+
+        try {
+            const payload = await SignOS.fetchProductData('PROD_Nameplates');
+            backendData = payload.config;
+
+            const fetchTable = async (table) => {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                return res.ok ? await res.json() : [];
+            };
+
+            const rawRowmark = await fetchTable('ref_colors_rowmark');
+            const rawSW = await fetchTable('ref_colors_paint'); 
+            const rawPMS = await fetchTable('ref_colors_pms'); 
+            const rawFonts = await fetchTable('ref_fonts');
+
+            rowmarkFront = rawRowmark.filter(r => r.Series && r.Series.includes('Mattes') && !r.Series.includes('Reverse')).map(c => ({
+                Code: c.Item_Code, Name: `${c.Cap_Color} / ${c.Core_Color}`, Hex_Code: c.Cap_Hex, Core_Hex: c.Core_Hex, Series: c.Series, Thickness: c.Thickness, Item_Code: c.Item_Code, Cap_Color: c.Cap_Color, Core_Color: c.Core_Color
+            }));
+
+            rowmarkRev = rawRowmark.filter(r => r.Series && r.Series.includes('Reverse')).map(c => ({
+                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex, Core_Hex: '#ffffff', Series: c.Series, Thickness: c.Thickness, Item_Code: c.Item_Code, Cap_Color: c.Cap_Color, Core_Color: c.Core_Color
+            }));
+
+            swData = rawSW.map(p => ({
+                Code: p['Color Code'] || p['Code'] || 'UNK', 
+                Name: p['Color Name'] || p['Name'] || 'Unknown', 
+                Hex_Code: p['HEX Code'] || p['Hex_Code'] || p['Hex Code'] || '#ffffff'
+            }));
+
+            pmsData = rawPMS.map(p => ({
+                Code: p['PMS Name / Code'] || 'UNK', 
+                Name: p['PMS Name / Code'] || 'Unknown', 
+                Hex_Code: p['HEX Code'] || '#ffffff'
+            }));
+
+            systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
+            if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
+
+            let defaultFont = systemFonts.find(f => f.CSS_Family === 'Arimo') || systemFonts.slice().shift();
+            lineSettings.forEach(ls => ls.font = defaultFont ? defaultFont.CSS_Family : 'sans-serif');
+
+            if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
+
+            // FIXED: Auto-Select Default Mat 222-402 on Load
+            selectedMat = rowmarkFront.find(c => c.Code === '222-402') || rowmarkFront;
+            updateColorUI();
+
+            setMode('front'); 
+            setPaintSystem('PMS');
+            updateLineControls();
+            
+        } catch(e) {
+            console.error("API Error:", e);
+            if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+        }
+    });
+</script>
 </body>
 </html>
