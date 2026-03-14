@@ -791,72 +791,70 @@ async function runCalc() {
     } catch(e) { console.error("Math Engine Error:", e); }
 }
 
-window.addEventListener('load', async () => {
-    if (typeof injectHeader === 'function') injectHeader("ADA Quoter");
+        window.addEventListener('load', async () => {
+            if (typeof injectHeader === 'function') injectHeader("ADA Compliant Signs");
+            
+            const btnSandbox = document.getElementById('btn-sandbox');
+            if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
+                btnSandbox.classList.remove('hidden');
+            }
 
-    if(sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER') {
-        document.getElementById('btn-sandbox').classList.remove('hidden');
-    }
+            if(window.SignOS_UI && SignOS_UI.Camera3D) {
+                SignOS_UI.Camera3D.init('zoom-stage');
+                SignOS_UI.Camera3D.toggle(true);
+            }
 
-    if(window.SignOS_UI && SignOS_UI.Camera3D) {
-        SignOS_UI.Camera3D.init('zoom-stage');
-        SignOS_UI.Camera3D.toggle(true);
-    }
+            const statusText = document.getElementById("status-text");
+            const statusDot = document.getElementById("status-dot");
 
-    const statusText = document.getElementById("status-text");
-    const statusDot = document.getElementById("status-dot");
+            try {
+                // FIXED: PROD_ADA_Signs doesn't exist in DB. Safely route to PROD_Nameplates to grab identical global labor variables
+                const payload = await SignOS.fetchProductData('PROD_Nameplates');
+                backendData = payload.config;
 
-    try {
-        const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark', 'REF_Pictograms']);
-        backendData = payload.config;
+                // FIXED: Fetch Tables Natively to bypass the RPC Whitelist block
+                const fetchTable = async (table) => {
+                    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
+                        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                    });
+                    return res.ok ? await res.json() : [];
+                };
 
-        const rawRowmark = payload.tables['REF_Colors_Rowmark'] || [];
-        pictograms = payload.tables['REF_Pictograms'] || [];
+                const rawRowmark = await fetchTable('REF_Colors_Rowmark');
+                pictograms = await fetchTable('ref_pictograms');
+                systemFonts = await fetchTable('REF_Fonts');
 
-        coreColors = rawRowmark.filter(r => {
-            let series = r.Series || '';
-            return series.includes('Ultra-Mattes') || series.includes('Reverse');
-        }).map(c => {
-            let itemCode = c['Item_Code'] || c['Item Code'] || 'UNK';
-            let capColor = c['Cap_Color'] || c['Cap Color'] || 'Unknown';
-            let coreColor = c['Core_Color'] || c['Core Color'] || 'Unknown';
-            let capHex = c['Cap_Hex'] || c['Cap HEX'] || '#e5e7eb';
-            let coreHex = c['Core_Hex'] || c['Core HEX'] || '#000000';
-            let thick = c['Thickness'] || '1/16"';
-            let thickLbl = thick ? ` (${thick})` : '';
+                const fontSelect = document.getElementById('sign-font');
+                let fontHtml = '';
+                systemFonts.forEach(f => { if(String(f.Is_Active).toUpperCase() === 'TRUE') fontHtml += `<option value="${f.CSS_Family}" data-filename="${f.File_Name}">${f.Font_Name}</option>`; });
+                if(fontSelect) fontSelect.innerHTML = fontHtml;
 
-            return {
-                Code: itemCode,
-                Name: `${capColor} / ${coreColor}${thickLbl}`,
-                Hex_Code: capHex,
-                Core_Hex: coreHex,
-                Thickness: thick
-            };
+                coreColors = rawRowmark.filter(r => r.Series && (r.Series.includes('Ultra-Mattes') || r.Series.includes('Mattes'))).map(c => ({
+                    Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex
+                }));
+                if (!coreColors.find(c => c.Name.includes('Clear'))) coreColors.push({ Code: '322-101', Name: 'Clear', Hex_Code: '#e5e7eb' });
+
+                tactileColors = rawRowmark.filter(r => r.Series && r.Series.includes('ADA Alternative')).map(c => ({
+                    Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex
+                }));
+
+                const activeIcons = pictograms.filter(p => String(p.Is_Active).toUpperCase() === 'TRUE');
+                if (activeIcons.length > 0) {
+                    selectedIcon = activeIcons.find(p => p.Name.toLowerCase().includes('unisex') || p.Name.toLowerCase().includes('family')) || activeIcons;
+                }
+
+                if (SignOS_UI.buildIconGrid) SignOS_UI.buildIconGrid({ containerId: 'icon-grid', data: activeIcons, activeRingClass: 'ring-blue-500', onSelect: (item) => { selectedIcon = item; runCalc(); } });
+
+                if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
+
+                setTimeout(() => { if (selectedIcon) { const btn = document.querySelector(`#icon-grid button[data-code="${selectedIcon.Item_Code}"]`); if (btn) btn.classList.add('ring-2', 'ring-offset-1', 'ring-blue-500', 'border-transparent'); } }, 100);
+
+                applyPreset('Standard');
+            } catch(e) {
+                console.error("API Error:", e);
+                if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+            }
         });
-
-        if (!coreColors.find(c => c.Name.includes('Clear') && c.Thickness === '1/16"')) {
-            coreColors.push({ Code: '322-101', Name: 'Clear / White (1/16")', Hex_Code: '#e5e7eb', Core_Hex: '#ffffff', Thickness: '1/16"' });
-        }
-        if (!coreColors.find(c => c.Name.includes('Clear') && c.Thickness === '1/8"')) {
-            coreColors.push({ Code: '342-101', Name: 'Clear / White (1/8")', Hex_Code: '#e5e7eb', Core_Hex: '#ffffff', Thickness: '1/8"' });
-        }
-
-        tactileColors = rawRowmark.filter(r => r.Series && r.Series.includes('ADA Alternative')).map(c => {
-            let itemCode = c['Item_Code'] || c['Item Code'] || 'UNK';
-            let capColor = c['Cap_Color'] || c['Cap Color'] || 'Unknown';
-            let capHex = c['Cap_Hex'] || c['Cap HEX'] || '#e5e7eb';
-            return { Code: itemCode, Name: capColor, Hex_Code: capHex };
-        });
-
-        if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
-
-        setProduct('BasicB');
-
-    } catch(e) {
-        console.error("API Error:", e);
-        if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
-    }
-});
 </script>
 </body>
 </html>

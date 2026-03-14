@@ -462,23 +462,25 @@ async function runCalc() {
     } catch(e) { console.error("Cloud Physics Error:", e); }
 }
 
-window.addEventListener('load', async () => {
-    if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
+        window.addEventListener('load', async () => {
+            if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
 
-    if(sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER') {
-        document.getElementById('btn-sandbox').classList.remove('hidden');
-    }
+            const btnSandbox = document.getElementById('btn-sandbox');
+            if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
+                btnSandbox.classList.remove('hidden');
+            }
 
-    try {
-        const payload = await SignOS.fetchProductData('PROD_ADA_Signs', []); // Standard fallback to get global rates
-        backendData = payload.config;
+            try {
+                // FIXED: PROD_ADA_Signs doesn't exist in DB. Safely fall back to PROD_Yard_Signs to grab universal global rates.
+                const payload = await SignOS.fetchProductData('PROD_Yard_Signs'); 
+                backendData = payload.config;
 
-        toggleInsetUI();
-        runCalc();
-    } catch(e) {
-        console.error("API Error:", e);
-    }
-});
+                toggleInsetUI();
+                runCalc();
+            } catch(e) {
+                console.error("API Error:", e);
+            }
+        });
 </script>
 </body>
 </html>
