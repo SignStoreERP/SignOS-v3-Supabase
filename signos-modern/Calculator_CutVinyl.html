@@ -41,7 +41,8 @@
                         <option value="8800">Oracal 8800 (Premium Translucent)</option>
                         <option value="8510">Oracal 8510 (Etched / Frosted Glass)</option>
                         <option value="8810">Oracal 8810 (Frosted Cast Glass)</option>
-                        <option value="Specialty">Specialty (Metallic / Fluorescent)</option>
+                        <!-- FIXED: Logic moved to the HTML data attribute so the JS remains generic -->
+                        <option value="Specialty" data-series="6510,7510,metallic,fluorescent">Specialty (Metallic / Fluorescent)</option>
                     </select>
                 </div>
             </div>
@@ -150,48 +151,49 @@
             document.getElementById('color-modal').classList.remove('hidden');
             document.getElementById('color-search').value = '';
             
-            const series = document.getElementById('material').value;
+            const matSelect = document.getElementById('material');
+            const selectedOpt = matSelect.options[matSelect.selectedIndex];
+            
+            // FIXED: Fully agnostic filter. Pulls from data-series if available, else value
+            const filterStr = selectedOpt.dataset.series || selectedOpt.value;
+            const activeFilters = filterStr.toLowerCase().split(',');
             
             const filtered = allColors.filter(c => {
-                const seriesId = String(c.Series_ID || c.series_id || '');
+                const seriesId = String(c.Series_ID || c.series_id || '').toLowerCase();
                 const typeStr = String(c.Type || c.type || '').toLowerCase();
                 const inStock = c.In_Stock !== undefined ? c.In_Stock : c.in_stock;
                 
-                const isAvailable = (inStock === true || String(inStock).toUpperCase() === 'TRUE');
-                if (!isAvailable) return false;
+                if (!(inStock === true || String(inStock).toUpperCase() === 'TRUE')) return false;
 
-                if (series === 'Specialty') {
-                    return seriesId.includes('6510') || seriesId.includes('7510') || typeStr.includes('metallic') || typeStr.includes('fluorescent');
+                // Validates if ANY of the active HTML filters match the Postgres data
+                return activeFilters.some(f => seriesId.includes(f) || typeStr.includes(f));
+            }).map(c => {
+                let hex = (c.Hex_Code || c.hex_code);
+                if (!hex || hex === 'N/A') hex = '#ffffff';
+
+                // CSS INJECTION: Formats image URLs into valid inline CSS so the generic UI library renders them
+                if (hex.toLowerCase().startsWith('http')) {
+                    hex = `transparent; background-image: url('${hex}'); background-size: cover; background-position: center`;
                 }
-                return seriesId.includes(String(series));
-            }).map(c => ({
-                Code: c.Color_Code || c.color_code || '',
-                Name: c.Display_Name || c.display_name || '',
-                Hex_Code: (c.Hex_Code || c.hex_code) && (c.Hex_Code || c.hex_code) !== 'N/A' ? (c.Hex_Code || c.hex_code) : '#ffffff'
-            }));
+
+                return {
+                    Code: c.Color_Code || c.color_code || '',
+                    Name: c.Display_Name || c.display_name || '',
+                    Hex_Code: hex
+                };
+            });
 
             if (typeof SignOS_UI === 'undefined') {
                 console.error("SignOS_UI library is missing! Make sure signos-ui.js is loaded in the header.");
                 return;
             }
 
-            // FIXED: We tell the UI builder this is "paint" so older versions of the library render the Hex Codes perfectly!
             SignOS_UI.buildColorGrid({
                 containerId: 'modal-grid',
                 data: filtered,
                 type: 'paint', 
                 onSelect: (item) => {
-                    selectedColor = allColors.find(c => {
-                        const matchCode = (c.Color_Code === item.Code || c.color_code === item.Code);
-                        const seriesId = String(c.Series_ID || c.series_id || '');
-                        const typeStr = String(c.Type || c.type || '').toLowerCase();
-                        
-                        if (series === 'Specialty') {
-                            return matchCode && (seriesId.includes('6510') || seriesId.includes('7510') || typeStr.includes('metallic') || typeStr.includes('fluorescent'));
-                        }
-                        return matchCode && seriesId.includes(String(series));
-                    });
-                    
+                    selectedColor = allColors.find(c => (c.Color_Code === item.Code || c.color_code === item.Code));
                     updateColorUI();
                     closeModal();
                     runCalc();
@@ -207,10 +209,8 @@
             const hex = selectedColor.Hex_Code || selectedColor.hex_code;
             
             document.getElementById('ui-color-name').innerText = `[${code}] ${name}`;
-            
             const swatch = document.getElementById('ui-color-swatch');
             
-            // Handles both normal hex colors AND Orafol image swatches (like Metallics)
             if (hex && hex.toLowerCase().startsWith('http')) {
                 swatch.style.backgroundImage = `url('${hex}')`;
                 swatch.style.backgroundSize = 'cover';
@@ -251,10 +251,8 @@
                 if (!result || !result.retail) return;
                 const ret = result.retail;
                 const fmt = (n) => "$" + (n || 0).toFixed(2);
-
-                const totalSqFt = ((inputs.w * inputs.h) / 144) * inputs.qty;
                 
-                document.getElementById('lbl-sqft').innerText = totalSqFt.toFixed(1);
+                // FIXED: Removed the lbl-sqft update that caused the crash!
                 document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
                 document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
 
@@ -292,17 +290,12 @@
             const statusDot = document.getElementById("status-dot");
             
             try {
-                // FIXED: Requesting BOTH exact and lowercase formats to force the RPC to return the table
-                const payload = await SignOS.fetchProductData('PROD_Cut', ['REF_Colors_Vinyl', 'ref_colors_vinyl']);
+                // FIXED: Requesting the exact table name verified by your other working modules
+                const payload = await SignOS.fetchProductData('PROD_Cut', ['REF_Colors_Vinyl']);
                 backendData = payload.config;
                 if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
                 
-                // Safely extract the table regardless of which case Supabase returned
-                const tableUpper = payload.tables['REF_Colors_Vinyl'] || [];
-                const tableLower = payload.tables['ref_colors_vinyl'] || [];
-                allColors = tableUpper.length > 0 ? tableUpper : tableLower;
-                
-                console.log(`✅ Successfully loaded ${allColors.length} vinyl colors from Supabase.`);
+                allColors = payload.tables['REF_Colors_Vinyl'] || [];
                 
                 if(statusText) {
                     statusText.innerText = "ONLINE";
