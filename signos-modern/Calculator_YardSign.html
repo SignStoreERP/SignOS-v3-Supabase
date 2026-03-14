@@ -156,6 +156,7 @@ async function runCalc() {
         } catch(e) {
             console.error("Cloud Engine Error:", e);
             if(totalEl) totalEl.innerText = "ERROR";
+            document.getElementById('job-desc').value = `DIAGNOSTIC ERROR:\n${e.message}\n\nIf 404: The GitHub Action failed to deploy the function.\nIf Failed to fetch: CORS or syntax crash.`;
         } finally {
             // Restore full opacity when the new data arrives
             if(totalEl) totalEl.classList.remove('opacity-50');
@@ -173,8 +174,8 @@ window.addEventListener('load', async () => {
 
     try {
         const payload = await SignOS.fetchProductData('PROD_Yard_Signs');
-        backendData = payload.config; 
-        
+        backendData = payload.config;
+
         if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
 
         if(statusText) {
@@ -188,11 +189,11 @@ window.addEventListener('load', async () => {
 
         runCalc();
 
-        } catch(e) {
-            console.error("Cloud Engine Error:", e);
-            if(totalEl) totalEl.innerText = "ERROR";
-            document.getElementById('job-desc').value = `DIAGNOSTIC ERROR:\n${e.message}\n\nIf 404: The GitHub Action failed to deploy the function.\nIf Failed to fetch: CORS or syntax crash.`;
-        } finally {
+    } catch(e) {
+        if(statusText) {
+            statusText.innerText = "OFFLINE";
+            statusText.className = "font-bold text-red-500";
+        }
         console.error(e);
     }
 });
