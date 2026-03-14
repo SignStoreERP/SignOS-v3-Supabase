@@ -71,20 +71,8 @@
         
         <div class="border-t border-blue-200/50 my-3"></div>
 
-        <!-- LINE ITEMS -->
-        <div class="space-y-1 text-xs text-blue-900/70 pt-1">
-            <div class="flex justify-between"><span>Printed Banners (<span id="lbl-sqft">0</span> sqft):</span><span id="ui-print" class="font-bold">$0.00</span></div>
-        </div>
-
-        <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
-            <div>
-                <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
-                <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $50</span>
-                <div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div>
-            </div>
-            <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
-        </div>
-    </div>
+    <!-- LINE ITEMS -->
+    <div id="ui-line-items" class="space-y-1 text-xs text-blue-900/70 pt-1"></div>
 
     <!-- DESCRIPTION GENERATOR -->
     <div class="bg-gray-50 p-4 border-t border-gray-200">
@@ -156,7 +144,17 @@ async function runCalc() {
         
         document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
         document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-        document.getElementById('ui-print').innerText = fmt(ret.printTotal);
+        document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+        document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+        
+        // FIXED: Loop through the breakdown array to display all upcharges dynamically
+        let lineItemsHtml = '';
+        ret.breakdown.forEach(item => {
+            if(item.label !== 'Shop Minimum') {
+                lineItemsHtml += `<div class="flex justify-between"><span>${item.label}:</span><span class="font-bold">${fmt(item.total)}</span></div>`;
+            }
+        });
+        document.getElementById('ui-line-items').innerHTML = lineItemsHtml;
 
         const minOrder = parseFloat(backendData.Retail_Min_Order || 50);
         document.getElementById('ui-min-text').innerText = `Shop Minimum: $${minOrder}`;

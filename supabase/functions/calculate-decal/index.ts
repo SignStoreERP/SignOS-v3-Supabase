@@ -10,11 +10,14 @@ Deno.serve(async (req) => {
     const R = (label: string, total: number, formula: string) => { if(total > 0) ret.push({label, total, formula}); return total; };
     const L = (label: string, total: number, formula: string) => { if(total > 0) cst.push({label, total, formula}); return total; };
 
-    let baseRate = inputs.material === 'Cast' ? parseFloat(config.Retail_Price_Cast_SqFt || "14") : parseFloat(config.Retail_Price_Cal_SqFt || "8");
-    R(`Printed Vinyl (${inputs.material})`, baseRate * totalSqFt, `${totalSqFt.toFixed(1)} SF @ $${baseRate}`);
-    if (inputs.shape === 'Contour') R(`Contour Cut Markup`, (baseRate * totalSqFt) * parseFloat(config.Retail_Cut_Contour_Add || "0.25"), `Shape Surcharge`);
-    if (inputs.weeding === 'Complex') R(`Complex Weeding`, totalSqFt * parseFloat(config.Retail_Weed_Complex || "2.5"), `Weeding Surcharge`);
-    if (inputs.masking === 'Yes') R(`Transfer Tape`, totalSqFt * parseFloat(config.Retail_Tape_SqFt || "1.5"), `Masking Surcharge`);
+    let baseRate = 8;
+    switch(inputs.material) {
+        case 'Cast': baseRate = parseFloat(config.Retail_Price_Cast_SqFt || "14"); break;
+        case 'Reflective': baseRate = parseFloat(config.Retail_Price_Reflective_SqFt || "15"); break;
+        case 'Clear': baseRate = parseFloat(config.Retail_Price_Clear_SqFt || "10"); break;
+        case 'Translucent': baseRate = parseFloat(config.Retail_Price_Trans_SqFt || "10"); break;
+        default: baseRate = parseFloat(config.Retail_Price_Cal_SqFt || "8");
+    }
 
     let grandTotalRaw = ret.reduce((sum, i) => sum + i.total, 0);
     const minOrder = parseFloat(config.Retail_Min_Order || "35");

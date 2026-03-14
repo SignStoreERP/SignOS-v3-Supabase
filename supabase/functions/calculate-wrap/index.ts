@@ -28,7 +28,8 @@ Deno.serve(async (req) => {
     if (inputs.install === 'Yes') R(`Installation Labor`, installTotalRaw, `Install Labor`);
 
     let grandTotalRaw = ret.reduce((sum, i) => sum + i.total, 0);
-    const minOrder = parseFloat(config.Retail_Min_Order || "150");
+    // FIXED: Override the global $50 minimum with a wrap-specific $150 minimum
+    const minOrder = config.Retail_Min_Order_Wrap ? parseFloat(config.Retail_Min_Order_Wrap) : 150;
     let isMinApplied = false; let grandTotal = grandTotalRaw;
     if (grandTotalRaw < minOrder) { R(`Shop Minimum`, minOrder - grandTotalRaw, `Difference`); grandTotal = minOrder; isMinApplied = true; }
 
