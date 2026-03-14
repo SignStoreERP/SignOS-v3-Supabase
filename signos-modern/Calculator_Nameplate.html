@@ -164,7 +164,6 @@
             </button>
         </div>
     </div>
-
 <script>
     let backendData = {}, rowmarkFront = [], rowmarkRev = [], pmsData = [], swData = [], systemFonts = [];
     let activePaintSystem = 'PMS', selectedMat = null, selectedPaint = null, currentMode = 'front';
@@ -173,7 +172,7 @@
         { text: '', font: '', height: 0.375, caseType: 'title' },
         { text: '', font: '', height: 0.375, caseType: 'title' }
     ];
-    let customSimData = null; 
+    let customSimData = null;
     let lastSimResult = null;
 
     // --- UI ACCORDION & BUTTONS ---
@@ -242,6 +241,11 @@
         return str;
     }
 
+    // Safety catch: The HTML dropdown triggers processBulkList() which we don't need here.
+    function processBulkList() {
+        runCalc();
+    }
+
     // --- UI TOGGLES ---
     function setReverseTab(tab) {
         const isMat = tab === 'mat';
@@ -254,8 +258,12 @@
     function setMode(mode) {
         currentMode = mode;
         const isFront = mode === 'front';
-        document.getElementById('btn-front').className = `flex-1 py-2 text-xs font-bold rounded transition-all ${isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
-        document.getElementById('btn-rev').className = `flex-1 py-2 text-xs font-bold rounded transition-all ${!isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
+        
+        const btnFront = document.getElementById('btn-front');
+        const btnReverse = document.getElementById('btn-reverse');
+
+        if(btnFront) btnFront.className = `flex-1 py-2 text-xs font-bold rounded transition-all ${isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
+        if(btnReverse) btnReverse.className = `flex-1 py-2 text-xs font-bold rounded transition-all ${!isFront ? 'bg-white shadow-sm border border-gray-200 text-blue-700' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`;
         
         const tabs = document.getElementById('reverse-tabs');
         if(tabs) tabs.classList.toggle('hidden', isFront);
@@ -273,8 +281,12 @@
         activePaintSystem = sys;
         const activeClass = "flex-1 py-1.5 text-[10px] font-black rounded bg-blue-700 shadow-sm text-white transition uppercase tracking-widest border border-blue-600";
         const inactiveClass = "flex-1 py-1.5 text-[10px] font-black rounded text-blue-300 hover:text-white hover:bg-blue-800/50 transition border border-transparent uppercase tracking-widest";
-        document.getElementById('btn-pms').className = sys === 'PMS' ? activeClass : inactiveClass;
-        document.getElementById('btn-sw').className = sys === 'SW' ? activeClass : inactiveClass;
+        
+        const btnPms = document.getElementById('btn-pms');
+        const btnSw = document.getElementById('btn-sw');
+        
+        if(btnPms) btnPms.className = sys === 'PMS' ? activeClass : inactiveClass;
+        if(btnSw) btnSw.className = sys === 'SW' ? activeClass : inactiveClass;
         
         const searchEl = document.getElementById('paint-search');
         if(searchEl) {
@@ -287,6 +299,7 @@
     function handleReverseAutoPaint(mat) {
         const isBlack = mat.Cap_Color.toLowerCase().includes('black');
         const isWhite = mat.Cap_Color.toLowerCase().includes('white');
+        
         if (isBlack || isWhite) {
             const targetCode = isBlack ? 'STD-WHT' : 'STD-BLK';
             const list = activePaintSystem === 'PMS' ? pmsData : swData;
@@ -294,7 +307,7 @@
             if (defaultPaint) {
                 selectedPaint = defaultPaint;
                 document.getElementById('custom-pms-wrap').classList.add('hidden');
-                document.getElementById('pms-code').value = '';
+                if(document.getElementById('pms-code')) document.getElementById('pms-code').value = '';
                 document.getElementById('selected-paint-label').innerText = `[${selectedPaint.Code}] ${selectedPaint.Name}`;
                 buildPaintSwatches();
             }
@@ -304,7 +317,6 @@
     // --- GLOBAL UI BUILDERS ---
     function updateSwatches() {
         const activeData = currentMode === 'reverse' ? rowmarkRev : rowmarkFront;
-        
         if (typeof SignOS_UI !== 'undefined' && SignOS_UI.buildColorGrid) {
             SignOS_UI.buildColorGrid({
                 containerId: 'rowmark-grid',
@@ -345,7 +357,7 @@
                 onSelect: (item) => {
                     selectedPaint = item;
                     document.getElementById('custom-pms-wrap').classList.add('hidden');
-                    document.getElementById('pms-code').value = '';
+                    if(document.getElementById('pms-code')) document.getElementById('pms-code').value = '';
                     document.getElementById('selected-paint-label').innerText = `[${item.Code}] ${item.Name}`;
                     updateMaterialLabel();
                     runCalc();
@@ -355,7 +367,8 @@
     }
 
     function updateCustomPMS() {
-        const val = document.getElementById('pms-code').value.trim();
+        const pmsCodeEl = document.getElementById('pms-code');
+        const val = pmsCodeEl ? pmsCodeEl.value.trim() : "";
         document.getElementById('selected-paint-label').innerText = val ? `Custom: ${val}` : "Custom Manual Color";
         updateMaterialLabel(); 
         runCalc();
@@ -380,7 +393,8 @@
         if(typeof SignOS_Canvas !== 'undefined') SignOS_Canvas.enforceSheetLimits('w', 'h', 'sheet-warn', 24, 48);
         
         try {
-            const pmsCode = document.getElementById('pms-code') ? document.getElementById('pms-code').value.trim() : "";
+            const pmsCodeEl = document.getElementById('pms-code');
+            const pmsCode = pmsCodeEl ? pmsCodeEl.value.trim() : "";
             const isReverse = currentMode === 'reverse';
             let finalPaintName = "";
             let activePaintHex = "#FFFFFF";
@@ -399,9 +413,10 @@
 
             const gapInput = document.getElementById('line-spacing');
             const gapVal = gapInput ? parseFloat(gapInput.value) : 0.125;
+            const qtyEl = document.getElementById('qty');
 
             const inputs = {
-                qty: parseFloat(document.getElementById('qty').value) || 1,
+                qty: parseFloat(qtyEl ? qtyEl.value : 1) || 1,
                 w: parseFloat(document.getElementById('w').value) || 10,
                 h: parseFloat(document.getElementById('h').value) || 2,
                 isReverse: isReverse,
@@ -450,8 +465,10 @@
             if(document.getElementById('ui-subline')) document.getElementById('ui-subline').innerHTML = sublineHtml;
 
             // BOUNDED TEXT PREVIEW MATH
-            const linesCount = parseInt(document.getElementById('lines-per-sign').value) || 1;
-            const mode = document.getElementById('overflow-mode') ? document.getElementById('overflow-mode').value : 'shrink';
+            const linesCountEl = document.getElementById('lines-per-sign');
+            const linesCount = parseInt(linesCountEl ? linesCountEl.value : 1) || 1;
+            const modeEl = document.getElementById('overflow-mode');
+            const mode = modeEl ? modeEl.value : 'shrink';
             const canvas = document.getElementById('preview-canvas');
             const warn = document.getElementById('overflow-warn-box');
             const warnBright = document.getElementById('bright-warn-box');
@@ -459,7 +476,8 @@
             
             const availableW = inputs.w - 0.5;
             const availableH = inputs.h - 0.5;
-            const containerW = document.getElementById('preview-wrapper') ? document.getElementById('preview-wrapper').clientWidth : 400;
+            const wrapperEl = document.getElementById('preview-wrapper');
+            const containerW = wrapperEl ? wrapperEl.clientWidth : 400;
             const maxAllowedH = 160;
             let scale = Math.min((containerW * 0.9) / inputs.w, maxAllowedH / inputs.h);
 
@@ -497,12 +515,14 @@
             if(warnBright) warnBright.classList.toggle('hidden', !selectedMat.Cap_Color.includes('Bright'));
 
             let brandTxt = `Rowmark ${inputs.mat.Series} (${inputs.mat.Thickness})`;
-            const bevelTxt = document.getElementById('bevel-edges') && document.getElementById('bevel-edges').value === 'Yes' ? 'Bevel Edges. ' : 'Straight Cut Edge. ';
+            const bevelEl = document.getElementById('bevel-edges');
+            const bevelTxt = (bevelEl && bevelEl.value === 'Yes') ? 'Bevel Edges. ' : 'Straight Cut Edge. ';
             let explicitNotes = `${bevelTxt}No backers. No hardware. No installation. No raised copy. No braille.`;
             let combinedText = lineSettings.slice(0, linesCount).map(ls => formatLineCase(ls.text, ls.caseType)).filter(Boolean).join(' / ');
 
-            if(document.getElementById('job-desc')) {
-                document.getElementById('job-desc').value = inputs.isReverse
+            const descEl = document.getElementById('job-desc');
+            if(descEl) {
+                descEl.value = inputs.isReverse
                 ? `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Reverse Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.paint} painted text.\nCopy: ${combinedText}\n\n${explicitNotes}`
                 : `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Nameplates - ${brandTxt} Front Engraved [${inputs.mat.Item_Code}] ${inputs.mat.Cap_Color} face with ${inputs.mat.Core_Color} text.\nCopy: ${combinedText}\n\n${explicitNotes}`;
             }
@@ -512,6 +532,22 @@
                 if(typeof dimInactiveSandboxVars === 'function') dimInactiveSandboxVars();
             }
         } catch(e) { console.error("Cloud Engine Error:", e); }
+    }
+
+    function copyTicket(btn) {
+        const desc = document.getElementById('job-desc');
+        if(!desc) return;
+        desc.select(); desc.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(desc.value);
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = "✅ COPIED TO CLIPBOARD!";
+        btn.classList.add('bg-green-100', 'text-green-800', 'border-green-300');
+        btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-300');
+            btn.classList.add('bg-white', 'text-gray-700', 'border-gray-300');
+        }, 2500);
     }
 
     window.addEventListener('load', async () => {
@@ -530,9 +566,11 @@
         const statusDot = document.getElementById("status-dot");
 
         try {
+            // 1. Fetch globals from PROD_Nameplates
             const payload = await SignOS.fetchProductData('PROD_Nameplates');
             backendData = payload.config;
 
+            // 2. Fetch specific tables natively to bypass the RPC whitelist block!
             const fetchTable = async (table) => {
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
                     headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
