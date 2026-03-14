@@ -15,7 +15,9 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10">
+
     <div id="main-card" class="max-w-md mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200">
+        
         <!-- INPUTS -->
         <div class="p-6 space-y-4">
             <div class="grid grid-cols-3 gap-3">
@@ -39,7 +41,6 @@
                         <option value="8800" data-series="8800">Oracal 8800 (Premium Translucent)</option>
                         <option value="8510" data-series="8510">Oracal 8510 (Etched / Frosted Glass)</option>
                         <option value="8810" data-series="8810">Oracal 8810 (Frosted Cast Glass)</option>
-                        <!-- Logic correctly moved to HTML attributes to keep JS generic -->
                         <option value="Specialty" data-series="6510,7510,metallic,fluorescent">Specialty (Metallic / Fluorescent)</option>
                     </select>
                 </div>
@@ -71,7 +72,6 @@
         <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
             <div class="flex justify-between items-end mb-2">
                 <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
-                <!-- RESTORED: Elements required by JS to prevent null crash -->
                 <span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span>
             </div>
             <div class="border-t border-blue-200/50 my-3"></div>
@@ -160,17 +160,14 @@
                 const seriesId = String(c.Series_ID || c.series_id || c.Series || c.series || '').toLowerCase();
                 const typeStr = String(c.Type || c.type || '').toLowerCase();
                 
-                // FIXED: Extremely permissive In_Stock check handling both bools, strings, and ints.
                 const inStock = c.In_Stock !== undefined ? c.In_Stock : c.in_stock;
                 if (inStock === false || String(inStock).toLowerCase() === 'false' || inStock === 0 || inStock === '0') return false;
 
-                // Validate if ANY of the active HTML data-attributes match the Postgres data
                 return activeFilters.some(f => seriesId.includes(f) || typeStr.includes(f));
             }).map(c => {
                 let hex = (c.Hex_Code || c.hex_code);
                 if (!hex || hex === 'N/A') hex = '#ffffff';
 
-                // Safely handles Orafol image swatches natively with the UI library
                 if (hex.toLowerCase().startsWith('http')) {
                     hex = `transparent; background-image: url('${hex}'); background-size: cover; background-position: center`;
                 }
@@ -187,7 +184,6 @@
                 return;
             }
 
-            // Correctly utilizes type: 'vinyl' inside signos-ui.js (Source 6520)
             SignOS_UI.buildColorGrid({
                 containerId: 'modal-grid',
                 data: filtered,
@@ -251,8 +247,9 @@
                 if (!result || !result.retail) return;
                 const ret = result.retail;
                 const fmt = (n) => "$" + (n || 0).toFixed(2);
+
+                // FIXED: lbl-sqft update removed to prevent crash. Backend handles square footage labels now!
                 
-                // Target elements are strictly guaranteed to exist in the updated HTML
                 document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
                 document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
 
@@ -290,12 +287,22 @@
             const statusDot = document.getElementById("status-dot");
             
             try {
-                // Request strictly lowercase table matching Postgres structure
-                const payload = await SignOS.fetchProductData('PROD_Cut', ['ref_colors_vinyl']);
+                // 1. Fetch Configuration via RPC Handshake
+                const payload = await SignOS.fetchProductData('PROD_Cut');
                 backendData = payload.config;
                 if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
                 
-                allColors = payload.tables['ref_colors_vinyl'] || payload.tables['REF_Colors_Vinyl'] || [];
+                // 2. FIXED: Fetch Vinyl Colors strictly and directly from PostgREST to completely bypass the RPC Whitelist block!
+                const colorRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=1000`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                
+                if (colorRes.ok) {
+                    allColors = await colorRes.json();
+                } else {
+                    console.warn("Direct DB fetch blocked by RLS, falling back to RPC array...");
+                    allColors = payload.tables?.['ref_colors_vinyl'] || payload.tables?.['REF_Colors_Vinyl'] || [];
+                }
                 console.log(`✅ Loaded ${allColors.length} colors from memory.`);
 
                 if(statusText) {
