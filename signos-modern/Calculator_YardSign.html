@@ -188,11 +188,11 @@ window.addEventListener('load', async () => {
 
         runCalc();
 
-    } catch(e) {
-        if(statusText) {
-            statusText.innerText = "OFFLINE";
-            statusText.className = "font-bold text-red-500";
-        }
+        } catch(e) {
+            console.error("Cloud Engine Error:", e);
+            if(totalEl) totalEl.innerText = "ERROR";
+            document.getElementById('job-desc').value = `DIAGNOSTIC ERROR:\n${e.message}\n\nIf 404: The GitHub Action failed to deploy the function.\nIf Failed to fetch: CORS or syntax crash.`;
+        } finally {
         console.error(e);
     }
 });
