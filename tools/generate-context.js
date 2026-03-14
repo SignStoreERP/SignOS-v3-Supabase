@@ -1,4 +1,3 @@
-```javascript
 const fs = require('fs');
 const path = require('path');
 
@@ -16,7 +15,8 @@ function buildTree(dir, prefix = '') {
         const isLast = index === files.length - 1;
         const pointer = isLast ? '└── ' : '├── ';
         
-        output += `${prefix}${pointer}${file}\n`;
+        // Standard concatenation (No backticks or $ symbols)
+        output += prefix + pointer + file + '\n';
         
         if (fs.statSync(fullPath).isDirectory()) {
             output += buildTree(fullPath, prefix + (isLast ? '    ' : '│   '));
@@ -28,7 +28,7 @@ function buildTree(dir, prefix = '') {
 console.log("Generating SignOS Context Dump...");
 const tree = buildTree(path.join(__dirname, '../'));
 
-const finalOutput = `SIGNOS REPOSITORY STATE\nGenerated: ${new Date().toISOString()}\n\n${tree}`;
+const finalOutput = "SIGNOS REPOSITORY STATE\nGenerated: " + new Date().toISOString() + "\n\n" + tree;
 
 fs.writeFileSync(path.join(__dirname, '../', OUTPUT_FILE), finalOutput);
-console.log(`✅ Success! Upload '${OUTPUT_FILE}' to NotebookLM.`);
+console.log("✅ Success! Upload '" + OUTPUT_FILE + "' to NotebookLM.");

@@ -1,0 +1,71 @@
+SIGNOS REPOSITORY STATE
+Generated: 2026-03-14T02:59:31.047Z
+
+├── .cursorrules
+├── .vscode
+│   ├── extensions.json
+│   └── settings.json
+├── README.md
+├── docs
+│   └── 6430_Repository_Architecture.md
+├── fonts
+│   ├── Arimo-Bold.ttf
+│   ├── Arimo-BoldItalic.ttf
+│   ├── Arimo-Italic.ttf
+│   ├── Arimo-Medium.ttf
+│   ├── Arimo-MediumItalic.ttf
+│   ├── Arimo-Regular.ttf
+│   ├── Arimo-SemiBold.ttf
+│   └── Arimo-SemiBoldItalic.ttf
+├── signos-modern
+│   ├── .gitignore
+│   ├── Calculator_ACM.html
+│   ├── Calculator_ADA.html
+│   ├── Calculator_Acrylic.html
+│   ├── Calculator_Banner.html
+│   ├── Calculator_BulkNameplates.html
+│   ├── Calculator_BulkNameplates_SVGTest.html
+│   ├── Calculator_Coro.html
+│   ├── Calculator_CutVinyl.html
+│   ├── Calculator_Decal.html
+│   ├── Calculator_Engraved.html
+│   ├── Calculator_Foam.html
+│   ├── Calculator_Nameplate.html
+│   ├── Calculator_Nameplate_Quote.html
+│   ├── Calculator_Nameplate_SVGTest.html
+│   ├── Calculator_PVC.html
+│   ├── Calculator_PostPanel.html
+│   ├── Calculator_Wall.html
+│   ├── Calculator_Wrap.html
+│   ├── Calculator_YardSign.html
+│   ├── admin_analytics.html
+│   ├── admin_backup.html
+│   ├── admin_changelog.html
+│   ├── admin_roadmap.html
+│   ├── admin_viewer.html
+│   ├── docs.html
+│   ├── index.html
+│   ├── menu.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── signos-builder.js
+│   ├── signos-canvas.js
+│   ├── signos-core.js
+├── supabase
+│   ├── .branches
+│   │   └── _current_branch
+│   ├── config.toml
+│   ├── functions
+│   │   ├── calculate-ada
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   └── calculate-coro
+│   │       ├── .npmrc
+│   │       ├── deno.json
+│   │       └── index.ts
+│   └── migrations
+│       ├── 20260312175500_remote_schema.sql
+│       └── 20260312184436_remote_schema.sql
+└── tools
+    └── generate-context.js
