@@ -212,8 +212,8 @@ window.addEventListener('load', async () => {
     const statusDot = document.getElementById("status-dot");
 
     try {
-        // FIXED: Replaced legacy SCRIPT_URL with the new Supabase Cloud Fetcher
-        const payload = await SignOS.fetchProductData('PROD_ACM_Signs');
+        // FIXED: Using the exact Postgres ID 'PROD_ACM'
+        const payload = await SignOS.fetchProductData('PROD_ACM');
         backendData = payload.config; 
         
         if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
