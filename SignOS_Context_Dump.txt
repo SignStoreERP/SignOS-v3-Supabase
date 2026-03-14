@@ -1,23 +1,19 @@
 SIGNOS REPOSITORY STATE
-Generated: 2026-03-14T02:59:31.047Z
+Generated: 2026-03-14T13:22:38.524Z
 
 ├── .cursorrules
 ├── .vscode
 │   ├── extensions.json
 │   └── settings.json
 ├── README.md
+├── SignOS_Context_Dump.txt
 ├── docs
 │   └── 6430_Repository_Architecture.md
-├── fonts
-│   ├── Arimo-Bold.ttf
-│   ├── Arimo-BoldItalic.ttf
-│   ├── Arimo-Italic.ttf
-│   ├── Arimo-Medium.ttf
-│   ├── Arimo-MediumItalic.ttf
-│   ├── Arimo-Regular.ttf
-│   ├── Arimo-SemiBold.ttf
-│   └── Arimo-SemiBoldItalic.ttf
+├── package.json
 ├── signos-modern
+│   ├── .github
+│   │   └── workflows
+│   │       └── deploy-functions.yml
 │   ├── .gitignore
 │   ├── Calculator_ACM.html
 │   ├── Calculator_ADA.html
@@ -44,10 +40,17 @@ Generated: 2026-03-14T02:59:31.047Z
 │   ├── admin_roadmap.html
 │   ├── admin_viewer.html
 │   ├── docs.html
+│   ├── fonts
+│   │   ├── Arimo-Bold.ttf
+│   │   ├── Arimo-BoldItalic.ttf
+│   │   ├── Arimo-Italic.ttf
+│   │   ├── Arimo-Medium.ttf
+│   │   ├── Arimo-MediumItalic.ttf
+│   │   ├── Arimo-Regular.ttf
+│   │   ├── Arimo-SemiBold.ttf
+│   │   └── Arimo-SemiBoldItalic.ttf
 │   ├── index.html
 │   ├── menu.html
-│   ├── package-lock.json
-│   ├── package.json
 │   ├── signos-builder.js
 │   ├── signos-canvas.js
 │   ├── signos-core.js
@@ -56,11 +59,19 @@ Generated: 2026-03-14T02:59:31.047Z
 │   │   └── _current_branch
 │   ├── config.toml
 │   ├── functions
+│   │   ├── calculate-acm
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
 │   │   ├── calculate-ada
 │   │   │   ├── .npmrc
 │   │   │   ├── deno.json
 │   │   │   └── index.ts
-│   │   └── calculate-coro
+│   │   ├── calculate-coro
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   └── calculate-yard
 │   │       ├── .npmrc
 │   │       ├── deno.json
 │   │       └── index.ts
@@ -68,4 +79,4 @@ Generated: 2026-03-14T02:59:31.047Z
 │       ├── 20260312175500_remote_schema.sql
 │       └── 20260312184436_remote_schema.sql
 └── tools
-    └── generate-context.js
+    └── generate-context.cjs

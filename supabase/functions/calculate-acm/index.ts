@@ -24,13 +24,20 @@ Deno.serve(async (req) => {
 
     let baseRate = inputs.thickness === '6mm' ? parseFloat(config.ACM6_T1_Rate || "16.50") : parseFloat(config.ACM3_T1_Rate || "14.00");
 
-    R(`Base Print (${inputs.thickness})`, baseRate * totalSqFt, `${totalSqFt.toFixed(1)} SF @ $${baseRate}`);
+    // FIXED: Double the retail base rate if Black ACM is selected
+    if (inputs.color === 'Black') {
+        baseRate *= 2;
+    }
+
+    R(`Base Print (${inputs.thickness} ${inputs.color})`, baseRate * totalSqFt, `${totalSqFt.toFixed(1)} SF @ $${baseRate}`);
 
     if (inputs.sides === 2) R(`Double Sided Adder`, (totalSqFt * parseFloat(config.Retail_Adder_DS_Mult || "0.5") * baseRate), `+50% Side 2 Markup`);
 
+    let lamTotal = 0;
     if (inputs.laminate && inputs.laminate !== 'None') {
         const lamAdder = parseFloat(config.Retail_Price_Gloss || "8");
-        R(`Laminate Finish`, (lamAdder * sqft) * inputs.qty, `${inputs.qty}x Lam @ $${lamAdder}/sf`);
+        lamTotal = (lamAdder * sqft) * inputs.qty;
+        R(`Laminate Finish`, lamTotal, `${inputs.qty}x Lam @ $${lamAdder}/sf`);
     }
 
     let routerFee = 0;
@@ -50,8 +57,8 @@ Deno.serve(async (req) => {
         isMinApplied = true;
     }
 
-    const printTotal = (baseRate * totalSqFt) + (inputs.sides === 2 ? (totalSqFt * parseFloat(config.Retail_Adder_DS_Mult || "0.5") * baseRate) : 0);
-
+    const printTotal = (baseRate * totalSqFt) + (inputs.sides === 2 ? (totalSqFt * parseFloat(config.Retail_Adder_DS_Mult || "0.5") * baseRate) : 0) + lamTotal;
+    
     // --- 2. COST ENGINE ---
     const cst: any[] = [];
     const L = (label: string, total: number, formula: string) => { 
