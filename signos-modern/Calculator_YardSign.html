@@ -83,10 +83,8 @@
 </div>
 
 <script>
-let minOrderGlobal = 50;
+let backendData = {};
 let calcTimeout = null;
-
-// The UI now asks the Database for the math
 
 async function runCalc() {
     if(!backendData || !backendData.Retail_Min_Order) return;
@@ -166,39 +164,37 @@ async function runCalc() {
     }, 300); // 300ms delay
 }
 
-// 5. API FETCH & STATUS BAR
+// API FETCH & NATIVE STATUS BAR UPDATER
 window.addEventListener('load', async () => {
-  if (typeof injectHeader === 'function') injectHeader("Yard Signs");
-  const statusText = document.getElementById("status-text");
-  const statusDot = document.getElementById("status-dot");
+    if (typeof injectHeader === 'function') injectHeader("Yard Signs");
 
-  try {
-    // Initial handshake just to verify we are online and grab the minimum
-    const payload = await SignOS.fetchProductData('PROD_Yard_Signs');
-    if(payload.error) throw new Error(payload.error);
-    
-    if(payload.config && payload.config.Retail_Min_Order) {
-        minOrderGlobal = parseFloat(payload.config.Retail_Min_Order);
-    }
+    const statusText = document.getElementById("status-text");
+    const statusDot = document.getElementById("status-dot");
 
-    if(statusText) {
-      statusText.innerText = "ONLINE";
-      statusText.className = "font-bold text-green-500";
-      if(statusDot) {
-        statusDot.className = "w-2 h-2 rounded-full bg-green-500";
-        statusDot.classList.remove("animate-pulse");
-      }
+    try {
+        const payload = await SignOS.fetchProductData('PROD_Yard_Signs');
+        backendData = payload.config; 
+        
+        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
+
+        if(statusText) {
+            statusText.innerText = "ONLINE";
+            statusText.className = "font-bold text-green-500";
+            if(statusDot) {
+                statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                statusDot.classList.remove("animate-pulse");
+            }
+        }
+
+        runCalc();
+
+    } catch(e) {
+        if(statusText) {
+            statusText.innerText = "OFFLINE";
+            statusText.className = "font-bold text-red-500";
+        }
+        console.error(e);
     }
-    
-    runCalc(); // Trigger initial math
-    
-  } catch(e) {
-    if(statusText) {
-      statusText.innerText = "OFFLINE";
-      statusText.className = "font-bold text-red-500";
-    }
-    console.error(e);
-  }
 });
 </script>
 </body>
