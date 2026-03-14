@@ -207,16 +207,17 @@ async function runCalc() {
 // API FETCH & NATIVE STATUS BAR UPDATER
 window.addEventListener('load', async () => {
     if (typeof injectHeader === 'function') injectHeader("ACM Signs");
-    
+
     const statusText = document.getElementById("status-text");
     const statusDot = document.getElementById("status-dot");
 
     try {
-        const req = await fetch(`${SCRIPT_URL}?req=view_module&tab=PROD_ACM_Signs`);
-        backendData = await req.json();
+        // FIXED: Replaced legacy SCRIPT_URL with the new Supabase Cloud Fetcher
+        const payload = await SignOS.fetchProductData('PROD_ACM_Signs');
+        backendData = payload.config; 
         
-        if(backendData.error) throw new Error(backendData.error);
-        
+        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
+
         if(statusText) {
             statusText.innerText = "ONLINE";
             statusText.className = "font-bold text-green-500";
@@ -225,8 +226,9 @@ window.addEventListener('load', async () => {
                 statusDot.classList.remove("animate-pulse");
             }
         }
-        
-        runCalc(); 
+
+        runCalc();
+
     } catch(e) {
         if(statusText) {
             statusText.innerText = "OFFLINE";
