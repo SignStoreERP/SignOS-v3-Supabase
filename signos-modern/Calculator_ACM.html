@@ -103,6 +103,7 @@
 
 <script>
 let backendData = {};
+let calcTimeout = null; // <-- THIS IS THE MISSING LINE
 
 function enforceSheetLimits(maxShort, maxLong) {
     let wEl = document.getElementById('w');
