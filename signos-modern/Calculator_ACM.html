@@ -212,8 +212,8 @@ window.addEventListener('load', async () => {
     const statusDot = document.getElementById("status-dot");
 
     try {
-        // FIXED: Using the exact Postgres ID 'PROD_ACM'
-        const payload = await SignOS.fetchProductData('PROD_ACM');
+        // FIXED: Reverting to the exact legacy database ID
+        const payload = await SignOS.fetchProductData('PROD_ACM_Signs');
         backendData = payload.config; 
         
         if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
