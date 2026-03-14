@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "context": "node ../tools/generate-context.js"
   },
   "devDependencies": {
     "vite": "^7.3.1"
