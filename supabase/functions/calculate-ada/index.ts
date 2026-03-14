@@ -5,8 +5,10 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
   try {
     const { inputs, config } = await req.json()
+
     const sqin = inputs.w * inputs.h;
     const totalSqin = sqin * inputs.qty;
 
@@ -15,6 +17,7 @@ Deno.serve(async (req) => {
     const C = (k: string, val: string) => `<span class="hover-var text-emerald-600 border-b border-dotted border-emerald-400 cursor-help transition-all font-bold" data-var="${k}">${val}</span>`;
 
     const ret: any[] = []; const cst: any[] = [];
+
     const R = (label: string, total: number, formula: string) => { if(total !== 0) ret.push({label, total, unit: total / inputs.qty, formula}); return total; };
     const L = (label: string, total: number, formula: string) => { if(total !== 0) cst.push({label, total, unit: total / inputs.qty, formula}); return total; };
 
@@ -27,6 +30,7 @@ Deno.serve(async (req) => {
 
     const sheet1152 = 1152;
     const sheet4608 = 4608;
+
     const matDict: any = {
       '1/32': { cost: parseFloat(config.Cost_Sub_Tactile || "55"), yield: sheet1152, name: '1/32" Tactile', costKey: 'Cost_Sub_Tactile' },
       '1/16': { cost: parseFloat(config.Cost_Sub_ADA_Core_116 || "50"), yield: sheet1152, name: '1/16" Core', costKey: 'Cost_Sub_ADA_Core_116' },
@@ -39,8 +43,10 @@ Deno.serve(async (req) => {
     let hasCNC = false;
     let hasPaperWindow = inputs.addons ? inputs.addons.some((a: any) => a.type === 'Window_Paper') : false;
     let hasEngravedWindow = inputs.addons ? inputs.addons.some((a: any) => a.type === 'Window_Engraved') : false;
+
     let solidLayers = 0;
     let tactileLayers = 0;
+
     let safeLayers = inputs.layers || [];
 
     if(safeLayers.length > 0) {
@@ -49,6 +55,7 @@ Deno.serve(async (req) => {
           let m = matDict[l.type];
           let yieldKey = m.yield === 1152 ? 'C_1152' : 'C_4608';
           L(`${m.name} (${l.colorName || 'Base'})`, (totalSqin * (m.cost / m.yield)) * wastePct, `(Total SqIn * ${V(m.costKey)} / ${C(yieldKey, String(m.yield))}) * ${V('Waste_Factor')}`);
+
           if (l.type === '3mm' || l.type === '3/16') hasCNC = true;
           if (l.type === '1/32') tactileLayers++;
           else if (l.type !== '1/32_CLR') solidLayers++;
@@ -57,9 +64,17 @@ Deno.serve(async (req) => {
     }
 
     if (hasPaperWindow || hasEngravedWindow) hasCNC = true;
-    let tapeLayers = Math.max(0, solidLayers - 1);
-    let totalBeads = tactileLayers > 0 ? (inputs.qty * 10) : 0;
 
+    let tapeLayers = Math.max(0, solidLayers - 1);
+    if (inputs.mounting === 'Foam Tape') tapeLayers++;
+
+    // === FIXED: MISSING ENGRAVER LABOR & MACHINE RUNS RESTORED ===
+    L(`File Preflight`, (parseFloat(config.Time_Preflight_Job || "15") / 60) * rateOp, `${V('Time_Preflight_Job')} Mins * ${V('Rate_Operator')}`);
+    L(`Engraver Handling/Load`, (parseFloat(config.Time_Engraver_Load_Per_Item || "2") * inputs.qty / 60) * rateOp, `Qty * ${V('Time_Engraver_Load_Per_Item')} Mins * ${V('Rate_Operator')}`);
+    L(`Engraver Machine Run`, ((totalSqin * parseFloat(config.Time_Engrave_SqIn || "0.25")) / 60) * engraveRate, `Total SqIn * ${V('Time_Engrave_SqIn')} Mins * ${V('Rate_Machine_Engraver')}`);
+    // =============================================================
+
+    let totalBeads = tactileLayers > 0 ? (inputs.qty * 10) : 0;
     if (totalBeads > 0) {
       L(`Braille Beads`, totalBeads * parseFloat(config.Cost_Raster_Bead || "0.01") * wastePct, `10 Beads/Sign * ${V('Cost_Raster_Bead')} * ${V('Waste_Factor')}`);
       L(`Braille Insertion`, (totalBeads * 0.05 / 60) * shopRate, `Total Beads * ${C('C_005', '0.05 Mins')} * ${V('Rate_Shop_Labor')}`);
@@ -119,9 +134,11 @@ Deno.serve(async (req) => {
 
     let hardCost = cst.reduce((sum, i) => sum + i.total, 0);
     let grandTotalRaw = ret.reduce((sum, i) => sum + i.total, 0);
+
     const minOrder = parseFloat(config.Retail_Min_Order || "50");
     const grandTotal = Math.max(grandTotalRaw, minOrder);
     const isMinApplied = grandTotalRaw < minOrder;
+
     if (isMinApplied) R(`Shop Minimum Surcharge`, minOrder - grandTotalRaw, `${V('Retail_Min_Order')} - Subtotal`);
 
     const payload = {
@@ -129,6 +146,10 @@ Deno.serve(async (req) => {
       cost: { total: hardCost * riskFactor, breakdown: cst },
       metrics: { margin: (grandTotal - (hardCost * riskFactor)) / grandTotal }
     };
-    return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  } catch (e: any) { return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: corsHeaders }); }
-});
+
+    return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 })
+  }
+})
