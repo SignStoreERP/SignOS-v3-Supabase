@@ -130,3 +130,25 @@ entrypoint = "./functions/calculate-wall/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/calculate-wall/*.html" ]
+
+[functions.calculate-nameplate]
+enabled = true
+verify_jwt = true
+import_map = "./functions/calculate-nameplate/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calculate-nameplate/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calculate-nameplate/*.html" ]
+
+[functions.calculate-post-panel]
+enabled = true
+verify_jwt = true
+import_map = "./functions/calculate-post-panel/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calculate-post-panel/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calculate-post-panel/*.html" ]

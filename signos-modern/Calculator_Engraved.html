@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <script src="signos-ui.js"></script>
-    <script src="cost_engraved.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
@@ -702,159 +701,162 @@ function enforceSheetLimits(maxShort, maxLong) {
 }
 
     // --- MAIN ENGINE ---
-    function runCalc() {
+async function runCalc() {
     if(!backendData || (!backendData.Retail_Min_Order && !backendData.Retail_Min_Order_Etch)) return;
 
-    // NEW: Enforce Max Sheet Sizes (24x48 or 48x24)
-    enforceSheetLimits(24, 48);
+    // Enforce Max Sheet Sizes (24x48 or 48x24)
+    SignOS_Canvas.enforceSheetLimits('w', 'h', 'sheet-warn', 24, 48);
 
     const inputs = {
         qty: parseFloat(document.getElementById('qty').value) || 1,
         w: parseFloat(document.getElementById('w').value) || 8,
-            h: parseFloat(document.getElementById('h').value) || 8,
-            product: activeProduct,
-            layers: [...baseLayers, ...addonLayers.filter(a => a.type !== '')],
-            addons: addonLayers.filter(a => a.type !== ''),
-            mounting: document.getElementById('mounting').value
-        };
+        h: parseFloat(document.getElementById('h').value) || 8,
+        product: activeProduct,
+        layers: [...baseLayers, ...addonLayers.filter(a => a.type !== '')],
+        addons: addonLayers.filter(a => a.type !== ''),
+        mounting: document.getElementById('mounting').value
+    };
 
-        try {
-            const dataToUse = customSimData || backendData;
-            if(dataToUse.Retail_Price_ADA_Basic_AB === undefined) dataToUse.Retail_Price_ADA_Basic_AB = 1.60;
-            if(dataToUse.Retail_Price_ADA_Basic_Clear === undefined) dataToUse.Retail_Price_ADA_Basic_Clear = 1.80;
+    try {
+        const dataToUse = customSimData || backendData;
+        if(dataToUse.Retail_Price_ADA_Basic_AB === undefined) dataToUse.Retail_Price_ADA_Basic_AB = 1.60;
+        if(dataToUse.Retail_Price_ADA_Basic_Clear === undefined) dataToUse.Retail_Price_ADA_Basic_Clear = 1.80;
 
-            const result = calculateEngraved(inputs, dataToUse);
-            if (!result || !result.retail) return;
+        // Twin-Engine Routing: Target the Edge Function
+        const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
+        const response = await fetch(fnUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+            body: JSON.stringify({ inputs: inputs, config: dataToUse })
+        });
 
-            lastSimResult = result;
-            const ret = result.retail;
-            const fmt = (n) => "$" + (n || 0).toFixed(2);
-            
-            document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-            document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-            document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || dataToUse.Retail_Min_Order_Etch || 50)}`;
-            document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
-            
-            let layerStrs = baseLayers.map(l => {
-                let code = l.colorCode ? l.colorCode : 'TBD';
-                if (l.type === '1/32') return `1/32" Rowmark [${code}] ${l.colorName} Tactile w/ Braille`;
-                if (l.type.includes('Core')) return `${l.type.replace(' Core', '')} Rowmark [${code}] ${l.colorName} Core`;
-                if (l.type === '3mm') return `3mm [${code}] ${l.colorName} PVC Backer`;
-                if (l.type === '3/16') return `3/16" Clear Acrylic Backer`;
-                return l.type;
-            });
-            addonLayers.forEach(a => {
-                if (a.type === 'Window_Paper') layerStrs.push(`Routed Window Pocket (For Paper Insert)`);
-                else if (a.type === 'Window_Engraved') layerStrs.push(`Routed Window Pocket (For ${a.sliderH}" Slider)`);
-                else {
-                    let code = a.colorCode ? a.colorCode : 'TBD';
-                    if(a.type === '1/32') layerStrs.push(`Extra 1/32" Rowmark [${code}] ${a.colorName}`);
-                    else if (a.type === '1/16' || a.type === '1/8') layerStrs.push(`Extra ${a.type} Rowmark [${code}] ${a.colorName}`);
-                    else if (a.type === '3mm') layerStrs.push(`Extra 3mm [${code}] ${a.colorName} PVC`);
-                    else if (a.type === '3/16') layerStrs.push(`Extra 3/16" Clear Acrylic`);
-                }
-            });
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Server Blocked Request: ${response.status} - ${errText}`);
+        }
 
-            let layerDesc = layerStrs.length > 0 ? layerStrs.join("\n   - ") : "(No Layers Selected)";
-            let mountStr = inputs.mounting === 'Foam Tape' ? "Mounting: Foam Tape (VHB)" : "No Mounting Hardware";
-            
-            // THE INVISIBLE KNOT HAS BEEN UNTIED: This element absolutely exists now!
-            document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Sign.\nLayers:\n   - ${layerDesc}.\n\n${mountStr}`;
+        const result = await response.json();
+        if (!result || !result.retail) return;
+        
+        lastSimResult = result;
+        const ret = result.retail;
+        const fmt = (n) => "$" + (n || 0).toFixed(2);
 
-            let sublineHtml = '';
-            ret.breakdown.forEach(item => {
-                if (item.label !== 'Shop Minimum Surcharge') {
-                    sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${item.unit.toFixed(2)})</span>`;
-                }
-            });
-            document.getElementById('ui-subline').innerHTML = sublineHtml;
-            document.getElementById('ui-volume-disp').innerText = `${inputs.qty}x Unit${inputs.qty > 1 ? 's' : ''} (${((inputs.w * inputs.h) * inputs.qty).toFixed(1)} sq in)`;
+        document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+        document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+        document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || dataToUse.Retail_Min_Order_Etch || 50)}`;
+        document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
 
-            document.getElementById('backer-warn').classList.toggle('hidden', !ret.forcedBacker);
+        let layerStrs = baseLayers.map(l => {
+            let code = l.colorCode ? l.colorCode : 'TBD';
+            if (l.type === '1/32') return `1/32" Rowmark [${code}] ${l.colorName} Tactile w/ Braille`;
+            if (l.type.includes('Core')) return `${l.type.replace(' Core', '')} Rowmark [${code}] ${l.colorName} Core`;
+            if (l.type === '3mm') return `3mm [${code}] ${l.colorName} PVC Backer`;
+            if (l.type === '3/16') return `3/16" Clear Acrylic Backer`;
+            return l.type;
+        });
 
-            renderLedgerUI(result);
-            if (customSimData) {
-                dimInactiveSandboxVars();
+        addonLayers.forEach(a => {
+            if (a.type === 'Window_Paper') layerStrs.push(`Routed Window Pocket (For Paper Insert)`);
+            else if (a.type === 'Window_Engraved') layerStrs.push(`Routed Window Pocket (For ${a.sliderH}" Slider)`);
+            else {
+                let code = a.colorCode ? a.colorCode : 'TBD';
+                if (a.type === '1/32') layerStrs.push(`Extra 1/32" Rowmark [${code}] ${a.colorName}`);
+                else if (a.type.includes('Core')) layerStrs.push(`Extra ${a.type.replace(' Core', '')} Rowmark [${code}] ${a.colorName}`);
+                else if (a.type === '3mm') layerStrs.push(`Extra 3mm [${code}] ${a.colorName} PVC Backer`);
+                else if (a.type === '3/16') layerStrs.push(`Extra 3/16" Clear Acrylic Backer`);
             }
+        });
 
-            updatePreview();
+        let layerDesc = layerStrs.length > 0 ? layerStrs.join("\n   - ") : "(No Layers Selected)";
+        let mountStr = inputs.mounting === 'Foam Tape' ? "Mounting: Foam Tape (VHB)" : "No Mounting Hardware";
 
-        } catch(e) { console.error("Math Engine Error:", e); }
+        document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Sign.\nLayers:\n   - ${layerDesc}.\n\n${mountStr}`;
+
+        let sublineHtml = '';
+        ret.breakdown.forEach(item => {
+            if (item.label !== 'Shop Minimum Surcharge') {
+                sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${item.unit.toFixed(2)})</span>`;
+            }
+        });
+
+        document.getElementById('ui-subline').innerHTML = sublineHtml;
+        document.getElementById('ui-volume-disp').innerText = `${inputs.qty}x Unit${inputs.qty > 1 ? 's' : ''} (${((inputs.w * inputs.h) * inputs.qty).toFixed(1)} sq in)`;
+        document.getElementById('backer-warn').classList.toggle('hidden', !ret.forcedBacker);
+
+        renderLedgerUI(result);
+        if (customSimData) dimInactiveSandboxVars();
+        updatePreview();
+
+    } catch(e) { console.error("Math Engine Error:", e); }
+}
+
+window.addEventListener('load', async () => {
+    if (typeof injectHeader === 'function') injectHeader("ADA Quoter");
+
+    if(sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER') {
+        document.getElementById('btn-sandbox').classList.remove('hidden');
     }
 
-    window.addEventListener('load', async () => {
-        if (typeof injectHeader === 'function') injectHeader("ADA Quoter");
-        
-        if(sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER') {
-            document.getElementById('btn-sandbox').classList.remove('hidden');
+    if(window.SignOS_UI && SignOS_UI.Camera3D) {
+        SignOS_UI.Camera3D.init('zoom-stage');
+        SignOS_UI.Camera3D.toggle(true);
+    }
+
+    const statusText = document.getElementById("status-text");
+    const statusDot = document.getElementById("status-dot");
+
+    try {
+        const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark', 'REF_Pictograms']);
+        backendData = payload.config;
+
+        const rawRowmark = payload.tables['REF_Colors_Rowmark'] || [];
+        pictograms = payload.tables['REF_Pictograms'] || [];
+
+        coreColors = rawRowmark.filter(r => {
+            let series = r.Series || '';
+            return series.includes('Ultra-Mattes') || series.includes('Reverse');
+        }).map(c => {
+            let itemCode = c['Item_Code'] || c['Item Code'] || 'UNK';
+            let capColor = c['Cap_Color'] || c['Cap Color'] || 'Unknown';
+            let coreColor = c['Core_Color'] || c['Core Color'] || 'Unknown';
+            let capHex = c['Cap_Hex'] || c['Cap HEX'] || '#e5e7eb';
+            let coreHex = c['Core_Hex'] || c['Core HEX'] || '#000000';
+            let thick = c['Thickness'] || '1/16"';
+            let thickLbl = thick ? ` (${thick})` : '';
+
+            return {
+                Code: itemCode,
+                Name: `${capColor} / ${coreColor}${thickLbl}`,
+                Hex_Code: capHex,
+                Core_Hex: coreHex,
+                Thickness: thick
+            };
+        });
+
+        if (!coreColors.find(c => c.Name.includes('Clear') && c.Thickness === '1/16"')) {
+            coreColors.push({ Code: '322-101', Name: 'Clear / White (1/16")', Hex_Code: '#e5e7eb', Core_Hex: '#ffffff', Thickness: '1/16"' });
+        }
+        if (!coreColors.find(c => c.Name.includes('Clear') && c.Thickness === '1/8"')) {
+            coreColors.push({ Code: '342-101', Name: 'Clear / White (1/8")', Hex_Code: '#e5e7eb', Core_Hex: '#ffffff', Thickness: '1/8"' });
         }
 
-        if(window.SignOS_UI && SignOS_UI.Camera3D) {
-            SignOS_UI.Camera3D.init('zoom-stage');
-            SignOS_UI.Camera3D.toggle(true);
-        }
+        tactileColors = rawRowmark.filter(r => r.Series && r.Series.includes('ADA Alternative')).map(c => {
+            let itemCode = c['Item_Code'] || c['Item Code'] || 'UNK';
+            let capColor = c['Cap_Color'] || c['Cap Color'] || 'Unknown';
+            let capHex = c['Cap_Hex'] || c['Cap HEX'] || '#e5e7eb';
+            return { Code: itemCode, Name: capColor, Hex_Code: capHex };
+        });
 
-        const statusText = document.getElementById("status-text");
-        const statusDot = document.getElementById("status-dot");
+        if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
 
-        try {
-            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark', 'REF_Pictograms']);
-            backendData = payload.config;
-            
-            const rawRowmark = payload.tables['REF_Colors_Rowmark'] || [];
-            pictograms = payload.tables['REF_Pictograms'] || [];
-            
-            coreColors = rawRowmark.filter(r => {
-                let series = r.Series || '';
-                return series.includes('Ultra-Mattes') || series.includes('Reverse');
-            }).map(c => {
-                let itemCode = c['Item_Code'] || c['Item Code'] || 'UNK';
-                let capColor = c['Cap_Color'] || c['Cap Color'] || 'Unknown';
-                let coreColor = c['Core_Color'] || c['Core Color'] || 'Unknown';
-                let capHex = c['Cap_Hex'] || c['Cap HEX'] || '#e5e7eb';
-                let coreHex = c['Core_Hex'] || c['Core HEX'] || '#ffffff';
-                let thick = c.Thickness || ''; 
-                let thickLbl = thick ? ` (${thick})` : '';
-                
-                if (capHex === 'Transparent' || capColor.includes('Clear')) capHex = '#e5e7eb';
+        setProduct('BasicB');
 
-                return { 
-                    Code: itemCode, 
-                    Name: `${capColor} / ${coreColor}${thickLbl}`, 
-                    Hex_Code: capHex, 
-                    Core_Hex: coreHex,
-                    Thickness: thick
-                };
-            });
-
-            if (!coreColors.find(c => c.Name.includes('Clear') && c.Thickness === '1/16"')) {
-                coreColors.push({ Code: '322-101', Name: 'Clear / White (1/16")', Hex_Code: '#e5e7eb', Core_Hex: '#ffffff', Thickness: '1/16"' });
-            }
-            if (!coreColors.find(c => c.Name.includes('Clear') && c.Thickness === '1/8"')) {
-                coreColors.push({ Code: '342-101', Name: 'Clear / White (1/8")', Hex_Code: '#e5e7eb', Core_Hex: '#ffffff', Thickness: '1/8"' });
-            }
-
-            tactileColors = rawRowmark.filter(r => r.Series && r.Series.includes('ADA Alternative')).map(c => {
-                let itemCode = c['Item_Code'] || c['Item Code'] || 'UNK';
-                let capColor = c['Cap_Color'] || c['Cap Color'] || 'Unknown';
-                let capHex = c['Cap_Hex'] || c['Cap HEX'] || '#e5e7eb';
-
-                return { 
-                    Code: itemCode, 
-                    Name: capColor, 
-                    Hex_Code: capHex 
-                };
-            });
-
-            if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
-            
-            setProduct('BasicB');
-            
-        } catch(e) {
-            console.error("API Error:", e);
-            if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
-        }
-    });
+    } catch(e) {
+        console.error("API Error:", e);
+        if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+    }
+});
 </script>
 </body>
 </html>

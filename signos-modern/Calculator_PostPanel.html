@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <script src="signos-ui.js"></script>
-    <script src="cost_post_panel.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
@@ -386,69 +385,100 @@
     }
 
     // --- MAIN MATH ENGINE ---
-    function runCalc() {
-        if(!backendData.Retail_Min_Order) return;
+async function runCalc() {
+    if(!backendData.Retail_Min_Order) return;
+    
+    // Structure an array for the Edge Function so it can map the single panel layout
+    const panelArray = [{
+        w: parseFloat(document.getElementById('w').value) || 48,
+        h: parseFloat(document.getElementById('h').value) || 48,
+        sides: parseInt(document.getElementById('sides').value) || 2,
+        faceMat: document.getElementById('faceMat').value,
+        mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
+        gap: 0,
+        isCNC: false,
+        graphicMethod: 'Printed'
+    }];
 
-        const inputs = {
-            qty: parseInt(document.getElementById('qty').value) || 1,
-            w: parseFloat(document.getElementById('w').value) || 48,
-            h: parseFloat(document.getElementById('h').value) || 48,
-            clearance: parseFloat(document.getElementById('clearance').value) || 36,
-            mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
-            postType: document.getElementById('postType').value,
-            postSize: document.getElementById('postSize').value,
-            postInset: parseFloat(document.getElementById('postInset').value) || 0,
-            frameMat: document.getElementById('frameMat').value,
-            faceMat: document.getElementById('faceMat').value,
-            sides: parseInt(document.getElementById('sides').value) || 2
-        };
+    const inputs = {
+        qty: parseInt(document.getElementById('qty').value) || 1,
+        w: parseFloat(document.getElementById('w').value) || 48,
+        h: parseFloat(document.getElementById('h').value) || 48,
+        clearance: parseFloat(document.getElementById('clearance').value) || 36,
+        mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
+        postType: document.getElementById('postType').value,
+        postSize: document.getElementById('postSize').value,
+        postInset: parseFloat(document.getElementById('postInset').value) || 0,
+        frameMat: document.getElementById('frameMat').value,
+        faceMat: document.getElementById('faceMat').value,
+        sides: parseInt(document.getElementById('sides').value) || 2,
+        panels: panelArray,
+        aboveGrade: (parseFloat(document.getElementById('h').value) || 48) + (parseFloat(document.getElementById('clearance').value) || 36),
+        belowGrade: 36, // Standard bury depth
+        hasConcrete: true,
+        finishType: 'Printed',
+        isCutVinyl: false,
+        postSpacing: (parseFloat(document.getElementById('w').value) || 48) - (parseFloat(document.getElementById('postInset').value) || 0) * 2
+    };
 
-        try {
-            const dataToUse = customSimData || backendData;
-            const result = calculatePostPanel(inputs, dataToUse);
-            
-            if (!result || !result.retail) return;
-            const ret = result.retail;
-            const fmt = (n) => "$" + (n || 0).toFixed(2);
+    try {
+        const dataToUse = customSimData || backendData;
+        
+        // Twin-Engine Routing: Target the Edge Function
+        const fnUrl = `${EDGE_URL}/functions/v1/calculate-post-panel`;
+        const response = await fetch(fnUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+            body: JSON.stringify({ inputs: inputs, config: dataToUse })
+        });
+        
+        if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+        const result = await response.json();
 
-            document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-            document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-            document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 150)}`;
-            document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+        if (!result || !result.retail) return;
+        lastSimResult = result;
+        
+        const ret = result.retail;
+        const fmt = (n) => "$" + (n || 0).toFixed(2);
 
-            const sideTxt = inputs.sides === 2 ? "Double Sided" : "Single Sided";
-            const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount (${inputs.postInset}" Inset)`;
-            const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
-            
-            document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" x ${inputs.h}" Post & Panel Sign.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})`;
+        document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+        document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+        document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 150)}`;
+        document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
 
-            // Generate the dynamic SVGs using the physics geometry payload
-            if(result.geom) drawShopDrawings(result.geom);
+        const sideTxt = inputs.sides === 2 ? "Double Sided" : "Single Sided";
+        const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount (${inputs.postInset}" Inset)`;
+        const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
+        
+        document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" x ${inputs.h}" Post & Panel Sign.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})`;
 
-            if (customSimData) {
-                renderLedgerUI(result);
-                dimInactiveSandboxVars();
-            }
+        // Generate the dynamic SVGs using the physics geometry payload returned from Edge
+        if(result.geom && typeof drawShopDrawings === 'function') drawShopDrawings(result.geom);
 
-        } catch(e) { console.error("Physics Error:", e); }
+        if (customSimData) {
+            renderLedgerUI(result);
+            dimInactiveSandboxVars();
+        }
+    } catch(e) { console.error("Cloud Physics Error:", e); }
+}
+
+window.addEventListener('load', async () => {
+    if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
+
+    if(sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER') {
+        document.getElementById('btn-sandbox').classList.remove('hidden');
     }
 
-    window.addEventListener('load', async () => {
-        if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
+    try {
+        const payload = await SignOS.fetchProductData('PROD_ADA_Signs', []); // Standard fallback to get global rates
+        backendData = payload.config;
 
-        if(sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER') {
-            document.getElementById('btn-sandbox').classList.remove('hidden');
-        }
-
-        try {
-            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', []); // Fallback to get global rates
-            backendData = payload.config;
-            toggleInsetUI();
-            runCalc();
-        } catch(e) {
-            console.error("API Error:", e);
-        }
-    });
+        toggleInsetUI();
+        runCalc();
+    } catch(e) {
+        console.error("API Error:", e);
+    }
+});
 </script>
 </body>
 </html>
