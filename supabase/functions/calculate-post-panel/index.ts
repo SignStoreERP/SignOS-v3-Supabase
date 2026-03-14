@@ -16,15 +16,18 @@ Deno.serve(async (req) => {
     const FALLBACK_METALS: any = {
       'Cost_Post_Aluminum_2_1/8': 4.28, 'Cost_Post_Aluminum_3_1/8': 6.56, 'Cost_Post_Aluminum_4_1/8': 8.84, 'Cost_Post_Aluminum_6_1/4': 26.22,
       'Cost_Post_Steel_3_1/8': 3.88, 'Cost_Post_Steel_3_3/16': 5.85, 'Cost_Post_Steel_4_3/16': 9.25, 'Cost_Post_Steel_6_3/16': 13.85, 'Cost_Post_Steel_6_1/4': 18.75, 'Cost_Post_Steel_8_3/16': 21.60, 'Cost_Post_Steel_8_1/4': 24.25, 'Cost_Post_Steel_10_1/4': 27.75, 'Cost_Post_Steel_12_1/4': 33.55,
-      'Cost_Frame_Angle15': 1.45, 'Cost_Frame_Angle20': 1.85, 'Cost_Frame_Tube15': 1.65, 'Cost_Frame_Tube20': 2.15, 'Cost_Frame_Alum15': 2.55, 'Cost_Frame_Alum20': 3.45
+      'Cost_Frame_Angle15': 1.45, 'Cost_Frame_Angle20': 1.85, 'Cost_Frame_Tube10': 1.65, 'Cost_Frame_Tube20': 2.15, 'Cost_Frame_Alum15': 2.55, 'Cost_Frame_Alum20': 3.45
     };
 
     const aboveGroundFt = inputs.aboveGrade / 12;
     const undergroundFt = inputs.belowGrade / 12;
     const totalPostFt = aboveGroundFt + undergroundFt;
     const totalPoleLF = totalPostFt * 2 * inputs.qty;
-    const postSizeInches = parseFloat(inputs.postProfile.split('_')) || 3;
-    const fThick = parseFloat(inputs.frameMat.split('_')) || 2;
+    
+    // FIXED: Extracted the first index of the split array for TypeScript safety!
+    const postSizeInches = parseFloat(String(inputs.postProfile).split('_')) || 3;
+    const fThick = parseFloat(String(inputs.frameMat).split('_')) || 2;
+    
     const wastePct = parseFloat(config.Waste_Factor || "1.15");
     const riskFactor = parseFloat(config.Factor_Risk || "1.05");
 

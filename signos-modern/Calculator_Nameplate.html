@@ -502,71 +502,73 @@
         }, 2500);
     }
 
-    window.addEventListener('load', async () => {
-        if (typeof injectHeader === 'function') injectHeader("Nameplates & Sliders");
+        window.addEventListener('load', async () => {
+            if (typeof injectHeader === 'function') injectHeader("Nameplates & Sliders");
 
-        if(window.SignOS_UI && SignOS_UI.Camera3D) {
-            SignOS_UI.Camera3D.init('zoom-stage');
-        }
+            if(window.SignOS_UI && SignOS_UI.Camera3D) {
+                SignOS_UI.Camera3D.init('zoom-stage');
+            }
 
-        const statusText = document.getElementById("status-text");
-        const statusDot = document.getElementById("status-dot");
+            const statusText = document.getElementById("status-text");
+            const statusDot = document.getElementById("status-dot");
 
-        try {
-            // 1. Fetch globals from PROD_Nameplates
-            const payload = await SignOS.fetchProductData('PROD_Nameplates');
-            backendData = payload.config;
+            try {
+                const payload = await SignOS.fetchProductData('PROD_Nameplates');
+                backendData = payload.config;
 
-            // 2. Fetch specific tables natively to bypass the RPC whitelist block!
-            const fetchTable = async (table) => {
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                });
-                return res.ok ? await res.json() : [];
-            };
+                const fetchTable = async (table) => {
+                    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
+                        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                    });
+                    return res.ok ? await res.json() : [];
+                };
 
-            const rawRowmark = await fetchTable('REF_Colors_Rowmark');
-            const rawSW = await fetchTable('ref_colors_paint'); 
-            const rawPMS = await fetchTable('ref_colors_pms'); 
-            const rawFonts = await fetchTable('REF_Fonts');
+                // FIXED: Case-sensitive PostgREST endpoints updated!
+                const rawRowmark = await fetchTable('ref_colors_rowmark');
+                const rawSW = await fetchTable('ref_colors_paint'); 
+                const rawPMS = await fetchTable('ref_colors_pms'); 
+                const rawFonts = await fetchTable('ref_fonts');
 
-            rowmarkFront = rawRowmark.filter(r => r.Series && r.Series.includes('Mattes') && !r.Series.includes('Reverse')).map(c => ({
-                Code: c.Item_Code, Name: `${c.Cap_Color} / ${c.Core_Color}`, Hex_Code: c.Cap_Hex, Core_Hex: c.Core_Hex, Series: c.Series, Thickness: c.Thickness, Item_Code: c.Item_Code, Cap_Color: c.Cap_Color, Core_Color: c.Core_Color
-            }));
+                rowmarkFront = rawRowmark.filter(r => r.Series && r.Series.includes('Mattes') && !r.Series.includes('Reverse')).map(c => ({
+                    Code: c.Item_Code, Name: `${c.Cap_Color} / ${c.Core_Color}`, Hex_Code: c.Cap_Hex, Core_Hex: c.Core_Hex
+                }));
 
-            rowmarkRev = rawRowmark.filter(r => r.Series && r.Series.includes('Reverse')).map(c => ({
-                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex, Core_Hex: '#ffffff', Series: c.Series, Thickness: c.Thickness, Item_Code: c.Item_Code, Cap_Color: c.Cap_Color, Core_Color: c.Core_Color
-            }));
+                rowmarkRev = rawRowmark.filter(r => r.Series && r.Series.includes('Reverse')).map(c => ({
+                    Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex, Core_Hex: '#ffffff'
+                }));
 
-            swData = rawSW.map(p => ({
-                Code: p['Color Code'] || p['Code'] || 'UNK', 
-                Name: p['Color Name'] || p['Name'] || 'Unknown', 
-                Hex_Code: p['HEX Code'] || p['Hex_Code'] || p['Hex Code'] || '#ffffff'
-            }));
+                swData = rawSW.map(p => ({
+                    Code: p['Color Code'] || p['Code'] || 'UNK', 
+                    Name: p['Color Name'] || p['Name'] || 'Unknown', 
+                    Hex_Code: p['HEX Code'] || p['Hex_Code'] || p['Hex Code'] || '#ffffff'
+                }));
 
-            pmsData = rawPMS.map(p => ({
-                Code: p['PMS Name / Code'] || 'UNK', 
-                Name: p['PMS Name / Code'] || 'Unknown', 
-                Hex_Code: p['HEX Code'] || '#ffffff'
-            }));
+                pmsData = rawPMS.map(p => ({
+                    Code: p['PMS Name / Code'] || 'UNK', 
+                    Name: p['PMS Name / Code'] || 'Unknown', 
+                    Hex_Code: p['HEX Code'] || '#ffffff'
+                }));
 
-            systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
-            if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
+                systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
+                if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
 
-            let defaultFont = systemFonts.find(f => f.CSS_Family === 'Arimo') || systemFonts;
-            lineSettings.forEach(ls => ls.font = defaultFont ? defaultFont.CSS_Family : 'sans-serif');
+                let defaultFont = systemFonts.find(f => f.CSS_Family === 'Arimo') || systemFonts;
+                lineSettings.forEach(ls => ls.font = defaultFont ? defaultFont.CSS_Family : 'sans-serif');
 
-            if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
+                if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
 
-            setMode('front'); 
-            setPaintSystem('PMS');
-            updateLineControls();
-            
-        } catch(e) {
-            console.error("API Error:", e);
-            if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
-        }
-    });
+                setProduct('Front116');
+                setPaintSystem('PMS');
+                setMode('front'); 
+                updateLineControls();
+                
+                setTimeout(() => { processBulkList(); }, 200);
+
+            } catch(e) {
+                console.error("API Error:", e);
+                if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+            }
+        });
 </script>
 </body>
 </html>
