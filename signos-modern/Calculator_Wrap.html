@@ -167,8 +167,10 @@ window.addEventListener('load', async () => {
     const statusText = document.getElementById("status-text");
     const statusDot = document.getElementById("status-dot");
     try {
-        const req = await fetch(`${SCRIPT_URL}?req=view_module&tab=PROD_Vinyl_Wraps`);
-        backendData = await req.json();
+        // FIXED: Fetching from live Supabase configuration
+        const payload = await SignOS.fetchProductData('PROD_Wrap');
+        backendData = payload.config;
+        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
         
         if(statusText) {
             statusText.innerText = "ONLINE";

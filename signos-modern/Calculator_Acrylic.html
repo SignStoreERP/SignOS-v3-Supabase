@@ -205,8 +205,10 @@ window.addEventListener('load', async () => {
     const statusDot = document.getElementById("status-dot");
 
     try {
-        const req = await fetch(`${SCRIPT_URL}?req=view_module&tab=PROD_Acrylic_Signs`);
-        backendData = await req.json();
+        // FIXED: Fetching from live Supabase configuration
+        const payload = await SignOS.fetchProductData('PROD_Acr');
+        backendData = payload.config;
+        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
         
         if(backendData.error) throw new Error(backendData.error);
         
