@@ -78,7 +78,7 @@
             <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
                 <div>
                     <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
-                    <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $35</span>
+                    <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $50</span>
                     <div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div>
                 </div>
                 <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
@@ -149,7 +149,7 @@
                 });
                 document.getElementById('ui-line-items').innerHTML = lineItemsHtml;
 
-                document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(backendData.Retail_Min_Order || 35)}`;
+                document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(backendData.Retail_Min_Order || 50)}`;
                 document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
 
                 const matTxt = document.getElementById('material').options[document.getElementById('material').selectedIndex].text;

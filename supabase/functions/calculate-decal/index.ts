@@ -32,8 +32,11 @@ Deno.serve(async (req) => {
         R(`Standard Weeding`, 0, `Included in base rate`);
     }
 
-    if (inputs.masking === 'Yes') R(`Transfer Tape`, totalSqFt * parseFloat(config.Retail_Tape_SqFt || "1.5"), `Masking Surcharge`);
-
+    // FIXED: Retail charge is $0 (Included), but cost engine will still calculate the material
+    if (inputs.masking === 'Yes') {
+        R(`Transfer Tape`, 0, `Included in base rate`);
+    }
+    
     let grandTotalRaw = ret.reduce((sum, i) => sum + i.total, 0);
     const minOrder = parseFloat(config.Retail_Min_Order || "35");
     let isMinApplied = false; let grandTotal = grandTotalRaw;
