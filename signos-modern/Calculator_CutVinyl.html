@@ -15,9 +15,7 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10">
-
     <div id="main-card" class="max-w-md mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200">
-        
         <!-- INPUTS -->
         <div class="p-6 space-y-4">
             <div class="grid grid-cols-3 gap-3">
@@ -34,14 +32,14 @@
                 <div>
                     <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Material Series</label>
                     <select id="material" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="resetColorSelection(); runCalc();">
-                        <option value="651">Oracal 651 (Intermediate / Short Term)</option>
-                        <option value="751" selected>Oracal 751 (High Perf / Flat Surfaces)</option>
-                        <option value="951">Oracal 951 (Premium Cast / Vehicles)</option>
-                        <option value="8500">Oracal 8500 (Translucent / Backlit)</option>
-                        <option value="8800">Oracal 8800 (Premium Translucent)</option>
-                        <option value="8510">Oracal 8510 (Etched / Frosted Glass)</option>
-                        <option value="8810">Oracal 8810 (Frosted Cast Glass)</option>
-                        <!-- FIXED: Logic moved to the HTML data attribute so the JS remains generic -->
+                        <option value="651" data-series="651">Oracal 651 (Intermediate / Short Term)</option>
+                        <option value="751" data-series="751" selected>Oracal 751 (High Perf / Flat Surfaces)</option>
+                        <option value="951" data-series="951">Oracal 951 (Premium Cast / Vehicles)</option>
+                        <option value="8500" data-series="8500">Oracal 8500 (Translucent / Backlit)</option>
+                        <option value="8800" data-series="8800">Oracal 8800 (Premium Translucent)</option>
+                        <option value="8510" data-series="8510">Oracal 8510 (Etched / Frosted Glass)</option>
+                        <option value="8810" data-series="8810">Oracal 8810 (Frosted Cast Glass)</option>
+                        <!-- Logic correctly moved to HTML attributes to keep JS generic -->
                         <option value="Specialty" data-series="6510,7510,metallic,fluorescent">Specialty (Metallic / Fluorescent)</option>
                     </select>
                 </div>
@@ -73,6 +71,7 @@
         <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
             <div class="flex justify-between items-end mb-2">
                 <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
+                <!-- RESTORED: Elements required by JS to prevent null crash -->
                 <span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span>
             </div>
             <div class="border-t border-blue-200/50 my-3"></div>
@@ -80,7 +79,7 @@
             <!-- LINE ITEMS -->
             <div id="ui-line-items" class="space-y-1 text-xs text-blue-900/70 pt-1 pb-2"></div>
             
-            <!-- FIXED: RESTORED MISSING TOTALS BLOCK -->
+            <!-- TOTALS BLOCK -->
             <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
                 <div>
                     <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
@@ -154,24 +153,24 @@
             const matSelect = document.getElementById('material');
             const selectedOpt = matSelect.options[matSelect.selectedIndex];
             
-            // FIXED: Fully agnostic filter. Pulls from data-series if available, else value
             const filterStr = selectedOpt.dataset.series || selectedOpt.value;
             const activeFilters = filterStr.toLowerCase().split(',');
             
             const filtered = allColors.filter(c => {
-                const seriesId = String(c.Series_ID || c.series_id || '').toLowerCase();
+                const seriesId = String(c.Series_ID || c.series_id || c.Series || c.series || '').toLowerCase();
                 const typeStr = String(c.Type || c.type || '').toLowerCase();
-                const inStock = c.In_Stock !== undefined ? c.In_Stock : c.in_stock;
                 
-                if (!(inStock === true || String(inStock).toUpperCase() === 'TRUE')) return false;
+                // FIXED: Extremely permissive In_Stock check handling both bools, strings, and ints.
+                const inStock = c.In_Stock !== undefined ? c.In_Stock : c.in_stock;
+                if (inStock === false || String(inStock).toLowerCase() === 'false' || inStock === 0 || inStock === '0') return false;
 
-                // Validates if ANY of the active HTML filters match the Postgres data
+                // Validate if ANY of the active HTML data-attributes match the Postgres data
                 return activeFilters.some(f => seriesId.includes(f) || typeStr.includes(f));
             }).map(c => {
                 let hex = (c.Hex_Code || c.hex_code);
                 if (!hex || hex === 'N/A') hex = '#ffffff';
 
-                // CSS INJECTION: Formats image URLs into valid inline CSS so the generic UI library renders them
+                // Safely handles Orafol image swatches natively with the UI library
                 if (hex.toLowerCase().startsWith('http')) {
                     hex = `transparent; background-image: url('${hex}'); background-size: cover; background-position: center`;
                 }
@@ -188,10 +187,11 @@
                 return;
             }
 
+            // Correctly utilizes type: 'vinyl' inside signos-ui.js (Source 6520)
             SignOS_UI.buildColorGrid({
                 containerId: 'modal-grid',
                 data: filtered,
-                type: 'paint', 
+                type: 'vinyl', 
                 onSelect: (item) => {
                     selectedColor = allColors.find(c => (c.Color_Code === item.Code || c.color_code === item.Code));
                     updateColorUI();
@@ -252,7 +252,7 @@
                 const ret = result.retail;
                 const fmt = (n) => "$" + (n || 0).toFixed(2);
                 
-                // FIXED: Removed the lbl-sqft update that caused the crash!
+                // Target elements are strictly guaranteed to exist in the updated HTML
                 document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
                 document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
 
@@ -290,13 +290,14 @@
             const statusDot = document.getElementById("status-dot");
             
             try {
-                // FIXED: Requesting the exact table name verified by your other working modules
-                const payload = await SignOS.fetchProductData('PROD_Cut', ['REF_Colors_Vinyl']);
+                // Request strictly lowercase table matching Postgres structure
+                const payload = await SignOS.fetchProductData('PROD_Cut', ['ref_colors_vinyl']);
                 backendData = payload.config;
                 if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
                 
-                allColors = payload.tables['REF_Colors_Vinyl'] || [];
-                
+                allColors = payload.tables['ref_colors_vinyl'] || payload.tables['REF_Colors_Vinyl'] || [];
+                console.log(`✅ Loaded ${allColors.length} colors from memory.`);
+
                 if(statusText) {
                     statusText.innerText = "ONLINE";
                     statusText.className = "font-bold text-green-500";
