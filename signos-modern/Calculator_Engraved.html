@@ -8,6 +8,7 @@
     <script src="signos-core.js"></script>
     <script src="signos-ui.js"></script>
     <script src="signos-canvas.js"></script>
+    <script src="cost_engraved.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
@@ -851,7 +852,8 @@
 
             setTimeout(() => { if (selectedIcon) { const btn = document.querySelector(`#icon-grid button[data-code="${selectedIcon.Item_Code}"]`); if (btn) btn.classList.add('ring-2', 'ring-offset-1', 'ring-blue-500', 'border-transparent'); } }, 100);
 
-            applyPreset('Standard');
+            // This tells the UI to click the button, styling it correctly AND loading the right layers
+            setProduct('BasicB'); 
         } catch(e) {
             console.error("API Error:", e);
             if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
