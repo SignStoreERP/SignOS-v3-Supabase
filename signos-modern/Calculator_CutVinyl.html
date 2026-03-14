@@ -152,20 +152,27 @@
             
             const series = document.getElementById('material').value;
             
-            // FIXED: Robust mapping for both legacy uppercase and Supabase lowercase columns
+            // FIXED: Handles Specialty series mapping + lowercase Supabase columns
             const filtered = allColors.filter(c => {
-                const seriesId = c.Series_ID || c.series_id;
+                const seriesId = String(c.Series_ID || c.series_id || '');
+                const typeStr = String(c.Type || c.type || '').toLowerCase();
                 const inStock = c.In_Stock !== undefined ? c.In_Stock : c.in_stock;
                 
-                if (!seriesId) return false;
-                return String(seriesId).includes(String(series)) && (inStock === true || String(inStock).toUpperCase() === 'TRUE');
+                const isAvailable = (inStock === true || String(inStock).toUpperCase() === 'TRUE');
+                if (!isAvailable) return false;
+
+                // Route "Specialty" to match 6510/7510 Series or Metallic/Fluorescent Types
+                if (series === 'Specialty') {
+                    return seriesId.includes('6510') || seriesId.includes('7510') || typeStr.includes('metallic') || typeStr.includes('fluorescent');
+                }
+                
+                return seriesId.includes(String(series));
             }).map(c => ({
                 Code: c.Color_Code || c.color_code || '',
                 Name: c.Display_Name || c.display_name || '',
                 Hex_Code: (c.Hex_Code || c.hex_code) && (c.Hex_Code || c.hex_code) !== 'N/A' ? (c.Hex_Code || c.hex_code) : '#ffffff'
             }));
 
-            // Safety catch for missing UI library
             if (typeof SignOS_UI === 'undefined') {
                 console.error("SignOS_UI library is missing! Make sure signos-ui.js is loaded in the header.");
                 return;
@@ -176,10 +183,17 @@
                 data: filtered,
                 type: 'vinyl',
                 onSelect: (item) => {
-                    selectedColor = allColors.find(c => 
-                        (c.Color_Code === item.Code || c.color_code === item.Code) && 
-                        String(c.Series_ID || c.series_id).includes(String(series))
-                    );
+                    selectedColor = allColors.find(c => {
+                        const matchCode = (c.Color_Code === item.Code || c.color_code === item.Code);
+                        const seriesId = String(c.Series_ID || c.series_id || '');
+                        const typeStr = String(c.Type || c.type || '').toLowerCase();
+                        
+                        if (series === 'Specialty') {
+                            return matchCode && (seriesId.includes('6510') || seriesId.includes('7510') || typeStr.includes('metallic') || typeStr.includes('fluorescent'));
+                        }
+                        return matchCode && seriesId.includes(String(series));
+                    });
+                    
                     updateColorUI();
                     closeModal();
                     runCalc();
@@ -239,10 +253,7 @@
                 const ret = result.retail;
                 const fmt = (n) => "$" + (n || 0).toFixed(2);
 
-                const totalSqFt = ((inputs.w * inputs.h) / 144) * inputs.qty;
-                
-                // Restored totals blocks
-                document.getElementById('lbl-sqft').innerText = totalSqFt.toFixed(1);
+                // FIXED: Removed the lbl-sqft update that was throwing the null error!
                 document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
                 document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
 
@@ -280,12 +291,12 @@
             const statusDot = document.getElementById("status-dot");
             
             try {
-                // FIXED: Fetches the vinyl data directly through the Handshake API
                 const payload = await SignOS.fetchProductData('PROD_Cut', ['REF_Colors_Vinyl']);
                 backendData = payload.config;
                 if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
                 
-                allColors = payload.tables['REF_Colors_Vinyl'] || [];
+                // FIXED: Adding fallback safety for Supabase lowercase data responses
+                allColors = payload.tables['REF_Colors_Vinyl'] || payload.tables['ref_colors_vinyl'] || [];
                 
                 if(statusText) {
                     statusText.innerText = "ONLINE";
