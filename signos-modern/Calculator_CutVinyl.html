@@ -6,7 +6,6 @@
     <title>Cut Vinyl Lettering Retail</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
-    <script src="logic_cut.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .color-scroll::-webkit-scrollbar { width: 6px; }
@@ -215,66 +214,63 @@ function updateSwatches() {
     });
 }
 
-function runCalc() {
-    if(!backendData.Retail_Min_Order) return;
-    enforceLimits(52); 
-
+async function runCalc() {
+    if(!backendData) return;
+    enforceLimits(52);
     try {
         const inputs = {
             qty: parseFloat(document.getElementById('qty').value) || 1,
             w: parseFloat(document.getElementById('w').value) || 24,
             h: parseFloat(document.getElementById('h').value) || 12,
-            material: document.getElementById('material').value, 
-            weeding: document.getElementById('weeding').value
+            material: document.getElementById('material').value,
+            complexity: document.getElementById('weeding').value
         };
 
-        const result = calculateCutVinyl(inputs, backendData);
+        const fnUrl = `${EDGE_URL}/functions/v1/calculate-cut`;
+        const response = await fetch(fnUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+            body: JSON.stringify({ inputs: inputs, config: backendData })
+        });
+        
+        if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+        const result = await response.json();
+        
         if (!result || !result.retail) return;
-
         const ret = result.retail;
         const fmt = (n) => "$" + (n || 0).toFixed(2);
         
         const totalSqFt = ((inputs.w * inputs.h) / 144) * inputs.qty;
-
         document.getElementById('lbl-sqft').innerText = totalSqFt.toFixed(1);
         document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
         document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
         document.getElementById('ui-print').innerText = fmt(ret.printTotal);
-
+        
         const minOrder = parseFloat(backendData.Retail_Min_Order || 45);
         document.getElementById('ui-min-text').innerText = `Shop Minimum: $${minOrder}`;
         document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
-
+        
         const matSelect = document.getElementById('material');
         const matTxt = matSelect.options[matSelect.selectedIndex].text;
-        const weedTxt = inputs.weeding === 'Complex' ? ' (Complex Weeding)' : ' (Standard Weeding)';
+        const weedTxt = inputs.complexity === 'Complex' ? ' (Complex Weeding)' : ' (Standard Weeding)';
         const colorTxt = selectedColor ? ` Color: [${selectedColor.Color_Code}] ${selectedColor.Display_Name}.` : ' Color: TBD.';
         
         document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" Cut Vinyl Lettering.\nMaterial: ${matTxt}.${colorTxt}${weedTxt}. Pre-Masked.`;
-
-    } catch(e) {
-        console.error(e);
+    } catch(e) { 
+        console.error("Cloud Calculation Error:", e); 
     }
 }
 
-// API FETCH: DUAL REQUEST FOR CONFIG & COLORS
 window.addEventListener('load', async () => {
     if (typeof injectHeader === 'function') injectHeader("Cut Vinyl Lettering");
-    
     const statusText = document.getElementById("status-text");
     const statusDot = document.getElementById("status-dot");
-
     try {
-        const [configReq, colorReq] = await Promise.all([
-            fetch(`${SCRIPT_URL}?req=view_module&tab=PROD_Cut_Vinyl`),
-            fetch(`${SCRIPT_URL}?req=table&tab=REF_Colors_Vinyl`)
-        ]);
+        const payload = await SignOS.fetchProductData('PROD_Cut', ['REF_Colors_Vinyl']);
+        backendData = payload.config;
+        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
         
-        backendData = await configReq.json();
-        const rawColors = await colorReq.json();
-
-        if(backendData.error) throw new Error(backendData.error);
-        if(Array.isArray(rawColors)) allColors = rawColors;
+        allColors = payload.tables['REF_Colors_Vinyl'] || [];
         
         if(statusText) {
             statusText.innerText = "ONLINE";
@@ -284,9 +280,8 @@ window.addEventListener('load', async () => {
                 statusDot.classList.remove("animate-pulse");
             }
         }
-        
         updateSwatches();
-        runCalc(); 
+        runCalc();
     } catch(e) {
         if(statusText) {
             statusText.innerText = "OFFLINE";

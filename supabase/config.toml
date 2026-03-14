@@ -86,3 +86,47 @@ entrypoint = "./functions/calculate-wrap/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/calculate-wrap/*.html" ]
+
+[functions.calculate-pvc]
+enabled = true
+verify_jwt = true
+import_map = "./functions/calculate-pvc/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calculate-pvc/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calculate-pvc/*.html" ]
+
+[functions.calculate-foam]
+enabled = true
+verify_jwt = true
+import_map = "./functions/calculate-foam/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calculate-foam/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calculate-foam/*.html" ]
+
+[functions.calculate-cut]
+enabled = true
+verify_jwt = true
+import_map = "./functions/calculate-cut/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calculate-cut/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calculate-cut/*.html" ]
+
+[functions.calculate-wall]
+enabled = true
+verify_jwt = true
+import_map = "./functions/calculate-wall/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calculate-wall/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calculate-wall/*.html" ]

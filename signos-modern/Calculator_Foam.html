@@ -6,7 +6,6 @@
     <title>Foam Core Retail</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
-    <script src="logic_foam.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
@@ -122,10 +121,9 @@ function enforceSheetLimits(maxShort, maxLong) {
     }
 }
 
-function runCalc() {
-    if(!backendData.Retail_Min_Order) return;
-    enforceSheetLimits(48, 96); // Foam Core max sheet
-
+async function runCalc() {
+    if(!backendData) return;
+    enforceSheetLimits(48, 96);
     try {
         const inputs = {
             qty: parseFloat(document.getElementById('qty').value) || 1,
@@ -135,51 +133,53 @@ function runCalc() {
             shape: document.getElementById('shape').value
         };
 
-        const result = calculateFoam(inputs, backendData);
+        const fnUrl = `${EDGE_URL}/functions/v1/calculate-foam`;
+        const response = await fetch(fnUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+            body: JSON.stringify({ inputs: inputs, config: backendData })
+        });
+        
+        if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+        const result = await response.json();
+        
         if (!result || !result.retail) return;
-
         const ret = result.retail;
         const fmt = (n) => "$" + (n || 0).toFixed(2);
+        
         const totalSqFt = ((inputs.w * inputs.h) / 144) * inputs.qty;
-
         document.getElementById('lbl-sqft').innerText = totalSqFt.toFixed(1);
         document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
         document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
         document.getElementById('ui-print').innerText = fmt(ret.printTotal);
-
+        
         if (ret.routerFee > 0) {
             document.getElementById('row-router').classList.remove('hidden');
             document.getElementById('ui-router').innerText = fmt(ret.routerFee);
-        } else { 
-            document.getElementById('row-router').classList.add('hidden'); 
+        } else {
+            document.getElementById('row-router').classList.add('hidden');
         }
-
+        
         const minOrder = parseFloat(backendData.Retail_Min_Order || 50);
         document.getElementById('ui-min-text').innerText = `Shop Minimum: $${minOrder}`;
         document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
-
+        
         const sideTxt = inputs.sides === 2 ? "Double-Sided" : "Single-Sided";
         const cutTxt = inputs.shape === 'Rectangle' ? 'Square/Rectangle Cut' : 'Custom CNC Cut';
-        
         document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" 3/16" Foam Core Boards.\n${sideTxt}. ${cutTxt}.`;
-
-    } catch(e) {
-        console.error(e);
+    } catch(e) { 
+        console.error("Cloud Calculation Error:", e); 
     }
 }
 
-// API FETCH & NATIVE STATUS BAR UPDATER
 window.addEventListener('load', async () => {
     if (typeof injectHeader === 'function') injectHeader("Foam Core Boards");
-    
     const statusText = document.getElementById("status-text");
     const statusDot = document.getElementById("status-dot");
-
     try {
-        const req = await fetch(`${SCRIPT_URL}?req=view_module&tab=PROD_Foam_Signs`);
-        backendData = await req.json();
-        
-        if(backendData.error) throw new Error(backendData.error);
+        const payload = await SignOS.fetchProductData('PROD_Foam');
+        backendData = payload.config;
+        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
         
         if(statusText) {
             statusText.innerText = "ONLINE";
@@ -189,8 +189,7 @@ window.addEventListener('load', async () => {
                 statusDot.classList.remove("animate-pulse");
             }
         }
-        
-        runCalc(); 
+        runCalc();
     } catch(e) {
         if(statusText) {
             statusText.innerText = "OFFLINE";

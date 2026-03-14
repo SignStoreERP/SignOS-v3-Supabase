@@ -6,7 +6,6 @@
     <title>PVC Signs Retail</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
-    <script src="logic_pvc.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
@@ -135,92 +134,87 @@
         }
     }
 
-function runCalc() {
-    if(!backendData || !backendData.Retail_Min_Order) return;
+async function runCalc() {
+    if(!backendData) return;
     enforceSheetLimits(60, 120);
-
     try {
-        // FIX: The laminate variable is now properly declared so it won't crash the engine!
         const lamVal = document.getElementById('laminate')?.value || 'None';
-        
         const inputs = {
             qty: parseFloat(document.getElementById('qty')?.value) || 1,
             w: parseFloat(document.getElementById('w')?.value) || 24,
             h: parseFloat(document.getElementById('h')?.value) || 18,
             thickness: document.getElementById('thickness')?.value || '3mm',
             sides: parseInt(document.getElementById('sides')?.value) || 1,
-            lam: lamVal !== 'None', 
-            laminate: lamVal, 
+            laminate: lamVal,
             shape: document.getElementById('shape')?.value || 'Rectangle'
         };
 
-        const result = calculatePVC(inputs, backendData);
+        const fnUrl = `${EDGE_URL}/functions/v1/calculate-pvc`;
+        const response = await fetch(fnUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+            body: JSON.stringify({ inputs: inputs, config: backendData })
+        });
+        
+        if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+        const result = await response.json();
+        
         if (!result || !result.retail) return;
-
         const ret = result.retail;
         const fmt = (n) => "$" + (n || 0).toFixed(2);
+        
         const totalSqFt = ((inputs.w * inputs.h) / 144) * inputs.qty;
-
         document.getElementById('lbl-sqft').innerText = totalSqFt.toFixed(1);
         document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
         document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
         document.getElementById('ui-print').innerText = fmt(ret.printTotal);
-
+        
         if (ret.routerFee > 0) {
             document.getElementById('row-router').classList.remove('hidden');
             document.getElementById('ui-router').innerText = fmt(ret.routerFee);
         } else {
             document.getElementById('row-router').classList.add('hidden');
         }
-
+        
         const minOrder = parseFloat(backendData.Retail_Min_Order || 50);
         document.getElementById('ui-min-text').innerText = `Shop Minimum: $${minOrder}`;
         document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
-
+        
         const sideTxt = inputs.sides === 2 ? "Double-Sided" : "Single-Sided";
         const cutTxt = inputs.shape === 'Rectangle' ? 'Square/Rectangle Cut' : 'Custom CNC Cut';
         const lamTxt = inputs.laminate === 'None' ? 'No Laminate' : `${inputs.laminate} Laminate`;
-
         document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ${inputs.thickness} PVC Signs.\n${sideTxt}. ${lamTxt}. ${cutTxt}.`;
-
-    } catch(e) {
-        console.error("Math Engine Error:", e);
+    } catch(e) { 
+        console.error("Cloud Calculation Error:", e); 
     }
 }
 
-    // STABLE API LOADER
-    window.addEventListener('load', async () => {
-        if (typeof injectHeader === 'function') injectHeader("PVC Signs");
-
-        const statusText = document.getElementById("status-text");
-        const statusDot = document.getElementById("status-dot");
-
-        try {
-            // Standard fetch for flat data structure
-            const req = await fetch(`${SCRIPT_URL}?req=view_module&tab=PROD_PVC_Signs`);
-            backendData = await req.json();
-
-            if(!backendData || backendData.error) throw new Error("API Connection Failed");
-
-            if(statusText) {
-                statusText.innerText = "ONLINE";
-                statusText.className = "font-bold text-green-500";
-                if(statusDot) {
-                    statusDot.className = "w-2 h-2 rounded-full bg-green-500";
-                    statusDot.classList.remove("animate-pulse");
-                }
-            }
-
-            runCalc();
-
-        } catch(e) {
-            console.error("API Error:", e);
-            if(statusText) {
-                statusText.innerText = "OFFLINE";
-                statusText.className = "font-bold text-red-500";
+window.addEventListener('load', async () => {
+    if (typeof injectHeader === 'function') injectHeader("PVC Signs");
+    const statusText = document.getElementById("status-text");
+    const statusDot = document.getElementById("status-dot");
+    try {
+        const payload = await SignOS.fetchProductData('PROD_PVC');
+        backendData = payload.config;
+        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
+        
+        if(statusText) {
+            statusText.innerText = "ONLINE";
+            statusText.className = "font-bold text-green-500";
+            if(statusDot) {
+                statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                statusDot.classList.remove("animate-pulse");
             }
         }
-    });
+        runCalc();
+    } catch(e) {
+        if(statusText) {
+            statusText.innerText = "OFFLINE";
+            statusText.className = "font-bold text-red-500";
+        }
+        console.error(e);
+    }
+});
 </script>
 </body>
 </html>
