@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     }
     
     let grandTotalRaw = ret.reduce((sum, i) => sum + i.total, 0);
-    const minOrder = parseFloat(config.Retail_Min_Order || "35");
+    const minOrder = parseFloat(config.Retail_Min_Order || "50");
     let isMinApplied = false; let grandTotal = grandTotalRaw;
     if (grandTotalRaw < minOrder) { R(`Shop Minimum Surcharge`, minOrder - grandTotalRaw, `Difference`); grandTotal = minOrder; isMinApplied = true; }
 
