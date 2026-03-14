@@ -7,7 +7,9 @@ Deno.serve(async (req) => {
     const sqft = (inputs.w * inputs.h) / 144;
     const totalSqFt = sqft * inputs.qty;
     const ret: any[] = []; const cst: any[] = [];
-    const R = (label: string, total: number, formula: string) => { if(total > 0) ret.push({label, total, formula}); return total; };
+    
+    // Modifying the R function to accept $0 line items
+    const R = (label: string, total: number, formula: string) => { ret.push({label, total, formula}); return total; };
     const L = (label: string, total: number, formula: string) => { if(total > 0) cst.push({label, total, formula}); return total; };
 
     let baseRate = 8;
@@ -19,10 +21,23 @@ Deno.serve(async (req) => {
         default: baseRate = parseFloat(config.Retail_Price_Cal_SqFt || "8");
     }
 
+    R(`Printed Vinyl (${inputs.material})`, baseRate * totalSqFt, `${totalSqFt.toFixed(1)} SF @ $${baseRate}`);
+    if (inputs.shape === 'Contour') R(`Contour Cut Markup`, (baseRate * totalSqFt) * parseFloat(config.Retail_Cut_Contour_Add || "0.25"), `Shape Surcharge`);
+    
+    // FIXED: Enforce simple/complex weeding logic for decals
+    if (inputs.weeding === 'Complex') {
+        const weedFee = parseFloat(config.Retail_Weed_Complex_Add || "5");
+        R(`Complex Weeding`, totalSqFt * weedFee, `${totalSqFt.toFixed(1)} SF @ $${weedFee.toFixed(2)}`);
+    } else {
+        R(`Standard Weeding`, 0, `Included in base rate`);
+    }
+
+    if (inputs.masking === 'Yes') R(`Transfer Tape`, totalSqFt * parseFloat(config.Retail_Tape_SqFt || "1.5"), `Masking Surcharge`);
+
     let grandTotalRaw = ret.reduce((sum, i) => sum + i.total, 0);
     const minOrder = parseFloat(config.Retail_Min_Order || "35");
     let isMinApplied = false; let grandTotal = grandTotalRaw;
-    if (grandTotalRaw < minOrder) { R(`Shop Minimum`, minOrder - grandTotalRaw, `Difference`); grandTotal = minOrder; isMinApplied = true; }
+    if (grandTotalRaw < minOrder) { R(`Shop Minimum Surcharge`, minOrder - grandTotalRaw, `Difference`); grandTotal = minOrder; isMinApplied = true; }
 
     const wastePct = parseFloat(config.Waste_Factor || "1.15");
     L(`Vinyl Media`, totalSqFt * parseFloat(config.Cost_Vin_Cal || "0.36") * wastePct, `Media Cost`);

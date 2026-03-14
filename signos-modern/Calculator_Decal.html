@@ -1,159 +1,195 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Decals & Stickers Retail</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decals & Stickers Retail</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
-    <style>input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }</style>
+    <style>
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10">
-<div id="main-card" class="max-w-md mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200">
-    <div class="p-6 space-y-4">
-        <div class="grid grid-cols-3 gap-3">
-            <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
-            <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width</label><input type="number" id="w" value="12" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
-            <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height</label><input type="number" id="h" value="12" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
-        </div>
-        <div id="sheet-warn" class="hidden bg-yellow-50 text-yellow-700 text-[10px] font-bold px-3 py-1.5 rounded border border-yellow-200 transition-opacity">⚠️ Max Roll Width (52") reached.</div>
-        <div class="grid grid-cols-1 gap-4 pt-2">
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Material Type</label>
-                <select id="material" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
-                    <option value="Standard">Standard (Arlon 4500GLX)</option>
-                    <option value="Clear">Clear (Oracal 3640)</option>
-                    <option value="Translucent">Translucent (Oracal 3850)</option>
-                    <option value="Reflective">Reflective (Oralite 5400)</option>
-                    <option value="Cast">Premium Cast (3M IJ180)</option>
-                </select>
+
+    <!-- Main Card: Island Mode -->
+    <div id="main-card" class="max-w-md mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200">
+        <!-- INPUTS -->
+        <div class="p-6 space-y-4">
+            <div class="grid grid-cols-3 gap-3">
+                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
+                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width</label><input type="number" id="w" value="12" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
+                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height</label><input type="number" id="h" value="12" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
+            </div>
+            
+            <div class="grid grid-cols-1 gap-4 pt-2">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Material Type</label>
+                    <select id="material" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
+                        <!-- Values map directly to the switch statement in the Edge Function -->
+                        <option value="Standard">Arlon 4500GLX ($8/sf)</option>
+                        <option value="Clear">Oracal 3640 Clear ($10/sf)</option>
+                        <option value="Translucent">Oracal 3850 Translucent ($10/sf)</option>
+                        <option value="Cast">3M IJ180 Cast ($14/sf)</option>
+                        <option value="Reflective">Oralite 5400 Reflective ($15/sf)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 pt-2">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cut Shape</label>
+                    <select id="shape" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
+                        <option value="Rectangle">Square / Rectangle</option>
+                        <option value="Contour">Contour Cut</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Weeding</label>
+                    <select id="weeding" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
+                        <option value="Standard">Standard Weeding</option>
+                        <option value="Complex">Complex Weeding</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 border-t border-gray-100 pt-4 mt-2">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Apply Transfer Tape?</label>
+                    <select id="masking" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
+                        <option value="No">No (Peel & Stick)</option>
+                        <option value="Yes">Yes (Pre-Masked)</option>
+                    </select>
+                </div>
             </div>
         </div>
-        <div class="grid grid-cols-2 gap-4 pt-2">
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cut Shape</label>
-                <select id="shape" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
-                    <option value="Rectangle">Square/Rectangle</option>
-                    <option value="Contour">Contour Shape</option>
-                </select>
+
+        <!-- RESULTS -->
+        <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
+            <div class="flex justify-between items-end mb-2">
+                <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
+                <span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span>
             </div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Weeding</label>
-                <select id="weeding" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
-                    <option value="Standard">Standard</option>
-                    <option value="Complex">Complex Weeding</option>
-                </select>
+            <div class="border-t border-blue-200/50 my-3"></div>
+            
+            <!-- LINE ITEMS (Dynamic Container) -->
+            <div id="ui-line-items" class="space-y-1 text-xs text-blue-900/70 pt-1 pb-2"></div>
+
+            <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
+                <div>
+                    <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
+                    <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $35</span>
+                    <div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div>
+                </div>
+                <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
             </div>
         </div>
-        <div class="grid grid-cols-1 gap-4 border-t border-gray-100 pt-4 mt-2">
-            <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Apply Transfer Tape?</label>
-                <select id="masking" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none" onchange="runCalc()">
-                    <option value="No">No (Peel & Stick)</option>
-                    <option value="Yes">Yes (Pre-Masked)</option>
-                </select>
-            </div>
+
+        <!-- DESCRIPTION GENERATOR -->
+        <div class="bg-gray-50 p-4 border-t border-gray-200">
+            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
+            <textarea id="job-desc" class="w-full text-xs p-2 border rounded bg-white h-20 text-gray-600 font-mono outline-none" readonly></textarea>
         </div>
     </div>
-    <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
-        <div class="flex justify-between items-end mb-2"><span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span><span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span></div>
-        <div class="border-t border-blue-200/50 my-3"></div>
-        <div class="space-y-1 text-xs text-blue-900/70 pt-1">
-            <div class="flex justify-between"><span>Printed Decals (<span id="lbl-sqft">0</span> sqft):</span><span id="ui-print" class="font-bold">$0.00</span></div>
-        </div>
-        <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
-            <div><span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span><span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $35</span><div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div></div>
-            <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
-        </div>
-    </div>
-    <div class="bg-gray-50 p-4 border-t border-gray-200">
-        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
-        <textarea id="job-desc" class="w-full text-xs p-2 border rounded bg-white h-20 text-gray-600 font-mono outline-none" readonly></textarea>
-    </div>
-</div>
-<script>
-let backendData = {};
-function enforceLimits(maxShort) {
-    let wEl = document.getElementById('w'); let hEl = document.getElementById('h'); let warnEl = document.getElementById('sheet-warn');
-    if (!wEl || !hEl) return;
-    let w = parseFloat(wEl.value) || 0; let h = parseFloat(hEl.value) || 0; let didClamp = false;
-    if (w > maxShort && h > maxShort) { if (w > h) { h = maxShort; hEl.value = h; } else { w = maxShort; wEl.value = w; } didClamp = true; }
-    if (warnEl) { if (didClamp) { warnEl.classList.remove('hidden'); clearTimeout(warnEl.timeoutId); warnEl.timeoutId = setTimeout(() => warnEl.classList.add('hidden'), 3000); } }
-}
 
-async function runCalc() {
-    if(!backendData) return;
-    enforceLimits(52);
-    
-    try {
-        const inputs = {
-            qty: parseFloat(document.getElementById('qty').value) || 1, 
-            w: parseFloat(document.getElementById('w').value) || 12, 
-            h: parseFloat(document.getElementById('h').value) || 12,
-            material: document.getElementById('material').value, 
-            shape: document.getElementById('shape').value, 
-            weeding: document.getElementById('weeding').value, 
-            masking: document.getElementById('masking').value
-        };
+    <script>
+        let backendData = null;
 
-        const fnUrl = `${EDGE_URL}/functions/v1/calculate-decal`;
-        const response = await fetch(fnUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-            body: JSON.stringify({ inputs: inputs, config: backendData })
-        });
-        
-        if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-        const result = await response.json();
-
-        if (!result || !result.retail) return;
-        const ret = result.retail; 
-        const fmt = (n) => "$" + (n || 0).toFixed(2);
-
-        document.getElementById('lbl-sqft').innerText = (((inputs.w * inputs.h) / 144) * inputs.qty).toFixed(1);
-        document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-        document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-        document.getElementById('ui-print').innerText = fmt(ret.printTotal);
-
-        document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(backendData.Retail_Min_Order || 35)}`;
-        document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
-
-        const matTxt = document.getElementById('material').options[document.getElementById('material').selectedIndex].text;
-        const cutTxt = inputs.shape === 'Rectangle' ? 'Square Cut' : 'Contour Cut';
-        const weedTxt = inputs.weeding === 'Complex' ? ' (Complex Weeding)' : '';
-        const maskTxt = inputs.masking === 'Yes' ? 'Pre-Masked with Transfer Tape.' : 'No Transfer Tape.';
-
-        document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ${matTxt}.\n${cutTxt}${weedTxt}. ${maskTxt}`;
-    } catch(e) { 
-        console.error("Cloud Calculation Error:", e); 
-    }
-}
-
-window.addEventListener('load', async () => {
-    if (typeof injectHeader === 'function') injectHeader("Decals & Stickers");
-    const statusText = document.getElementById("status-text");
-    const statusDot = document.getElementById("status-dot");
-    try {
-        const payload = await SignOS.fetchProductData('PROD_Decals');
-        backendData = payload.config;
-        
-        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
-
-        if(statusText) {
-            statusText.innerText = "ONLINE";
-            statusText.className = "font-bold text-green-500";
-            if(statusDot) {
-                statusDot.className = "w-2 h-2 rounded-full bg-green-500";
-                statusDot.classList.remove("animate-pulse");
+        function enforceLimits(max) {
+            let wEl = document.getElementById('w');
+            let hEl = document.getElementById('h');
+            let w = parseFloat(wEl.value) || 12;
+            let h = parseFloat(hEl.value) || 12;
+            if (w > max && h > max) {
+                if (w > h) hEl.value = max;
+                else wEl.value = max;
             }
         }
-        runCalc();
-    } catch(e) { 
-        if(statusText) {
-            statusText.innerText = "OFFLINE";
-            statusText.className = "font-bold text-red-500";
+
+        async function runCalc() {
+            if(!backendData) return;
+            enforceLimits(52);
+            
+            try {
+                const inputs = {
+                    qty: parseFloat(document.getElementById('qty').value) || 1, 
+                    w: parseFloat(document.getElementById('w').value) || 12, 
+                    h: parseFloat(document.getElementById('h').value) || 12,
+                    material: document.getElementById('material').value, 
+                    shape: document.getElementById('shape').value, 
+                    weeding: document.getElementById('weeding').value, 
+                    masking: document.getElementById('masking').value
+                };
+
+                const fnUrl = `${EDGE_URL}/functions/v1/calculate-decal`;
+                const response = await fetch(fnUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                    body: JSON.stringify({ inputs: inputs, config: backendData })
+                });
+                
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+                const result = await response.json();
+
+                if (!result || !result.retail) return;
+                const ret = result.retail; 
+                const fmt = (n) => "$" + (n || 0).toFixed(2);
+
+                document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+                document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+
+                // DYNAMIC LINE ITEMS: Loops through edge function output
+                let lineItemsHtml = '';
+                ret.breakdown.forEach(item => {
+                    if(!item.label.includes('Shop Minimum Surcharge')) {
+                        // Checks if value is 0 (like Standard Weeding) to print 'Included'
+                        let valStr = item.total === 0 ? 'Included' : fmt(item.total);
+                        lineItemsHtml += `<div class="flex justify-between"><span>${item.label}:</span><span class="font-bold">${valStr}</span></div>`;
+                    }
+                });
+                document.getElementById('ui-line-items').innerHTML = lineItemsHtml;
+
+                document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(backendData.Retail_Min_Order || 35)}`;
+                document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+
+                const matTxt = document.getElementById('material').options[document.getElementById('material').selectedIndex].text;
+                const cutTxt = inputs.shape === 'Rectangle' ? 'Square Cut' : 'Contour Cut';
+                const weedTxt = inputs.weeding === 'Complex' ? ' (Complex Weeding)' : ' (Standard Weeding)';
+                const maskTxt = inputs.masking === 'Yes' ? 'Pre-Masked with Transfer Tape.' : 'No Transfer Tape.';
+
+                document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ${matTxt}.\n${cutTxt}${weedTxt}. ${maskTxt}`;
+            } catch(e) { 
+                console.error("Cloud Calculation Error:", e); 
+            }
         }
-        console.error(e); 
-    }
-});
-</script>
+
+        window.addEventListener('load', async () => {
+            if (typeof injectHeader === 'function') injectHeader("Decals & Stickers");
+            const statusText = document.getElementById("status-text");
+            const statusDot = document.getElementById("status-dot");
+            try {
+                const payload = await SignOS.fetchProductData('PROD_Decals');
+                backendData = payload.config;
+                
+                if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
+
+                if(statusText) {
+                    statusText.innerText = "ONLINE";
+                    statusText.className = "font-bold text-green-500";
+                    if(statusDot) {
+                        statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                        statusDot.classList.remove("animate-pulse");
+                    }
+                }
+                runCalc();
+            } catch(e) { 
+                if(statusText) {
+                    statusText.innerText = "OFFLINE";
+                    statusText.className = "font-bold text-red-500";
+                }
+                console.error(e); 
+            }
+        });
+    </script>
 </body>
 </html>
