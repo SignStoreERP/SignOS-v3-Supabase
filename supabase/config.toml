@@ -53,3 +53,36 @@ entrypoint = "./functions/calculate-acrylic/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/calculate-acrylic/*.html" ]
+
+[functions.calculate-banner]
+enabled = true
+verify_jwt = true
+import_map = "./functions/calculate-banner/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calculate-banner/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calculate-banner/*.html" ]
+
+[functions.calculate-decal]
+enabled = true
+verify_jwt = true
+import_map = "./functions/calculate-decal/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calculate-decal/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calculate-decal/*.html" ]
+
+[functions.calculate-wrap]
+enabled = true
+verify_jwt = true
+import_map = "./functions/calculate-wrap/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calculate-wrap/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calculate-wrap/*.html" ]

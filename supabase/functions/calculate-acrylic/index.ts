@@ -33,7 +33,8 @@ Deno.serve(async (req) => {
 
     let routerFee = 0;
     if (inputs.shape !== 'Rectangle') {
-        routerFee = parseFloat(config.Retail_Fee_Router_Easy || "30");
+        // FIXED: Dynamically references SQL config based on complexity
+        routerFee = inputs.shape === 'CNC Simple' ? parseFloat(config.Retail_Fee_Router_Easy || "30") : parseFloat(config.Retail_Fee_Router_Hard || "50");
         R(`CNC Router Fee`, routerFee, `Shape Routing Fee`);
     }
 
@@ -77,7 +78,10 @@ Deno.serve(async (req) => {
     L(`Load/Unload Printer`, (parseFloat(config.Time_Handling || "5") / 60) * rateOp, `5 Mins * $${rateOp}/hr`);
 
     if (inputs.shape !== 'Rectangle') {
-        const cutHrs = (totalSqFt * 1) / 60;
+        // FIXED: Pulls exact routing times from SQL instead of hardcoding 1 minute
+        const cncTime = inputs.shape === 'CNC Simple' ? parseFloat(config.Time_CNC_Easy_SqFt || "1") : parseFloat(config.Time_CNC_Complex_SqFt || "2");
+        const cutHrs = (totalSqFt * cncTime) / 60;
+        
         L(`CNC Router Run`, cutHrs * parseFloat(config.Rate_Machine_CNC || "10"), `${cutHrs.toFixed(2)} Hrs * $10/hr`);
         L(`CNC Op (Attn Ratio)`, cutHrs * parseFloat(config.Rate_CNC_Labor || "25"), `${cutHrs.toFixed(2)} Hrs * $25/hr`);
     }
