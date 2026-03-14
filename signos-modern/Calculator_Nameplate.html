@@ -459,7 +459,9 @@
             let sublineHtml = '';
             ret.breakdown.forEach(item => {
                 if (item.label !== 'Shop Minimum Surcharge') {
-                    sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${item.unit.toFixed(2)})</span>`;
+                    // FIXED: Safe Fallback for null math calculations to prevent crashes
+                    const safeUnit = item.unit || 0;
+                    sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${safeUnit.toFixed(2)})</span>`;
                 }
             });
             if(document.getElementById('ui-subline')) document.getElementById('ui-subline').innerHTML = sublineHtml;
