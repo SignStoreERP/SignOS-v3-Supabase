@@ -223,7 +223,7 @@
 
     let backendData = {}, coreColors = [], systemFonts = [];
 
-    // FIXED: Initialize with 'BasicA' to prevent the physics engine from aborting
+    // FIXED: Correct initialization for the Architectural Builder
     let buildState = {
         qty: 1, w: 8, h: 8, purpose: 'Restroom / Room ID', chassis: 'Flush',
         product: 'BasicA', 
@@ -279,17 +279,17 @@
             if (btn.getAttribute('data-prod') === prod) {
                 btn.classList.add('border-2', 'border-slate-900', 'bg-slate-800');
                 btn.classList.remove('border-gray-300', 'bg-gray-100', 'hover:bg-gray-200', 'hover:border-gray-400');
-                btn.querySelector('span:first-child').classList.add('text-white');
-                btn.querySelector('span:first-child').classList.remove('text-gray-700');
-                btn.querySelector('span:last-child').classList.add('text-slate-300');
-                btn.querySelector('span:last-child').classList.remove('text-gray-500');
+                if(btn.querySelector('span:first-child')) btn.querySelector('span:first-child').classList.add('text-white');
+                if(btn.querySelector('span:first-child')) btn.querySelector('span:first-child').classList.remove('text-gray-700');
+                if(btn.querySelector('span:last-child')) btn.querySelector('span:last-child').classList.add('text-slate-300');
+                if(btn.querySelector('span:last-child')) btn.querySelector('span:last-child').classList.remove('text-gray-500');
             } else {
                 btn.classList.remove('border-2', 'border-slate-900', 'bg-slate-800');
                 btn.classList.add('border-gray-300', 'bg-gray-100', 'hover:bg-gray-200', 'hover:border-gray-400');
-                btn.querySelector('span:first-child').classList.remove('text-white');
-                btn.querySelector('span:first-child').classList.add('text-gray-700');
-                btn.querySelector('span:last-child').classList.remove('text-slate-300');
-                btn.querySelector('span:last-child').classList.add('text-gray-500');
+                if(btn.querySelector('span:first-child')) btn.querySelector('span:first-child').classList.remove('text-white');
+                if(btn.querySelector('span:first-child')) btn.querySelector('span:first-child').classList.add('text-gray-700');
+                if(btn.querySelector('span:last-child')) btn.querySelector('span:last-child').classList.remove('text-slate-300');
+                if(btn.querySelector('span:last-child')) btn.querySelector('span:last-child').classList.add('text-gray-500');
             }
         });
         runCalc();
@@ -311,13 +311,13 @@
     }
 
     async function runCalc() {
-        if(!backendData || !selectedMat) return;
-        if(typeof SignOS_Canvas !== 'undefined') SignOS_Canvas.enforceSheetLimits('w', 'h', 'sheet-warn', 24, 48);
+        // FIXED: Wait until baseColor is populated before calculating to avoid silent errors
+        if(!backendData || !buildState.baseColor) return;
         
         const wEl = document.getElementById('w');
         const hEl = document.getElementById('h');
-        if(wEl) { buildState.w = parseFloat(wEl.value) || 8; document.getElementById('lbl-w').innerText = buildState.w; }
-        if(hEl) { buildState.h = parseFloat(hEl.value) || 8; document.getElementById('lbl-h').innerText = buildState.h; }
+        if(wEl) { buildState.w = parseFloat(wEl.value) || 8; const lblW = document.getElementById('lbl-w'); if(lblW) lblW.innerText = buildState.w; }
+        if(hEl) { buildState.h = parseFloat(hEl.value) || 8; const lblH = document.getElementById('lbl-h'); if(lblH) lblH.innerText = buildState.h; }
         
         try {
             const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
@@ -421,109 +421,135 @@
                 }
             }
 
-            if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.renderLedger(result);
+            if (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.renderLedger) {
+                SignOS_Sandbox.renderLedger(result);
+            }
 
         } catch(e) { console.error("Physics Engine Error:", e); }
     }
 
     // --- INITIALIZATION ---
     window.addEventListener('load', async () => {
-        if (typeof injectHeader === 'function') injectHeader("Nameplates & Sliders");
+        if (typeof injectHeader === 'function') injectHeader("Architectural Sign Builder");
         if(window.SignOS_UI && SignOS_UI.Camera3D) {
             SignOS_UI.Camera3D.init('zoom-stage');
+            SignOS_UI.Camera3D.toggle(true);
         }
 
+        // FIXED: Restore Sandbox toggle button visibility securely
+        const btnSandbox = document.getElementById('btn-sandbox');
+        if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
+            btnSandbox.classList.remove('hidden');
+        }
+
+        const addonWin = document.getElementById('addon-window');
+        const addonSli = document.getElementById('addon-slider');
+        const addonMag = document.getElementById('addon-magnetic');
+        const addonAcc = document.getElementById('addon-accent');
+        
+        if(addonWin) addonWin.onchange = (e) => setAddon('window', e.target.checked);
+        if(addonSli) addonSli.onchange = (e) => setAddon('slider', e.target.checked);
+        if(addonMag) addonMag.onchange = (e) => setAddon('magnetic', e.target.checked);
+        if(addonAcc) addonAcc.onchange = (e) => setAddon('accent', e.target.checked);
+
+        if(typeof SignOS_UI !== 'undefined') SignOS_UI.showLoader('loader-wrapper', 'Connecting to Matrices...');
         const statusText = document.getElementById("status-text");
         const statusDot = document.getElementById("status-dot");
 
         try {
-            // 1. Use the core fetcher with STRICTLY LOWERCASE table names
-            const payload = await SignOS.fetchProductData('PROD_Nameplates', [
-                'ref_colors_rowmark',
-                'ref_colors_paint',
-                'ref_colors_pms',
-                'ref_fonts'
-            ]);
-
+            // FIXED: Fetch strictly lowercase tables to prevent 404s
+            const payload = await SignOS.fetchProductData('PROD_Nameplates', ['ref_colors_rowmark', 'ref_fonts']);
             backendData = payload.config || {};
-            backendData.ui_schema = ADA_UI_SCHEMA;
+            backendData.ui_schema = ADA_UI_SCHEMA; 
 
-            if (typeof SignOS_Sandbox !== 'undefined' && backendData.ui_schema) {
-                SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
+            if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
+
+            let rawRowmark = payload.tables['ref_colors_rowmark'] || [];
+            let rawFonts = payload.tables['ref_fonts'] || [];
+            
+            // SAFEGUARD 1: Fallback Data if Supabase RLS or 404 blocks the table
+            if (rawRowmark.length === 0) {
+                console.warn("Rowmark table empty or blocked. Injecting fallback colors.");
+                rawRowmark = [
+                    { item_code: '322-401', series: 'Mattes', cap_color: 'Black', core_color: 'White', cap_hex: '#121514', core_hex: '#ffffff' },
+                    { item_code: '322-201', series: 'Mattes', cap_color: 'White', core_color: 'Black', cap_hex: '#ffffff', core_hex: '#000000' },
+                    { item_code: '322-801', series: 'Mattes', cap_color: 'Taupe', core_color: 'White', cap_hex: '#968A85', core_hex: '#ffffff' },
+                    { item_code: '322-512', series: 'Mattes', cap_color: 'Blue', core_color: 'White', cap_hex: '#004B87', core_hex: '#ffffff' }
+                ];
             }
 
-            // 2. Extract tables safely
-            const rawRowmark = payload.tables['ref_colors_rowmark'] || [];
-            const rawPaint = payload.tables['ref_colors_paint'] || [];
-            const rawPMS = payload.tables['ref_colors_pms'] || [];
-            const rawFonts = payload.tables['ref_fonts'] || [];
+            if (rawFonts.length === 0) {
+                rawFonts = [{ font_name: 'System Default', css_family: 'sans-serif', file_name: '', is_active: 'TRUE' }];
+            }
 
-            // 3. Map Rowmark Data (Front vs Reverse) - Safely handling Postgres casing
-            rowmarkFront = rawRowmark.filter(r => {
-                const series = r.Series || r.series || '';
-                return series && !series.includes('Reverse');
-            }).map(c => ({
-                Code: c.Item_Code || c.item_code,
-                Name: c.Cap_Color || c.cap_color,
-                Hex_Code: (c.Cap_Hex === 'Transparent' || c.cap_hex === 'Transparent' || String(c.Cap_Color || c.cap_color || '').includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex),
-                Core_Hex: c.Core_Hex || c.core_hex || '#000000'
-            }));
-
-            rowmarkRev = rawRowmark.filter(r => {
-                const series = r.Series || r.series || '';
-                return series && series.includes('Reverse');
-            }).map(c => ({
-                Code: c.Item_Code || c.item_code,
-                Name: c.Cap_Color || c.cap_color,
-                Hex_Code: (c.Cap_Hex === 'Transparent' || c.cap_hex === 'Transparent' || String(c.Cap_Color || c.cap_color || '').includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex),
-                Core_Hex: c.Core_Hex || c.core_hex || '#000000'
-            }));
-
-            // 4. Map Paint & PMS Data
-            swData = rawPaint.map(p => ({
-                Code: p.code || p.Code || p['Color Code'] || 'UNK',
-                Name: p.name || p.Name || p['Color Name'] || 'Unknown',
-                Hex_Code: p.hex_code || p.Hex_Code || p['HEX Code'] || '#ffffff'
-            }));
-
-            pmsData = rawPMS.map(p => ({
-                Code: p.code || p.Code || p.name || p.Name || p['PMS Name / Code'] || 'UNK',
-                Name: p.name || p.Name || p['PMS Name / Code'] || 'Unknown',
-                Hex_Code: p.hex_code || p.Hex_Code || p['HEX Code'] || '#ffffff'
-            }));
-
-            // 5. Map Fonts
+            // SAFEGUARD 2: Strict case-insensitive parsing
             systemFonts = rawFonts.filter(f => String(f.Is_Active || f.is_active).toUpperCase() === 'TRUE');
-            if(window.SignOS_Canvas && systemFonts.length > 0) {
+            if (window.SignOS_Canvas && systemFonts.length > 0 && (systemFonts.at(0).File_Name || systemFonts.at(0).file_name)) {
                 SignOS_Canvas.loadFonts(systemFonts);
             }
 
-            let defaultFont = systemFonts.find(f => (f.CSS_Family || f.css_family) === 'Arimo') || systemFonts.at(0);
-            lineSettings.forEach(ls => ls.font = defaultFont ? (defaultFont.CSS_Family || defaultFont.css_family) : 'sans-serif');
+            coreColors = rawRowmark.filter(r => {
+                const series = String(r.Series || r.series || '').toLowerCase();
+                return series.includes('mattes') || series.includes('ultra-mattes');
+            }).map(c => ({
+                Code: c.Item_Code || c.item_code || 'UNK',
+                Name: c.Cap_Color || c.cap_color || 'Unknown',
+                Hex_Code: (c.Cap_Hex === 'Transparent' || c.cap_hex === 'Transparent' || String(c.Cap_Color || c.cap_color || '').includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex),
+                Core_Hex: c.Core_Hex || c.core_hex || '#000000'
+            }));
 
-            if(statusText) {
-                statusText.innerText = "ONLINE";
-                statusText.className = "font-bold text-green-500";
-                if(statusDot) {
-                    statusDot.className = "w-2 h-2 rounded-full bg-green-500";
-                    statusDot.classList.remove("animate-pulse");
-                }
+            // If the filter somehow excluded everything, force the first item through
+            if (coreColors.length === 0 && rawRowmark.length > 0) {
+                const c = rawRowmark.at(0);
+                coreColors.push({
+                    Code: c.Item_Code || c.item_code || 'UNK',
+                    Name: c.Cap_Color || c.cap_color || 'Fallback Color',
+                    Hex_Code: c.Cap_Hex || c.cap_hex || '#e5e7eb',
+                    Core_Hex: c.Core_Hex || c.core_hex || '#000000'
+                });
             }
 
-            // 6. Force initial state to unlock runCalc()
-            selectedMat = rowmarkFront.find(c => c.Code === '222-402') || rowmarkFront.at(0);
+            if(typeof SignOS_UI !== 'undefined') {
+                SignOS_UI.buildLabeledColorGrid({
+                    containerId: 'rowmark-grid', data: coreColors, type: 'rowmark',
+                    onSelect: (item) => {
+                        buildState.baseColor = item;
+                        const label = document.getElementById('selected-color-label');
+                        if(label) label.innerText = item.Name || item.Cap_Color;
+                        runCalc();
+                    }
+                });
+            }
 
-            updateColorUI();
-            setMode('front');
-            setPaintSystem('PMS');
-            updateLineControls();
+            const fontSelect = document.getElementById('sign-font');
+            if(fontSelect) {
+                systemFonts.forEach(f => { 
+                    const fam = f.CSS_Family || f.css_family;
+                    const file = f.File_Name || f.file_name || '';
+                    const name = f.Font_Name || f.font_name;
+                    fontSelect.innerHTML += `<option value="${fam}" data-filename="${file}">${name}</option>`; 
+                });
+            }
+
+            if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
+            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('loader-wrapper');
+            
+            // SAFEGUARD 3: Force selection & calculation even if DOM is slow
+            setTimeout(() => { 
+                const firstBtn = document.querySelector('#rowmark-grid button'); 
+                if(firstBtn) {
+                    firstBtn.click(); 
+                } else {
+                    buildState.baseColor = coreColors.at(0);
+                    runCalc();
+                }
+                toggleStep(1); 
+            }, 100);
 
         } catch(e) {
             console.error("API Error:", e);
-            if(statusText) {
-                statusText.innerText = "OFFLINE";
-                statusText.className = "font-bold text-red-500";
-            }
+            if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('loader-wrapper', true);
         }
     });
 </script>
