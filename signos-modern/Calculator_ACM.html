@@ -215,7 +215,12 @@ window.addEventListener('load', async () => {
     try {
         // FIXED: Using the exact Postgres ID verified in the live database export
         const payload = await SignOS.fetchProductData('PROD_ACM');
-        backendData = payload.config; 
+        backendData = payload.config; // Existing line
+
+        // ADD THIS: Inject the universal Cost Sandbox using the new DB schema
+        if (typeof SignOS_Sandbox !== 'undefined' && backendData.ui_schema) {
+            SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
+        }
         
         if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
 

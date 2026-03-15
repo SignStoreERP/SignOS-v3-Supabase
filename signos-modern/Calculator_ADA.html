@@ -324,434 +324,114 @@
 </div>
 
 <script>
-    let backendData = {}, customSimData = null, coreColors = [], tactileColors = [], pictograms = [], systemFonts = [];
-    let selectedIcon = null;
-    let isViewfinderOn = true; 
+    // --- 1. HARDCODED UI SCHEMA FOR INLINE SANDBOX ---
+    const ADA_UI_SCHEMA = {
+        retails: [
+            { key: 'Retail_Price_ADA_Basic_AB', label: 'Base SqIn ($)' },
+            { key: 'Retail_Price_ADA_Basic_Clear', label: 'Clear Base SqIn ($)' },
+            { key: 'Retail_Min_Order', label: 'Shop Min ($)' },
+            { key: 'Tier_1_Qty', label: 'Discount Qty' },
+            { key: 'Tier_1_Disc', label: 'Discount % (Dec)' }
+        ],
+        costs: [
+            { key: 'Cost_Sub_ADA_Core_116', label: '1/16" Core ($/Sht)' },
+            { key: 'Cost_Sub_ADA_Core_18', label: '1/8" Core ($/Sht)' },
+            { key: 'Cost_Sub_PVC', label: '3mm PVC ($/Sht)' },
+            { key: 'Cost_Sub_Acrylic', label: '3/16" Acr ($/Sht)' },
+            { key: 'Cost_Paint_SqIn', label: 'Paint ($/SqIn)' },
+            { key: 'Rate_Operator', label: 'Operator ($/Hr)' },
+            { key: 'Rate_Machine_Engraver', label: 'Engraver ($/Hr)' },
+            { key: 'Rate_Machine_CNC', label: 'CNC ($/Hr)' },
+            { key: 'Rate_Shop_Labor', label: 'Assembly ($/Hr)' },
+            { key: 'Time_Engrave_SqIn', label: 'Engrave (Min/SqIn)' },
+            { key: 'Waste_Factor', label: 'Waste Multiplier' },
+            { key: 'Factor_Risk', label: 'Risk Multiplier' }
+        ]
+    };
+
+    let backendData = {}, coreColors = [], systemFonts = [];
+    let buildState = {
+        qty: 1, w: 8, h: 8, purpose: 'Restroom / Room ID', chassis: 'Flush',
+        baseColor: null, addons: { window: false, slider: false, magnetic: false, accent: false },
+        typography: { text: 'ROOM 101', font: 'sans-serif', hasBraille: true }
+    };
     let is3D = true;
-    let isExploded = true; 
-    let lastSimResult = null; 
-    let activeLayerModalId = null;
-    const GITHUB_BASE = "https://raw.githubusercontent.com/SignStoreERP/signos-app/main/fonts/";
+    let customSimData = null;
+    let lastSimResult = null;
 
-    // --- LAYER STACK STATE ---
-    let layerStack = [];
-
-    function toggleAcc(contentId, arrowId) {
-        document.getElementById(contentId).classList.toggle('hidden');
-        document.getElementById(arrowId).classList.toggle('rotate-180');
-    }
-
-    function generateId() { return Math.random().toString(36).substr(2, 9); }
-
-    function createLayer(typeStr) {
-        let layer = { id: generateId(), type: typeStr };
-        if (typeStr === 'Tactile') {
-            const defCol = tactileColors.find(c => c.Name.includes('White')) || tactileColors || {Hex_Code: '#FFFFFF', Name: 'White', Code: 'N/A'};
-            layer.colorHex = defCol.Hex_Code;
-            layer.colorName = defCol.Name;
-            layer.colorCode = defCol.Code;
-            layer.hasBraille = true;
-        } else if (typeStr.includes('Core')) {
-            const defCol = coreColors.find(c => c.Name.includes('Black')) || coreColors || {Hex_Code: '#000000', Name: 'Black', Code: 'N/A'};
-            layer.colorHex = defCol.Hex_Code;
-            layer.colorName = defCol.Name;
-            layer.colorCode = defCol.Code;
-        } else if (typeStr === '3mm PVC Backer') {
-            layer.colorName = 'Black';
-            layer.colorHex = '#111827';
-        } else if (typeStr === '3/16" Clear Acrylic') {
-            layer.colorName = 'Clear';
-            layer.colorHex = 'rgba(255,255,255,0.4)';
-        }
-        return layer;
-    }
-
-    function applyPreset(preset) {
-        layerStack = [];
-        if (preset === 'Standard') {
-            layerStack.push(createLayer('Tactile'));
-            layerStack.push(createLayer('1/8" Core'));
-        } else if (preset === 'PVC') {
-            layerStack.push(createLayer('Tactile'));
-            layerStack.push(createLayer('1/16" Core'));
-            layerStack.push(createLayer('3mm PVC Backer'));
-        } else if (preset === 'Acrylic') {
-            layerStack.push(createLayer('Tactile'));
-            layerStack.push(createLayer('1/16" Core'));
-            layerStack.push(createLayer('3/16" Clear Acrylic'));
-        }
-        renderLayers();
-        runCalc();
-    }
-
-    function addLayer() {
-        const layer = createLayer('1/16" Core');
-        layerStack.push(layer);
-        renderLayers();
-        runCalc();
-    }
-    
-    function updateLayerType(id, newType) {
-        const layer = layerStack.find(l => l.id === id);
-        if (layer) {
-            layer.type = newType;
-            const defaults = createLayer(newType);
-            layer.colorHex = defaults.colorHex;
-            layer.colorName = defaults.colorName;
-            layer.colorCode = defaults.colorCode;
-            layer.hasBraille = defaults.hasBraille;
-            renderLayers();
-            runCalc();
-        }
-    }
-
-    function removeLayer(id) {
-        layerStack = layerStack.filter(l => l.id !== id);
-        renderLayers();
-        runCalc();
-    }
-
-    // New Native Reorder Arrows (Replacing Drag & Drop)
-    function moveLayer(id, direction) {
-        const idx = layerStack.findIndex(l => l.id === id);
-        if (idx < 0) return;
-        const newIdx = idx + direction;
-        if (newIdx < 0 || newIdx >= layerStack.length) return;
-        
-        const temp = layerStack[idx];
-        layerStack[idx] = layerStack[newIdx];
-        layerStack[newIdx] = temp;
-        
-        renderLayers();
-        runCalc();
-    }
-
-    function updateLayerBraille(id, isChecked) {
-        const layer = layerStack.find(l => l.id === id);
-        if (layer) { layer.hasBraille = isChecked; runCalc(); }
-    }
-
-    function updateLayerPVC(id, colorName) {
-        const layer = layerStack.find(l => l.id === id);
-        if (layer) { 
-            layer.colorName = colorName; 
-            layer.colorHex = colorName === 'White' ? '#ffffff' : '#111827';
-            runCalc(); 
-        }
-    }
-
-    function renderLayers() {
-        const container = document.getElementById('layer-list');
-        let html = '';
-        
-        layerStack.forEach((l, index) => {
-            let propertiesHtml = '';
-            
-            let typeSelect = `
-                <select onchange="updateLayerType('${l.id}', this.value)" class="border border-gray-200 p-1.5 rounded text-[10px] font-black text-gray-800 bg-gray-50 outline-none focus:border-blue-500 shadow-inner w-32 shrink-0">
-                    <option value="Tactile" ${l.type==='Tactile'?'selected':''}>1/32" Tactile</option>
-                    <option value="1/16&quot; Core" ${l.type==='1/16" Core'?'selected':''}>1/16" ADA Core</option>
-                    <option value="1/8&quot; Core" ${l.type==='1/8" Core'?'selected':''}>1/8" ADA Core</option>
-                    <option value="3mm PVC Backer" ${l.type==='3mm PVC Backer'?'selected':''}>3mm PVC Backer</option>
-                    <option value="3/16&quot; Clear Acrylic" ${l.type==='3/16" Clear Acrylic'?'selected':''}>3/16" Clear Acrylic</option>
-                </select>
-            `;
-            
-            if (l.type === 'Tactile' || l.type.includes('Core')) {
-                propertiesHtml += `
-                <div class="flex items-center gap-1.5 cursor-pointer bg-gray-50 border border-gray-200 px-2 py-1.5 rounded hover:border-blue-400 transition shadow-inner" onclick="openLayerModal('${l.id}')">
-                    <div class="w-3 h-3 rounded-full border border-gray-300 shrink-0" style="background-color: ${l.colorHex};"></div>
-                    <span class="text-[9px] text-gray-600 font-bold truncate max-w-[100px]" title="${l.colorName}">${l.colorName}</span>
-                </div>`;
-            }
-            
-            if (l.type === 'Tactile') {
-                propertiesHtml += `
-                <label class="flex items-center gap-1 text-[9px] font-bold text-gray-500 cursor-pointer ml-1 bg-white border border-gray-100 px-1.5 py-1.5 rounded hover:bg-blue-50 transition">
-                    <input type="checkbox" onchange="updateLayerBraille('${l.id}', this.checked)" ${l.hasBraille ? 'checked' : ''} class="w-3 h-3 text-blue-600 rounded">
-                    Braille
-                </label>`;
-            }
-
-            if (l.type === '3mm PVC Backer') {
-                propertiesHtml += `
-                <select onchange="updateLayerPVC('${l.id}', this.value)" class="border border-gray-200 p-1.5 rounded text-[9px] font-bold text-gray-600 bg-gray-50 outline-none focus:border-blue-500 shadow-inner">
-                    <option value="Black" ${l.colorName === 'Black' ? 'selected' : ''}>Black PVC</option>
-                    <option value="White" ${l.colorName === 'White' ? 'selected' : ''}>White PVC</option>
-                </select>`;
-            }
-
-            html += `
-            <div class="flex items-center bg-white p-2 rounded-lg shadow-sm border border-gray-200 gap-2 transition">
-                
-                <div class="flex flex-col items-center justify-center gap-1 pr-2 border-r border-gray-100 shrink-0">
-                    <button onclick="moveLayer('${l.id}', -1)" class="text-gray-400 hover:text-blue-600 transition focus:outline-none leading-none ${index===0?'opacity-30 cursor-not-allowed':''}" ${index===0?'disabled':''}>▲</button>
-                    <button onclick="moveLayer('${l.id}', 1)" class="text-gray-400 hover:text-blue-600 transition focus:outline-none leading-none ${index===layerStack.length-1?'opacity-30 cursor-not-allowed':''}" ${index===layerStack.length-1?'disabled':''}>▼</button>
-                </div>
-                
-                ${typeSelect}
-                <div class="flex-1 flex flex-wrap items-center gap-2 overflow-hidden">
-                    ${propertiesHtml}
-                </div>
-                <button onclick="removeLayer('${l.id}')" class="text-gray-300 hover:text-red-500 transition font-black focus:outline-none px-2 shrink-0">✕</button>
-            </div>`;
-        });
-
-        if(layerStack.length === 0) {
-            html = `<div class="text-center py-6 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-2 border-dashed border-gray-300 rounded-lg">No layers selected</div>`;
-        }
-        container.innerHTML = html;
-    }
-
-    function openLayerModal(layerId) {
-        activeLayerModalId = layerId;
-        const l = layerStack.find(x => x.id === activeLayerModalId);
-        if (!l) return;
-        
-        const isTactile = l.type === 'Tactile';
-        document.getElementById('modal-title').innerText = isTactile ? 'Select Tactile Color' : 'Select Core Color';
-        document.getElementById('color-search').value = '';
-        document.getElementById('color-modal').classList.remove('hidden');
-        
-        SignOS_UI.buildColorGrid({
-            containerId: 'modal-grid', data: isTactile ? tactileColors : coreColors, type: 'rowmark', btnClass: 'w-10 h-10', activeRingClass: 'ring-blue-600',
-            onSelect: (item) => {
-                const trg = layerStack.find(x => x.id === activeLayerModalId);
-                if (trg) { trg.colorHex = item.Hex_Code; trg.colorName = item.Name; trg.colorCode = item.Code; }
-                closeModal(); renderLayers(); runCalc();
-            }
-        });
-    }
-    function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
-
-    // --- HOVER ENGINE LOGIC ---
-    document.addEventListener('mouseover', e => {
-        const target = e.target.closest('.hover-var');
-        if(target) {
-            const varName = target.getAttribute('data-var');
-            document.querySelectorAll(`.hover-var[data-var="${varName}"]`).forEach(el => el.classList.add('highlight-var'));
-        }
-    });
-    
-    document.addEventListener('mouseout', e => {
-        const target = e.target.closest('.hover-var');
-        if(target) {
-            const varName = target.getAttribute('data-var');
-            document.querySelectorAll(`.hover-var[data-var="${varName}"]`).forEach(el => el.classList.remove('highlight-var'));
-        }
-    });
-
-    function toggleViewfinderWindow() {
-        isViewfinderOn = !isViewfinderOn;
-        const wrap = document.getElementById('preview-wrapper');
-        const btnText = document.getElementById('view-text');
-        
-        if(isViewfinderOn) {
-            wrap.classList.remove('hidden');
-            wrap.classList.add('flex');
-            btnText.innerText = "Close 3D Preview";
-            updatePreview();
-        } else {
-            wrap.classList.add('hidden');
-            wrap.classList.remove('flex');
-            btnText.innerText = "Generate 3D Preview";
-        }
-    }
-
-    function syncAutoScale(sourceId) {
-        const isChecked = document.getElementById(sourceId).checked;
-        document.getElementById('auto-scale-view').checked = isChecked;
-        document.getElementById('auto-scale-text').checked = isChecked;
-        if(isViewfinderOn) updatePreview();
-    }
-
+    // --- EXISTING LAYOUT LOGIC (PRESERVED) ---
     function toggle3D() {
         is3D = !is3D;
         SignOS_UI.Camera3D.toggle(is3D);
         document.getElementById('preview-wrapper').classList.toggle('isometric-view', is3D);
         document.getElementById('btn-3d').innerText = is3D ? "Flat 2D View" : "3D Isometric View";
-        document.getElementById('btn-explode').style.display = is3D ? 'block' : 'none';
-        if(isViewfinderOn) updatePreview();
-    }
-    
-    function toggleExplode() {
-        isExploded = !isExploded;
-        document.getElementById('btn-explode').innerText = isExploded ? "Stack Layers" : "Explode Layers";
-        document.getElementById('btn-explode').classList.toggle('bg-blue-600', !isExploded);
-        document.getElementById('btn-explode').classList.toggle('text-white', !isExploded);
-        document.getElementById('btn-explode').classList.toggle('bg-white/90', isExploded);
-        document.getElementById('btn-explode').classList.toggle('text-blue-600', isExploded);
-        if(isViewfinderOn) updatePreview();
     }
 
-    function makeEdge(hex, depthPx) {
-        if (!hex || hex === 'Transparent' || depthPx <= 0) return 'none';
-        let c = hex;
-        if (c.includes('rgba')) { c = 'cbd5e1'; } 
-        else {
-            c = c.replace('#', '');
-            if(c.length === 3) c = c+c+c+c+c+c;
-            if(c.length !== 6) return 'none';
-        }
-        let r = parseInt(c.substr(0, 2), 16) * 0.6, g = parseInt(c.substr(2, 2), 16) * 0.6, b = parseInt(c.substr(4, 2), 16) * 0.6;
-        let shadow = [];
-        for(let i=0.5; i<=depthPx; i+=0.5) {
-            shadow.push(`-${i}px ${i}px 0 rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`);
-        }
-        shadow.push(`-${depthPx+1}px ${depthPx+1}px 4px rgba(0,0,0,0.3)`); 
-        return shadow.join(', ');
-    }
+    function toggleStep(stepNum) {
+        const steps = document.querySelectorAll('.wizard-step');
+        steps.forEach(step => {
+            const num = parseInt(step.getAttribute('data-step'));
+            const content = step.querySelector('.step-content');
+            const chevron = step.querySelector('.chevron');
+            const header = step.querySelector('.p-3');
+            const badge = step.querySelector('.num-badge');
+            const title = step.querySelector('.title-text');
 
-    async function updatePreview() {
-        if (!isViewfinderOn) return;
-        
-        const w = parseFloat(document.getElementById('w').value) || 8;
-        const h = parseFloat(document.getElementById('h').value) || 8;
-        const r = parseFloat(document.getElementById('radius').value) || 0; 
-        const container = document.getElementById('svg-preview-container');
-        const fontSelect = document.getElementById('sign-font');
-        
-        const rawText = document.getElementById('sign-text').value.toUpperCase();
-        
-        const hasPicto = document.getElementById('toggle-picto').checked;
-        const hasText = document.getElementById('toggle-text').checked;
-        
-        let topLayer = layerStack.length > 0 ? layerStack : null;
-        let svgColorHex = topLayer && topLayer.colorHex ? topLayer.colorHex : '#ffffff';
-        if (topLayer && topLayer.type && topLayer.type.includes('Core')) svgColorHex = topLayer.colorName === 'White' ? '#000000' : '#ffffff';
-
-        const buildInputs = {
-            w: w, h: h, align: 'center',
-            textVal: rawText,
-            hasPicto: hasPicto,
-            hasText: hasText,
-            hasBraille: topLayer && topLayer.type === 'Tactile' ? topLayer.hasBraille : false,
-            isAutoScale: document.getElementById('auto-scale-view').checked,
-            selectedIcon: selectedIcon,
-            fontFileName: fontSelect.options[fontSelect.selectedIndex]?.dataset.filename || 'Arimo-Regular.ttf',
-            pictoSize: parseFloat(document.getElementById('picto-size').value) || 4,
-            fontSize: parseFloat(document.getElementById('text-height').value) || 0.625
-        };
-
-        const layout = await SignOS_Builder.buildADA(buildInputs, GITHUB_BASE);
-
-        document.getElementById('picto-size').value = layout.pictoSize;
-        document.getElementById('text-height').value = layout.fontSize;
-        document.getElementById('picto-size').disabled = buildInputs.isAutoScale;
-        document.getElementById('text-height').disabled = buildInputs.isAutoScale;
-        document.getElementById('picto-size').classList.toggle('opacity-50', buildInputs.isAutoScale);
-        document.getElementById('text-height').classList.toggle('opacity-50', buildInputs.isAutoScale);
-
-        // Increased bounding numerators to naturally zoom and fill the window
-        const scale = Math.min((is3D ? 260 : 340) / w, (is3D ? 180 : 280) / h);
-        container.style.width = `${w * scale}px`
-        container.style.height = `${h * scale}px`;
-
-        let html = '';
-        let currentZ = layerStack.length * 10; 
-        
-        layerStack.forEach((l, index) => {
-            let physicalDepth = 0;
-            if (l.type === '1/16" Core') physicalDepth = 1;
-            else if (l.type === '1/8" Core') physicalDepth = 2;
-            else if (l.type === '3/16" Clear Acrylic') physicalDepth = 3;
-            else if (l.type === '3mm PVC Backer') physicalDepth = 4;
-            
-            // Tighter Callout Spacing anchored purely to the left bounding box
-            let calloutOffset = (is3D && isExploded) ? `transform: translateY(${index * 10}px);` : '';
-            let callout = (name) => `
-                <div class="blueprint-callout absolute right-[100%] top-1/2 -translate-y-1/2 flex items-center z-50 mr-2" style="${calloutOffset}">
-                    <span class="text-[8px] font-black text-blue-700 uppercase tracking-widest bg-white/90 backdrop-blur px-1.5 py-0.5 rounded border border-blue-200 shadow-sm whitespace-nowrap">${name}</span>
-                    <div class="w-8 border-b-[1.5px] border-blue-500 shadow-sm"></div>
-                </div>`;
-
-            if (l.type === 'Tactile') {
-                const shadow = is3D ? `drop-shadow(-1px 1px 1px rgba(0,0,0,0.3))` : 'none';
-                html += `<div class="sign-layer" style="color: ${l.colorHex}; filter: ${shadow}; transform: translateZ(${currentZ}px);">
-                    <svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" fill="currentColor" style="overflow: visible;">${layout.svgContent}</svg>
-                    ${is3D ? callout('1/32" Tactile') : ''}
-                </div>`;
+            if (num === stepNum) {
+                content.style.maxHeight = '500px';
+                content.classList.add('p-4'); content.classList.remove('p-0');
+                step.classList.remove('opacity-50');
+                header.classList.remove('bg-slate-50', 'border-gray-100');
+                header.classList.add('bg-blue-50', 'border-blue-100');
+                badge.className = "w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black num-badge";
+                title.className = "text-xs font-black text-blue-900 uppercase tracking-widest title-text";
+                chevron.classList.remove('-rotate-90'); chevron.classList.add('text-blue-500');
             } else {
-                let hex = l.colorHex || '#ffffff';
-                if (l.type.includes('Clear Acrylic')) hex = 'rgba(255,255,255,0.4)';
-                
-                const shadow = is3D ? makeEdge(hex, physicalDepth) : '0 1px 3px rgba(0,0,0,0.1)';
-                html += `<div class="sign-layer border border-black/20" style="background-color: ${hex}; border-radius: ${r*scale}px; box-shadow: ${shadow}; transform: translateZ(${currentZ}px);">${is3D ? callout(l.type) : ''}</div>`;
-                
-                if (index === 0 && !layerStack.find(x => x.type === 'Tactile') && (hasPicto || hasText)) {
-                    html += `<div class="sign-layer" style="color: ${svgColorHex}; opacity: 0.8; transform: translateZ(${currentZ + 1}px);">
-                        <svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" fill="currentColor" style="overflow: visible;">${layout.svgContent}</svg>
-                    </div>`;
-                }
-            }
-            
-            if (is3D) {
-                if (isExploded) currentZ -= 15; // Tighter Exploded Visual Spacing
-                else currentZ -= (physicalDepth === 0 ? 0.5 : physicalDepth); // Stack flush (+0.5px Tactile Z-fighting fix)
-            } else {
-                currentZ -= 20; 
+                content.style.maxHeight = '0px';
+                content.classList.remove('p-4'); content.classList.add('p-0');
+                step.classList.add('opacity-50');
+                header.classList.remove('bg-blue-50', 'border-blue-100');
+                header.classList.add('bg-slate-50', 'border-gray-100');
+                badge.className = "w-6 h-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-xs font-black num-badge";
+                title.className = "text-xs font-black text-gray-600 uppercase tracking-widest title-text";
+                chevron.classList.add('-rotate-90'); chevron.classList.remove('text-blue-500');
             }
         });
-
-        container.innerHTML = html;
     }
 
-    // --- DICTIONARY TRAY & SEARCH LOGIC ---
-    function toggleGlossary() {
-        document.getElementById('glos-body').classList.toggle('hidden');
-        document.getElementById('glos-body').classList.toggle('flex');
-        document.getElementById('glos-arrow').classList.toggle('rotate-180');
-    }
-    
-    function filterGlossary() {
-        const val = document.getElementById('glos-search').value.toLowerCase();
-        const items = document.querySelectorAll('.glos-item');
-        items.forEach(el => {
-            if (el.dataset.search.includes(val)) el.style.display = 'flex';
-            else el.style.display = 'none';
+    function setPurpose(btn, purpose) {
+        document.querySelectorAll('#purpose-btns button').forEach(b => {
+            b.className = "p-2 border border-gray-200 rounded text-[10px] font-bold text-gray-600 uppercase text-left hover:border-blue-400 transition";
         });
+        btn.className = "p-2 border border-blue-600 bg-blue-50 rounded text-[10px] font-black text-blue-800 uppercase text-left transition active-purpose";
+        buildState.purpose = purpose;
+        runCalc();
     }
 
+    function setAddon(type, isChecked) {
+        buildState.addons[type] = isChecked;
+        runCalc();
+    }
+
+    function updateText() {
+        buildState.typography.text = document.getElementById('sign-text').value;
+        buildState.typography.font = document.getElementById('sign-font').value;
+        buildState.typography.hasBraille = document.getElementById('has-braille').checked;
+        runCalc();
+    }
+
+    // --- NEW SANDBOX LOGIC (Replaces window.ADA_CONFIG) ---
     function buildGlossary() {
         const grid = document.getElementById('glossary-grid');
+        if(!grid) return;
         let html = '';
-        const allVars = [...window.ADA_CONFIG.retails, ...window.ADA_CONFIG.costs, ...(window.ADA_CONFIG.constants || [])];
-
+        const allVars = [...backendData.ui_schema.retails, ...backendData.ui_schema.costs];
         allVars.forEach(item => {
-            let desc = backendData['META_NOTE_' + item.key] || item.desc || "No definition provided in backend payload.";
+            let desc = backendData['META_NOTE_' + item.key] || "System metric.";
             let searchStr = (item.key + " " + desc + " " + item.label).toLowerCase();
-            html += `
-            <div class="border border-gray-200 p-2.5 rounded bg-white flex flex-col gap-1 shadow-sm glos-item" data-search="${searchStr}">
-                <span class="hover-var cursor-help font-black text-blue-800 border-b border-dotted border-blue-300 inline-block w-max transition-all" data-var="${item.key}" title="${desc}">${item.key}</span>
-                <span class="text-gray-500 leading-tight text-[10px] mt-0.5">${desc}</span>
-            </div>`;
+            html += `<div class="border border-gray-200 p-2.5 rounded bg-white flex flex-col gap-1 shadow-sm glos-item" data-search="${searchStr}"><span class="hover-var cursor-help font-black text-blue-800 border-b border-dotted border-blue-300 inline-block w-max transition-all" data-var="${item.key}" title="${desc}">${item.key}</span><span class="text-gray-500 leading-tight text-[10px] mt-0.5">${desc}</span></div>`;
         });
         grid.innerHTML = html;
-    }
-
-    // --- FULL MATH LEDGER SIMULATOR ---
-    function toggleSandbox() {
-        const wrap = document.getElementById('app-wrapper');
-        const left = document.getElementById('sandbox-ledger');
-        const right = document.getElementById('sandbox-vars');
-        const glos = document.getElementById('sandbox-glossary');
-        
-        if (left.classList.contains('hidden')) {
-            wrap.classList.remove('max-w-md');
-            wrap.classList.add('max-w-[1200px]');
-            left.classList.remove('hidden'); left.classList.add('flex');
-            right.classList.remove('hidden'); right.classList.add('flex');
-            glos.classList.remove('hidden'); glos.classList.add('flex');
-            
-            if(!customSimData) { customSimData = { ...backendData }; buildSandboxInputs(); buildGlossary(); }
-            applySandbox(); 
-        } else {
-            wrap.classList.add('max-w-md');
-            wrap.classList.remove('max-w-[1200px]');
-            left.classList.add('hidden'); left.classList.remove('flex');
-            right.classList.add('hidden'); right.classList.remove('flex');
-            glos.classList.add('hidden'); glos.classList.remove('flex');
-        }
     }
 
     function buildSandboxInputs() {
@@ -759,95 +439,43 @@
             let html = '';
             arr.forEach(i => {
                 const v = customSimData[i.key] !== undefined ? customSimData[i.key] : '';
-                let desc = backendData['META_NOTE_' + i.key] || i.desc || "";
+                let desc = backendData['META_NOTE_' + i.key] || "";
                 html += `<div class="flex justify-between items-center gap-2"><label class="text-[10px] font-bold text-gray-600 truncate flex-1 hover-var cursor-help transition-all" data-var="${i.key}" title="${desc}">${i.label}</label><input type="text" id="sbx_${i.key}" value="${v}" class="w-16 bg-gray-50 border border-gray-300 text-gray-800 text-xs font-mono text-center rounded outline-none focus:border-blue-500 py-0.5 shadow-inner"></div>`;
             });
             document.getElementById(containerId).innerHTML = html;
         };
-        buildSection(window.ADA_CONFIG.retails, 'sbx-retail-inputs');
-        buildSection(window.ADA_CONFIG.costs, 'sbx-cost-inputs');
-    }
-
-    function resetSandbox() {
-        customSimData = { ...backendData };
-        document.getElementById('sim-badge').classList.add('hidden');
-        document.getElementById('main-card').classList.remove('border-yellow-400');
-        document.getElementById('btn-export').classList.add('hidden');
-        buildSandboxInputs();
-        runCalc();
+        buildSection(backendData.ui_schema.retails, 'glb-sbx-retail-inputs');
+        buildSection(backendData.ui_schema.costs, 'glb-sbx-cost-inputs');
     }
 
     function applySandbox() {
         if(!customSimData) customSimData = { ...backendData };
         const harvest = (arr) => {
             arr.forEach(i => {
-                let v = document.getElementById(`sbx_${i.key}`).value;
-                if(v !== "") customSimData[i.key] = parseFloat(v) || v;
+                let el = document.getElementById(`sbx_${i.key}`);
+                if (el && el.value !== "") customSimData[i.key] = parseFloat(el.value) || el.value;
             });
         };
-        harvest(window.ADA_CONFIG.retails);
-        harvest(window.ADA_CONFIG.costs);
-        
+        harvest(backendData.ui_schema.retails);
+        harvest(backendData.ui_schema.costs);
         document.getElementById('sim-badge').classList.remove('hidden');
         document.getElementById('main-card').classList.add('border-yellow-400');
         runCalc();
-    }
-
-    function renderLedgerUI(res) {
-        const fmt = (n) => "$" + (n||0).toFixed(2);
-        document.getElementById('btn-export').classList.remove('hidden');
-
-        if (!res || !res.retail || !res.retail.breakdown) {
-            console.error("Invalid math engine response for ledger array.");
-            return;
-        }
-
-        let retHtml = res.retail.breakdown.map(i => `
-            <div class="mb-2 border-b border-gray-100 pb-1.5">
-                <div class="flex justify-between text-[11px] text-blue-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
-                <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
-            </div>
-        `).join('');
-        retHtml += `<div class="flex justify-between text-[12px] font-black text-blue-700 mt-2 pt-2 border-t-2 border-blue-200"><span>Gross Retail:</span><span>${fmt(res.retail.grandTotal)}</span></div>`;
-        document.getElementById('sbx-retail-breakdown').innerHTML = retHtml;
-
-        let cstHtml = res.cost.breakdown.map(i => `
-            <div class="mb-2 border-b border-gray-100 pb-1.5">
-                <div class="flex justify-between text-[11px] text-red-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
-                <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
-            </div>
-        `).join('');
-        cstHtml += `<div class="flex justify-between text-[12px] font-black text-red-700 mt-2 pt-2 border-t-2 border-red-200"><span>Total Hard Cost:</span><span>${fmt(res.cost.total)}</span></div>`;
-        document.getElementById('sbx-cost-breakdown').innerHTML = cstHtml;
-
-        const margin = res.metrics.margin * 100;
-        const mEl = document.getElementById('sbx-margin');
-        mEl.innerText = margin.toFixed(1) + '%';
-        mEl.className = margin >= 50 ? 'text-2xl font-black text-green-600 tracking-tight' : (margin > 0 ? 'text-2xl font-black text-yellow-600 tracking-tight' : 'text-2xl font-black text-red-600 tracking-tight');
     }
 
     function exportSandbox() {
         if(!lastSimResult) return;
         const fmt = (n) => "$" + (n||0).toFixed(2);
         const cleanHTML = (str) => str.replace(/<[^>]*>?/gm, '');
-
         let txt = `SIGNOS DEV - ADA FULL LEDGER EXHAUST\nTimestamp: ${new Date().toISOString()}\n----------------------------------------\n`;
-        txt += `SIZE: ${document.getElementById('w').value}" x ${document.getElementById('h').value}"\nQTY: ${document.getElementById('qty').value}\n\n`;
-        
-        txt += `--- APPLIED VARIABLES ---\n`;
-        window.ADA_CONFIG.retails.forEach(i => txt += `${i.key}: ${customSimData[i.key]}\n`);
-        window.ADA_CONFIG.costs.forEach(i => txt += `${i.key}: ${customSimData[i.key]}\n`);
-        
+        txt += `SIZE: ${document.getElementById('w').value}" x ${document.getElementById('h').value}"\nQTY: ${document.getElementById('qty').value}\n\n--- APPLIED VARIABLES ---\n`;
+        backendData.ui_schema.retails.forEach(i => txt += `${i.key}: ${customSimData[i.key]}\n`);
+        backendData.ui_schema.costs.forEach(i => txt += `${i.key}: ${customSimData[i.key]}\n`);
         txt += `\n--- MARKET LEDGER (RETAIL) ---\n`;
         lastSimResult.retail.breakdown.forEach(i => txt += `${i.label.padEnd(35)} ${fmt(i.total)}\n  [Math: ${cleanHTML(i.formula)}]\n`);
-        txt += `----------------------------------------\nGROSS RETAIL: ${fmt(lastSimResult.retail.grandTotal)}\n`;
-
-        txt += `\n--- PHYSICS LEDGER (COST) ---\n`;
+        txt += `----------------------------------------\nGROSS RETAIL: ${fmt(lastSimResult.retail.grandTotal)}\n\n--- PHYSICS LEDGER (COST) ---\n`;
         lastSimResult.cost.breakdown.forEach(i => txt += `${i.label.padEnd(35)} ${fmt(i.total)}\n  [Math: ${cleanHTML(i.formula)}]\n`);
-        txt += `----------------------------------------\nHARD COST TOTAL: ${fmt(lastSimResult.cost.total)}\n`;
-        
-        txt += `\nNET MARGIN: ${(lastSimResult.metrics.margin*100).toFixed(1)}%`;
-
+        txt += `----------------------------------------\nHARD COST TOTAL: ${fmt(lastSimResult.cost.total)}\n\nNET MARGIN: ${(lastSimResult.metrics.margin*100).toFixed(1)}%`;
         const blob = new Blob([txt], { type: 'text/plain' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -855,132 +483,124 @@
         a.click();
     }
 
+    // --- THE CALCULATION LOOP ---
     async function runCalc() {
-        if(!backendData.Retail_Min_Order) return;
+        if(!backendData || (!backendData.Retail_Min_Order && !backendData.Retail_Min_Order_Etch)) return;
+        document.getElementById('lbl-w').innerText = buildState.w;
+        document.getElementById('lbl-h').innerText = buildState.h;
         
-        const r = parseFloat(document.getElementById('radius').value) || 0; 
-        const bev = document.getElementById('bevel').value;
-
-        const inputs = {
-            qty: parseFloat(document.getElementById('qty').value) || 1,
-            w: parseFloat(document.getElementById('w').value) || 8,
-            h: parseFloat(document.getElementById('h').value) || 8,
-            layers: layerStack,
-            mounting: document.getElementById('mounting').value,
-            brailleLines: 1 
-        };
-
         try {
+            // Twin-Engine Routing
             const dataToUse = customSimData || backendData;
-      // Twin-Engine Routing: Target the local Edge Function
-      const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
+            const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
+            const response = await fetch(fnUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                body: JSON.stringify({ inputs: buildState, config: dataToUse })
+            });
 
-      const response = await fetch(fnUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': EDGE_KEY,
-          'Authorization': `Bearer ${EDGE_KEY}`
-        },
-        body: JSON.stringify({ inputs: inputs, config: dataToUse })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Server Blocked Request: ${response.status} - ${errText}`);
-      }
-
-      const result = await response.json();
+            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+            const result = await response.json();
             if (!result || !result.retail) return;
 
-            const ret = result.retail;
-            const fmt = (n) => "$" + (n || 0).toFixed(2);
-            
-            document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-            document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-            document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 50)}`;
-            document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+            document.querySelector('#ui-total').innerText = `$${(result.retail.grandTotal || 0).toFixed(2)}`;
+            let activeAddons = Object.entries(buildState.addons).filter(([k,v]) => v).map(([k,v]) => k).join(', ');
+            document.getElementById('ledger-desc').innerText = `Includes: ${buildState.chassis}, Base Panel` + (activeAddons ? `, ${activeAddons}` : '');
 
-            let layerStrs = layerStack.map(l => {
-                if (l.type === 'Tactile') return `1/32" Rowmark [${l.colorCode || 'TBD'}] ${l.colorName} Tactile` + (l.hasBraille ? ' w/ Braille' : '');
-                if (l.type.includes('Core')) return `${l.type.replace(' Core', '')} Rowmark [${l.colorCode || 'TBD'}] ${l.colorName} Core`;
-                if (l.type === '3mm PVC Backer') return `3mm ${l.colorName} PVC Backer`;
-                if (l.type === '3/16" Clear Acrylic') return `3/16" Clear Acrylic Backer`;
-                return l.type;
-            });
-            
-            let layerDesc = layerStrs.length > 0 ? layerStrs.join(" on\n   - ") : "(No Layers Selected)";
+            // THE PHYSICS-FIRST BRIDGE
+            const cont = document.getElementById('svg-preview-container');
+            const githubBase = "https://raw.githubusercontent.com/SignStoreERP/signos-app/main/fonts/";
+            const fontSelect = document.getElementById('sign-font');
+            const fontFileName = fontSelect.options[fontSelect.selectedIndex]?.dataset.filename || 'Arimo-Regular.ttf';
 
-            let fin = [];
-            if (bev === 'Bevel') fin.push("Beveled Edges");
-            if (r > 0) fin.push(`${r}" Radius Corners`);
-            let finDesc = fin.length > 0 ? `\nFinishing: ${fin.join(", ")}.` : "";
-            
-            let mountStr = inputs.mounting === 'Foam Tape' ? "Mounting: Foam Tape (VHB)" : "No Mounting Hardware";
+            const buildInputs = {
+                w: parseFloat(buildState.w), h: parseFloat(buildState.h), align: 'center',
+                textVal: buildState.typography.text, hasPicto: false, hasText: !!buildState.typography.text,
+                hasBraille: buildState.typography.hasBraille, isAutoScale: true, fontFileName: fontFileName
+            };
+            const layout = await SignOS_Builder.buildADA(buildInputs, githubBase);
 
-            document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Sign.\nLayers:\n   - ${layerDesc}.\n${finDesc}\n${mountStr}`;
+            let bgHex = buildState.baseColor ? buildState.baseColor.Hex_Code : '#e5e7eb';
+            let fgHex = buildState.baseColor ? buildState.baseColor.Core_Hex : '#000000';
 
-            if (customSimData) {
-                lastSimResult = result;
-                renderLedgerUI(result);
+            cont.className = "w-full h-full flex items-center justify-center p-4 pointer-events-none";
+            cont.style.backgroundColor = 'transparent';
+            cont.style.border = 'none';
+
+            let windowSVG = '';
+            if (buildState.addons.window) {
+                windowSVG = `<rect x="0.5" y="${buildInputs.h - 2.5}" width="${buildInputs.w - 1}" height="2" fill="#000000" fill-opacity="0.1" stroke="#000000" stroke-width="0.05" stroke-dasharray="0.1,0.1" /><text x="${buildInputs.w/2}" y="${buildInputs.h - 1.4}" font-family="sans-serif" font-size="0.25" fill="#000" text-anchor="middle" opacity="0.5">ROUTED WINDOW SLOT</text>`;
             }
 
-            if(isViewfinderOn) updatePreview();
+            cont.innerHTML = `<svg id="live-production-preview" width="100%" height="100%" viewBox="0 0 ${buildInputs.w} ${buildInputs.h}" data-width-in="${buildInputs.w}" data-height-in="${buildInputs.h}" class="overflow-visible shadow-2xl rounded drop-shadow-xl" style="background-color: ${bgHex}; transform: translateZ(10px);"><g id="scale-group" transform="translate(0, 0)"><g id="text-layer" fill="${fgHex}">${layout.textPaths}</g><g id="braille-layer" fill="transparent" stroke="#000" stroke-width="0.02">${layout.braillePaths}</g>${windowSVG}</g></svg>`;
 
-        } catch(e) { console.error("Math Engine Error:", e); }
+            if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.renderLedger(result);
+
+        } catch(e) { console.error("Physics Engine Error:", e); }
     }
 
+    // --- INITIALIZATION ---
     window.addEventListener('load', async () => {
-        if (typeof injectHeader === 'function') injectHeader("ADA Compliant Signs");
-        
-        if(sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER') {
-            document.getElementById('btn-sandbox').classList.remove('hidden');
+        if (typeof injectHeader === 'function') injectHeader("Architectural Sign Builder");
+        if(window.SignOS_UI && SignOS_UI.Camera3D) {
+            SignOS_UI.Camera3D.init('zoom-stage');
+            SignOS_UI.Camera3D.toggle(true);
         }
 
-        SignOS_UI.Camera3D.init('zoom-stage'); 
-        SignOS_UI.Camera3D.toggle(true); 
+        document.getElementById('addon-window').onchange = (e) => setAddon('window', e.target.checked);
+        document.getElementById('addon-slider').onchange = (e) => setAddon('slider', e.target.checked);
+        document.getElementById('addon-magnetic').onchange = (e) => setAddon('magnetic', e.target.checked);
+        document.getElementById('addon-accent').onchange = (e) => setAddon('accent', e.target.checked);
 
+        SignOS_UI.showLoader('loader-wrapper', 'Connecting to Hardware Matrices...');
         const statusText = document.getElementById("status-text");
         const statusDot = document.getElementById("status-dot");
 
         try {
-            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark', 'REF_Pictograms', 'REF_Fonts']);
+            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', []);
             backendData = payload.config;
-            const rawRowmark = payload.tables['REF_Colors_Rowmark'] || [];
-            pictograms = payload.tables['REF_Pictograms'] || [];
-            systemFonts = payload.tables['REF_Fonts'] || [];
+            backendData.ui_schema = ADA_UI_SCHEMA; // Inject Schema natively!
 
-            const fontSelect = document.getElementById('sign-font');
-            let fontHtml = '';
-            systemFonts.forEach(f => { if(String(f.Is_Active).toUpperCase() === 'TRUE') fontHtml += `<option value="${f.CSS_Family}" data-filename="${f.File_Name}">${f.Font_Name}</option>`; });
-            fontSelect.innerHTML = fontHtml;
+            // Fire up the Global Cost Sandbox
+            if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
+
+            const colorRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Series,Thickness,Cap_Color,Core_Color,Cap_Hex,Core_Hex&limit=1000`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            const rawRowmark = colorRes.ok ? await colorRes.json() : [];
+
+            const fontRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_fonts?select=Font_Name,CSS_Family,File_Name,Is_Active&limit=1000`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            const rawFonts = fontRes.ok ? await fontRes.json() : [];
+            
+            systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
+            if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
 
             coreColors = rawRowmark.filter(r => r.Series && (r.Series.includes('Ultra-Mattes') || r.Series.includes('Mattes'))).map(c => ({
-                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex
-            }));
-            if (!coreColors.find(c => c.Name.includes('Clear'))) coreColors.push({ Code: '322-101', Name: 'Clear', Hex_Code: '#e5e7eb' });
-
-            tactileColors = rawRowmark.filter(r => r.Series && r.Series.includes('ADA Alternative')).map(c => ({
-                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex
+                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex, Core_Hex: c.Core_Hex
             }));
 
-            const activeIcons = pictograms.filter(p => String(p.Is_Active).toUpperCase() === 'TRUE');
-            if (activeIcons.length > 0) {
-                selectedIcon = activeIcons.find(p => p.Name.toLowerCase().includes('unisex') || p.Name.toLowerCase().includes('family')) || activeIcons;
-            }
-            
-            if (SignOS_UI.buildIconGrid) SignOS_UI.buildIconGrid({ containerId: 'icon-grid', data: activeIcons, activeRingClass: 'ring-blue-500', onSelect: (item) => { selectedIcon = item; runCalc(); } });
+            SignOS_UI.buildColorGrid({
+                containerId: 'rowmark-grid', data: coreColors, type: 'rowmark',
+                onSelect: (item) => {
+                    buildState.baseColor = item;
+                    document.getElementById('selected-color-label').innerText = item.Name || item.Cap_Color;
+                    runCalc();
+                }
+            });
+
+            const fontSelect = document.getElementById('sign-font');
+            systemFonts.forEach(f => { fontSelect.innerHTML += `<option value="${f.CSS_Family}" data-filename="${f.File_Name}">${f.Font_Name}</option>`; });
 
             if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
+            SignOS_UI.hideLoader('loader-wrapper');
+            setTimeout(() => { const firstBtn = document.querySelector('#rowmark-grid button'); if(firstBtn) firstBtn.click(); toggleStep(1); }, 100);
 
-            setTimeout(() => { if (selectedIcon) { const btn = document.querySelector(`#icon-grid button[data-code="${selectedIcon.Item_Code}"]`); if (btn) btn.classList.add('ring-2', 'ring-offset-1', 'ring-blue-500', 'border-transparent'); } }, 100);
-            
-            // Set Initial State
-            applyPreset('Standard');
-            
         } catch(e) {
             console.error("API Error:", e);
             if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+            SignOS_UI.hideLoader('loader-wrapper', true);
         }
     });
 </script>

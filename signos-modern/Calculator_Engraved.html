@@ -8,7 +8,6 @@
     <script src="signos-core.js"></script>
     <script src="signos-ui.js"></script>
     <script src="signos-canvas.js"></script>
-    <script src="cost_engraved.js"></script>
     <script src="signos-sandbox.js"></script>
     <!-- UNIVERSAL PREVIEW ENGINE -->
     <script src="signos-view-svg.js"></script>
@@ -577,7 +576,12 @@
         try {
             // 1. SECURE FETCH A: Get ONLY the non-financial Product Config variables
             const payload = await SignOS.fetchProductData('PROD_ADA_Signs', []);
-            backendData = payload.config;
+        backendData = payload.config; // Existing line
+
+        // ADD THIS: Inject the universal Cost Sandbox using the new DB schema
+        if (typeof SignOS_Sandbox !== 'undefined' && backendData.ui_schema) {
+            SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
+        }
 
             if (typeof SignOS_Sandbox !== 'undefined' && window.ENGRAVED_CONFIG) {
                 SignOS_Sandbox.init(window.ENGRAVED_CONFIG, backendData, runCalc);

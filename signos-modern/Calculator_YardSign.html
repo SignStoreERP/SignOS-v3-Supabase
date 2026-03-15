@@ -174,7 +174,12 @@ window.addEventListener('load', async () => {
 
     try {
         const payload = await SignOS.fetchProductData('PROD_Yard_Signs');
-        backendData = payload.config;
+        backendData = payload.config; // Existing line
+
+        // ADD THIS: Inject the universal Cost Sandbox using the new DB schema
+        if (typeof SignOS_Sandbox !== 'undefined' && backendData.ui_schema) {
+            SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
+        }
 
         if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
 

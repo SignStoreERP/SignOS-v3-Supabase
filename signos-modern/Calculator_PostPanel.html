@@ -206,91 +206,92 @@
 </div>
 
 <script>
-    let backendData = {}, customSimData = null;
+    // --- 1. HARDCODED UI SCHEMA FOR INLINE SANDBOX ---
+    const POSTPANEL_UI_SCHEMA = {
+        retails: [
+            { key: 'Target_Margin_Pct', label: 'Target Margin (%)' },
+            { key: 'Override_Retail_Total', label: 'Override Price ($)' }
+        ],
+        costs: [
+            { key: 'Cost_Post_Aluminum_3_1/8', label: '3" Alum Post ($/LF)' },
+            { key: 'Cost_Post_Aluminum_4_1/8', label: '4" Alum Post ($/LF)' },
+            { key: 'Cost_Frame_Angle15', label: '1.5" Angle ($/LF)' },
+            { key: 'Cost_Frame_Angle20', label: '2.0" Angle ($/LF)' },
+            { key: 'Cost_Stock_063_4x8', label: '.063 Alum Sht ($)' },
+            { key: 'Cost_Stock_3mm_4x8', label: '3mm ACM Sht ($)' },
+            { key: 'Cost_Vin_Cast', label: 'Cast Vinyl ($/SF)' },
+            { key: 'Cost_Lam_Cast', label: 'Cast Lam ($/SF)' },
+            { key: 'Cost_Paint_SqFt', label: 'Paint Cost ($/SF)' },
+            { key: 'Rate_Shop_Labor', label: 'Shop Rate ($/Hr)' },
+            { key: 'Rate_Paint_Labor', label: 'Paint Rate ($/Hr)' },
+            { key: 'Rate_Operator', label: 'Operator ($/Hr)' },
+            { key: 'Waste_Factor', label: 'Waste Multiplier' }
+        ]
+    };
 
-    // Remove rogue loaders from base template
+    let backendData = {}, customSimData = null;
+    let lastSimResult = null;
+
     if(document.getElementById('loader')) document.getElementById('loader').classList.add('hidden');
     if(document.getElementById('status-text')) document.getElementById('status-text').innerText = "System Active";
     if (typeof SignOS_UI !== 'undefined' && SignOS_UI.hideLoader) SignOS_UI.hideLoader();
 
+    // --- PRESERVED HTML RENDER LOGIC ---
     function toggleInsetUI() {
         const style = document.querySelector('input[name="mountStyle"]:checked').value;
-        const wrap = document.getElementById('wrap-inset');
-        if(style === 'Between') { wrap.classList.add('opacity-30', 'pointer-events-none'); } 
-        else { wrap.classList.remove('opacity-30', 'pointer-events-none'); }
+        const insetWrap = document.getElementById('wrap-inset');
+        if (style === 'Flush') {
+            insetWrap.classList.remove('opacity-50', 'pointer-events-none');
+        } else {
+            insetWrap.classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('postInset').value = 0;
+        }
     }
 
-    // --- 2D SVG RENDERING ---
     function drawShopDrawings(geom) {
         const frontCont = document.getElementById('svg-front-container');
         const sideCont = document.getElementById('svg-side-container');
-        
-        // Front View Dimensions
-        const th = geom.above + geom.under; 
+        if (!frontCont || !sideCont || !geom) return;
+
+        const maxH = 150; const maxW = 350;
+        const th = geom.above + geom.under;
         const ow = geom.overallW;
-        
-        // Dynamic ViewBox with padding
-        const padX = 10; const padY = 10;
-        const frontVB = `${-padX} ${-padY} ${ow + (padX*2)} ${th + (padY*2)}`;
-        
-        let p1_x = geom.mount === 'Between' ? 0 : geom.inset;
-        let p2_x = geom.mount === 'Between' ? ow - geom.post : ow - geom.inset - geom.post;
-        let pnl_x = geom.mount === 'Between' ? geom.post : 0;
-        let pnl_y = geom.above - geom.clearance - geom.h;
-        
-        // Front Elevation SVG
-        frontCont.innerHTML = `
-        <svg viewBox="${frontVB}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <!-- Ground Line -->
-            <line x1="${-padX}" y1="${geom.above}" x2="${ow+padX}" y2="${geom.above}" stroke="#22c55e" stroke-width="${Math.max(1, th/100)}" stroke-dasharray="4 4" />
-            <!-- Underground Hatching -->
-            <rect x="${-padX}" y="${geom.above}" width="${ow+(padX*2)}" height="${geom.under}" fill="#0f172a" opacity="0.3" />
-            
-            <!-- Post Left -->
-            <rect x="${p1_x}" y="0" width="${geom.post}" height="${th}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" />
-            <!-- Post Right -->
-            <rect x="${p2_x}" y="0" width="${geom.post}" height="${th}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" />
-            
-            <!-- Panel Face -->
-            <rect x="${pnl_x}" y="${pnl_y}" width="${geom.w}" height="${geom.h}" fill="#f1f5f9" stroke="#3b82f6" stroke-width="${Math.max(0.5, geom.w/150)}" />
-            <text x="${pnl_x + (geom.w/2)}" y="${pnl_y + (geom.h/2)}" font-family="sans-serif" font-weight="900" font-size="${geom.h/4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>
-        </svg>`;
+        const scale = Math.min(maxW / ow, maxH / th);
+        const padX = 25; const padY = 15;
+        const sOw = ow * scale;
+        const sTh = th * scale;
 
-        // Side Elevation ViewBox
-        const sideW = geom.post + 8; // Post width + 8 inches padding for panel profile
-        const sideVB = `${-padX} ${-padY} ${sideW + (padX*2)} ${th + (padY*2)}`;
-        const pnlThick = 2; // Fixed 2" visual for Frame + Skin
-        
-        let sidePnl_x = geom.mount === 'Between' ? (geom.post - pnlThick) / 2 : geom.post; // Centered if between, attached to face if flush
+        const p1_x = 0;
+        const p2_x = sOw - (geom.post * scale);
+        const pnl_y = sTh - (geom.under * scale) - (geom.clearance * scale) - (geom.h * scale);
+        const pnl_x = geom.mount === 'Between' ? geom.post * scale : 0;
 
-        sideCont.innerHTML = `
-        <svg viewBox="${sideVB}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <!-- Ground Line -->
-            <line x1="${-padX}" y1="${geom.above}" x2="${sideW+padX}" y2="${geom.above}" stroke="#22c55e" stroke-width="${Math.max(1, th/100)}" stroke-dasharray="4 4" />
-            <rect x="${-padX}" y="${geom.above}" width="${sideW+(padX*2)}" height="${geom.under}" fill="#0f172a" opacity="0.3" />
-            
-            <!-- Side Post -->
-            <rect x="0" y="0" width="${geom.post}" height="${th}" fill="#64748b" />
-            
-            <!-- Side Panel Profile -->
-            <rect x="${sidePnl_x}" y="${pnl_y}" width="${pnlThick}" height="${geom.h}" fill="#3b82f6" />
-        </svg>`;
+        const drawHDim = (x1, x2, y, txt) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#64748b" stroke-width="1"/><line x1="${x1}" y1="${y-3}" x2="${x1}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><line x1="${x2}" y1="${y-3}" x2="${x2}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-3}" font-family="sans-serif" font-size="8" fill="#94a3b8" text-anchor="middle">${txt}</text>`;
+        const drawVDim = (x, y1, y2, txt, align="start") => `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y1}" x2="${x+3}" y1="${y1}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y2}" x2="${x+3}" y1="${y2}" stroke="#64748b" stroke-width="1"/><text x="${align === 'start' ? x+4 : x-4}" y="${(y1+y2)/2}" font-family="sans-serif" font-size="8" fill="#94a3b8" dominant-baseline="middle" text-anchor="${align}">${txt}</text>`;
+
+        frontCont.innerHTML = `<svg viewBox="${-padX} ${-padY} ${sOw + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sOw + padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sOw + (padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="${p1_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${p2_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${pnl_x}" y="${pnl_y}" width="${geom.w * scale}" height="${geom.h * scale}" fill="#f1f5f9" stroke="#3b82f6" stroke-width="1" /><text x="${pnl_x + (geom.w * scale / 2)}" y="${pnl_y + (geom.h * scale / 2)}" font-family="sans-serif" font-weight="900" font-size="${geom.h * scale / 4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>${drawHDim(0, sOw, -8, geom.overallW + '" O.A.W')}${drawVDim(-8, 0, sTh - (geom.under * scale), geom.above + '" A.G.', "end")}</svg>`;
+
+        const sideW = geom.post + 8;
+        const pnlThick = 2;
+        let sidePnl_x = geom.mount === 'Between' ? (geom.post - pnlThick) / 2 : geom.post;
+
+        sideCont.innerHTML = `<svg viewBox="${-padX} ${-padY} ${sideW + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sideW+padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sideW+(padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="0" y="0" width="${geom.post * scale}" height="${sTh}" fill="#64748b" /><rect x="${sidePnl_x * scale}" y="${pnl_y}" width="${pnlThick * scale}" height="${geom.h * scale}" fill="#3b82f6" />${drawVDim(sideW * scale + 8, pnl_y, pnl_y + (geom.h * scale), geom.h + '"', "start")}</svg>`;
     }
 
-    // --- SANDBOX UI FUNCTIONS ---
+    // --- NEW SANDBOX LOGIC (Replaces window.POSTPANEL_CONFIG) ---
     function toggleSandbox() {
         const wrap = document.getElementById('app-wrapper');
         const left = document.getElementById('sandbox-ledger');
         const right = document.getElementById('sandbox-vars');
         
         if (left.classList.contains('hidden')) {
-            wrap.classList.remove('max-w-lg'); wrap.classList.add('max-w-[1200px]');
+            wrap.classList.remove('max-w-lg'); wrap.classList.add('max-w-[1250px]');
             left.classList.remove('hidden'); left.classList.add('flex');
             right.classList.remove('hidden'); right.classList.add('flex');
             if(!customSimData) { customSimData = { ...backendData }; buildSandboxInputs(); }
             applySandbox();
         } else {
-            wrap.classList.add('max-w-lg'); wrap.classList.remove('max-w-[1200px]');
+            wrap.classList.add('max-w-lg'); wrap.classList.remove('max-w-[1250px]');
             left.classList.add('hidden'); left.classList.remove('flex');
             right.classList.add('hidden'); right.classList.remove('flex');
         }
@@ -301,23 +302,21 @@
             let html = '';
             arr.forEach(i => {
                 let v = customSimData[i.key] !== undefined ? customSimData[i.key] : '';
-                if (v !== '' && !isNaN(v) && i.label.includes('$')) v = parseFloat(v).toFixed(2);
-                html += `
-                <div class="flex items-center justify-between hover-var opacity-100 transition-opacity" data-var="${i.key}" id="wrap_sbx_${i.key}">
-                    <label class="text-[10px] font-black text-gray-800 cursor-help" title="${i.key}">${i.label}</label>
-                    <input type="text" id="sbx_${i.key}" value="${v}" class="w-16 border border-blue-400 bg-white rounded p-1 text-[10px] text-blue-900 font-bold text-center outline-none focus:ring-1 focus:ring-blue-500 shadow-sm transition-all">
-                </div>`;
+                if (v !== '' && !isNaN(v) && (i.label.includes('$') || i.key.includes('Rate') || i.key.includes('Cost'))) v = parseFloat(v).toFixed(2);
+                let desc = backendData['META_NOTE_' + i.key] || "";
+                html += `<div id="wrap_sbx_${i.key}" class="flex justify-between items-center gap-2 transition-opacity duration-300 py-0.5"><label class="text-[10px] font-bold text-gray-600 truncate flex-1 hover-var cursor-help transition-all" data-var="${i.key}" title="${desc}">${i.label}</label><input type="text" id="sbx_${i.key}" value="${v}" class="w-16 bg-gray-50 border border-gray-300 text-gray-800 text-[10px] font-bold text-center rounded outline-none focus:border-blue-400 focus:bg-white shadow-inner py-1"></div>`;
             });
             document.getElementById(containerId).innerHTML = html;
         };
-        buildSection(window.POSTPANEL_CONFIG.retails, 'sbx-retail-inputs');
-        buildSection(window.POSTPANEL_CONFIG.costs, 'sbx-cost-inputs');
+        buildSection(backendData.ui_schema.retails, 'sbx-retail-inputs');
+        buildSection(backendData.ui_schema.costs, 'sbx-cost-inputs');
     }
 
     function applySandbox() {
         if(!customSimData) customSimData = { ...backendData };
-        const harvest = (arr) => { arr.forEach(i => { let v = document.getElementById(`sbx_${i.key}`).value; if(v !== "") customSimData[i.key] = parseFloat(v) || v; }); };
-        harvest(window.POSTPANEL_CONFIG.retails); harvest(window.POSTPANEL_CONFIG.costs);
+        const harvest = (arr) => { arr.forEach(i => { let el = document.getElementById(`sbx_${i.key}`); if(el && el.value !== "") customSimData[i.key] = parseFloat(el.value) || el.value; else customSimData[i.key] = ""; }); };
+        harvest(backendData.ui_schema.retails);
+        harvest(backendData.ui_schema.costs);
         document.getElementById('sim-badge').classList.remove('hidden');
         document.getElementById('main-card').classList.add('border-yellow-400');
         runCalc();
@@ -334,8 +333,7 @@
     function dimInactiveSandboxVars() {
         const activeVars = new Set();
         document.querySelectorAll('#sandbox-ledger .hover-var').forEach(el => activeVars.add(el.getAttribute('data-var')));
-        
-        const allVars = [...window.POSTPANEL_CONFIG.retails, ...window.POSTPANEL_CONFIG.costs];
+        let allVars = [...backendData.ui_schema.retails, ...backendData.ui_schema.costs];
         allVars.forEach(item => {
             const wrapEl = document.getElementById(`wrap_sbx_${item.key}`);
             const inputEl = document.getElementById(`sbx_${item.key}`);
@@ -358,129 +356,109 @@
 
     function renderLedgerUI(res) {
         const fmt = (n) => "$" + (n||0).toFixed(2);
-        if (!res || !res.retail || !res.retail.breakdown) return;
+        if (!res || !res.cost || !res.cost.breakdown) return;
+        const theCost = res.cost.total;
+        const theSales = res.retail.grandTotal;
+        const theProfit = theSales - theCost;
+        const theMarginPct = theSales > 0 ? (theProfit / theSales) * 100 : 0;
 
-        let retHtml = res.retail.breakdown.map(i => `
-        <div class="mb-2 border-b border-gray-100 pb-1.5">
-            <div class="flex justify-between text-[11px] text-blue-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
-            <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
-        </div>
-        `).join('');
+        let retHtml = res.retail.breakdown.map(i => `<div class="mb-2 border-b border-gray-100 pb-1.5"><div class="flex justify-between text-[11px] text-blue-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div><div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div></div>`).join('');
         retHtml += `<div class="flex justify-between text-[12px] font-black text-blue-700 mt-2 pt-2 border-t-2 border-blue-200"><span>Gross Retail:</span><span>${fmt(res.retail.grandTotal)}</span></div>`;
         document.getElementById('sbx-retail-breakdown').innerHTML = retHtml;
 
-        let cstHtml = res.cost.breakdown.map(i => `
-        <div class="mb-2 border-b border-gray-100 pb-1.5">
-            <div class="flex justify-between text-[11px] text-red-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
-            <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
-        </div>
-        `).join('');
-        cstHtml += `<div class="flex justify-between text-[12px] font-black text-red-700 mt-2 pt-2 border-t-2 border-red-200"><span>Total Hard Cost:</span><span>${fmt(res.cost.total)}</span></div>`;
+        let cstHtml = res.cost.breakdown.map(i => `<div class="mb-1.5 hover:bg-gray-50 transition cursor-help group"><div class="flex justify-between text-[11px] text-red-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div><div class="flex justify-between items-start text-[9px] text-gray-500 font-mono italic mt-0.5 leading-snug"><span class="pr-2 block flex-1">Math: <span class="text-indigo-600">${i.formula || ''}</span></span></div></div>`).join('');
+        cstHtml += `<div class="flex justify-between text-[12px] font-black text-red-700 mt-3 pt-2 border-t-2 border-red-200"><span>Total Hard Cost:</span><span>${fmt(res.cost.total)}</span></div>`;
         document.getElementById('sbx-cost-breakdown').innerHTML = cstHtml;
 
-        const margin = res.metrics.margin * 100;
         const mEl = document.getElementById('sbx-margin');
-        mEl.innerText = margin.toFixed(1) + '%';
-        mEl.className = margin >= 50 ? 'text-2xl font-black text-green-600 tracking-tight leading-none' : (margin > 0 ? 'text-2xl font-black text-yellow-600 tracking-tight leading-none' : 'text-2xl font-black text-red-600 tracking-tight leading-none');
+        mEl.innerText = theMarginPct.toFixed(1) + '%';
+        mEl.className = theMarginPct >= 50 ? 'text-2xl font-black text-green-600 tracking-tight leading-none' : (theMarginPct > 0 ? 'text-2xl font-black text-yellow-600 tracking-tight leading-none' : 'text-2xl font-black text-red-600 tracking-tight leading-none');
     }
 
     // --- MAIN MATH ENGINE ---
-async function runCalc() {
-    if(!backendData.Retail_Min_Order) return;
-    
-    // Structure an array for the Edge Function so it can map the single panel layout
-    const panelArray = [{
-        w: parseFloat(document.getElementById('w').value) || 48,
-        h: parseFloat(document.getElementById('h').value) || 48,
-        sides: parseInt(document.getElementById('sides').value) || 2,
-        faceMat: document.getElementById('faceMat').value,
-        mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
-        gap: 0,
-        isCNC: false,
-        graphicMethod: 'Printed'
-    }];
-
-    const inputs = {
-        qty: parseInt(document.getElementById('qty').value) || 1,
-        w: parseFloat(document.getElementById('w').value) || 48,
-        h: parseFloat(document.getElementById('h').value) || 48,
-        clearance: parseFloat(document.getElementById('clearance').value) || 36,
-        mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
-        postType: document.getElementById('postType').value,
-        postSize: document.getElementById('postSize').value,
-        postInset: parseFloat(document.getElementById('postInset').value) || 0,
-        frameMat: document.getElementById('frameMat').value,
-        faceMat: document.getElementById('faceMat').value,
-        sides: parseInt(document.getElementById('sides').value) || 2,
-        panels: panelArray,
-        aboveGrade: (parseFloat(document.getElementById('h').value) || 48) + (parseFloat(document.getElementById('clearance').value) || 36),
-        belowGrade: 36, // Standard bury depth
-        hasConcrete: true,
-        finishType: 'Printed',
-        isCutVinyl: false,
-        postSpacing: (parseFloat(document.getElementById('w').value) || 48) - (parseFloat(document.getElementById('postInset').value) || 0) * 2
-    };
-
-    try {
-        const dataToUse = customSimData || backendData;
+    async function runCalc() {
+        if(!backendData.Retail_Min_Order) return;
         
-        // Twin-Engine Routing: Target the Edge Function
-        const fnUrl = `${EDGE_URL}/functions/v1/calculate-post-panel`;
-        const response = await fetch(fnUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-            body: JSON.stringify({ inputs: inputs, config: dataToUse })
-        });
-        
-        if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-        const result = await response.json();
+        const panelArray = [{
+            w: parseFloat(document.getElementById('w').value) || 48,
+            h: parseFloat(document.getElementById('h').value) || 48,
+            sides: parseInt(document.getElementById('sides').value) || 2,
+            faceMat: document.getElementById('faceMat').value,
+            mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
+            gap: 0, isCNC: false, graphicMethod: 'Printed'
+        }];
 
-        if (!result || !result.retail) return;
-        lastSimResult = result;
-        
-        const ret = result.retail;
-        const fmt = (n) => "$" + (n || 0).toFixed(2);
+        const inputs = {
+            qty: parseInt(document.getElementById('qty').value) || 1,
+            w: parseFloat(document.getElementById('w').value) || 48,
+            h: parseFloat(document.getElementById('h').value) || 48,
+            clearance: parseFloat(document.getElementById('clearance').value) || 36,
+            mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
+            postType: document.getElementById('postType').value,
+            postSize: document.getElementById('postSize').value,
+            postInset: parseFloat(document.getElementById('postInset').value) || 0,
+            frameMat: document.getElementById('frameMat').value,
+            faceMat: document.getElementById('faceMat').value,
+            sides: parseInt(document.getElementById('sides').value) || 2,
+            panels: panelArray,
+            aboveGrade: (parseFloat(document.getElementById('h').value) || 48) + (parseFloat(document.getElementById('clearance').value) || 36),
+            belowGrade: 36, hasConcrete: true, finishType: 'Printed', isCutVinyl: false,
+            postSpacing: (parseFloat(document.getElementById('w').value) || 48) - (parseFloat(document.getElementById('postInset').value) || 0) * 2
+        };
 
-        document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-        document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-        document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 150)}`;
-        document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+        try {
+            const dataToUse = customSimData || backendData;
+            const fnUrl = `${EDGE_URL}/functions/v1/calculate-post-panel`;
+            const response = await fetch(fnUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                body: JSON.stringify({ inputs: inputs, config: dataToUse })
+            });
 
-        const sideTxt = inputs.sides === 2 ? "Double Sided" : "Single Sided";
-        const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount (${inputs.postInset}" Inset)`;
-        const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
-        
-        document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" x ${inputs.h}" Post & Panel Sign.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})`;
+            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+            const result = await response.json();
+            if (!result || !result.retail) return;
 
-        // Generate the dynamic SVGs using the physics geometry payload returned from Edge
-        if(result.geom && typeof drawShopDrawings === 'function') drawShopDrawings(result.geom);
+            lastSimResult = result;
+            const ret = result.retail;
+            const fmt = (n) => "$" + (n || 0).toFixed(2);
 
-        if (customSimData) {
-            renderLedgerUI(result);
-            dimInactiveSandboxVars();
+            document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+            document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+            document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 150)}`;
+            document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+
+            const sideTxt = inputs.sides === 2 ? "Double Sided" : "Single Sided";
+            const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount (${inputs.postInset}" Inset)`;
+            const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
+            document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" x ${inputs.h}" Post & Panel Sign.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})`;
+
+            if(result.geom) drawShopDrawings(result.geom);
+
+            if (customSimData) {
+                renderLedgerUI(result);
+                dimInactiveSandboxVars();
+            }
+        } catch(e) { console.error("Cloud Physics Error:", e); }
+    }
+
+    window.addEventListener('load', async () => {
+        if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
+        const btnSandbox = document.getElementById('btn-sandbox');
+        if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
+            btnSandbox.classList.remove('hidden');
         }
-    } catch(e) { console.error("Cloud Physics Error:", e); }
-}
-
-        window.addEventListener('load', async () => {
-            if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
-
-            const btnSandbox = document.getElementById('btn-sandbox');
-            if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
-                btnSandbox.classList.remove('hidden');
-            }
-
-            try {
-                // FIXED: PROD_ADA_Signs doesn't exist in DB. Safely fall back to PROD_Yard_Signs to grab universal global rates.
-                const payload = await SignOS.fetchProductData('PROD_Yard_Signs'); 
-                backendData = payload.config;
-
-                toggleInsetUI();
-                runCalc();
-            } catch(e) {
-                console.error("API Error:", e);
-            }
-        });
+        try {
+            // Using Yard Signs config logic matrix for standard rates
+            const payload = await SignOS.fetchProductData('PROD_Yard_Signs');
+            backendData = payload.config;
+            backendData.ui_schema = POSTPANEL_UI_SCHEMA; // Inject Schema natively
+            toggleInsetUI();
+            runCalc();
+        } catch(e) {
+            console.error("API Error:", e);
+        }
+    });
 </script>
 </body>
 </html>
