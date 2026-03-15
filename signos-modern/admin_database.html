@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Master Data Engine v1.0 | SignOS Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <style>
+        .custom-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .override-active { background-color: #fef08a !important; border-color: #eab308 !important; }
+    </style>
+</head>
+<body class="bg-gray-100 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- GLOBAL HEADER -->
+    <div class="bg-gray-900 text-white border-b border-gray-800 px-6 py-4 flex justify-between items-center shadow-lg z-30 shrink-0">
+        <div>
+            <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
+                <span class="text-blue-400">🗄️</span> Master Data Engine <span class="text-gray-500 text-xs font-normal">v1.0</span>
+            </h1>
+            <div class="text-[10px] font-bold text-gray-400 mt-0.5 tracking-wider uppercase">
+                Dual-Rate Matrix & Global Variables
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="menu.html" class="text-xs font-bold text-gray-300 border border-gray-600 px-3 py-1.5 rounded hover:bg-gray-800 transition active:scale-95 uppercase">
+                Exit
+            </a>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- SIDEBAR -->
+        <div class="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-20">
+            <div class="p-4 bg-slate-50 border-b border-gray-100">
+                <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest">Database Tables</h2>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2 space-y-1">
+                <button class="w-full text-left px-4 py-3 rounded-lg bg-blue-50 text-blue-700 font-black text-xs border border-blue-200 shadow-sm uppercase tracking-wide">
+                    Global Variables
+                </button>
+                <button class="w-full text-left px-4 py-3 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled title="Coming in next update">
+                    Material Costs
+                </button>
+                <button class="w-full text-left px-4 py-3 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled title="Coming in next update">
+                    Labor Rates
+                </button>
+            </div>
+        </div>
+
+        <!-- TABLE DATA -->
+        <div class="flex-1 flex flex-col bg-gray-50 relative">
+            <div class="p-4 flex justify-between items-center bg-white border-b border-gray-200 shrink-0 shadow-sm z-10">
+                <input type="text" id="search-filter" onkeyup="renderTable()" placeholder="Search variables or categories..." class="w-96 border border-gray-300 rounded-lg p-2 text-sm font-bold text-gray-700 outline-none focus:border-blue-500 shadow-inner">
+                <div class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-3 h-3 bg-yellow-200 border border-yellow-400 inline-block rounded-sm"></span> = Manual Override Active
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto custom-scroll p-4">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Variable ID</th>
+                                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Category</th>
+                                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Unit</th>
+                                <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">System Actual</th>
+                                <th class="p-3 text-[10px] font-black text-orange-600 uppercase tracking-widest text-right">Manual Override</th>
+                                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table" class="divide-y divide-gray-100 text-sm">
+                            <tr><td colspan="6" class="p-8 text-center text-gray-400 font-bold animate-pulse text-xs uppercase tracking-widest">Fetching Master Data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERRIDE MODAL -->
+    <div id="override-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 flex flex-col">
+            <div class="p-4 bg-orange-50 border-b border-orange-200 flex justify-between items-center">
+                <h3 class="font-black text-orange-800 uppercase tracking-widest text-xs">Set Manual Override</h3>
+                <button onclick="closeModal()" class="text-orange-400 hover:text-red-500 font-bold transition">✕</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                    <span class="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Variable</span>
+                    <span id="mod-id" class="text-sm font-black text-gray-800"></span>
+                    <span id="mod-desc" class="block text-[10px] text-gray-500 mt-1 italic"></span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">System Actual</label>
+                        <input type="text" id="mod-actual" readonly class="w-full border border-gray-200 p-2 rounded font-mono text-gray-500 bg-gray-50 cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Override Value</label>
+                        <input type="number" id="mod-override" step="0.01" class="w-full border border-orange-300 p-2 rounded font-black text-orange-900 bg-orange-50 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Audit Diagnostic Note (Required)</label>
+                    <textarea id="mod-reason" placeholder="e.g. Supplier raised price, hidden freight cost, etc." class="w-full border border-gray-300 p-2 rounded text-xs font-medium text-gray-700 outline-none focus:border-blue-500 h-20 shadow-inner"></textarea>
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t border-gray-200 flex gap-3">
+                <button onclick="clearOverride()" class="px-4 py-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold rounded text-xs uppercase tracking-wide transition shadow-sm">Clear Override</button>
+                <button onclick="saveOverride()" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-black py-2 rounded text-xs uppercase tracking-widest transition shadow-md">Apply Override</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tableData = [];
+        let activeRowId = null;
+
+        window.onload = async function() {
+            const role = sessionStorage.getItem('signos_role');
+            if (role !== 'ADMIN' && role !== 'SUPER') {
+                alert("SECURITY VIOLATION: Master Data Engine is restricted to Administrators.");
+                window.location.href = 'menu.html';
+                return;
+            }
+            fetchData();
+        };
+
+        async function fetchData() {
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?select=*&order=id.asc`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                if(!res.ok) throw new Error("Database locked");
+                tableData = await res.json();
+                renderTable();
+            } catch(e) {
+                document.getElementById('data-table').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold text-xs uppercase tracking-widest">Database Connection Error</td></tr>`;
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('data-table');
+            const search = document.getElementById('search-filter').value.toLowerCase();
+            let html = '';
+
+            tableData.forEach(row => {
+                if (search && !row.id.toLowerCase().includes(search) && !row.category.toLowerCase().includes(search)) return;
+
+                const hasOverride = row.override_value !== null && row.override_value !== undefined;
+                const rowClass = hasOverride ? 'override-active bg-yellow-50' : 'hover:bg-slate-50 transition';
+                
+                // Color Code the Category tags
+                const catColors = { 'Material': 'bg-purple-100 text-purple-700', 'Labor': 'bg-blue-100 text-blue-700', 'Overhead': 'bg-red-100 text-red-700', 'Markup': 'bg-green-100 text-green-700', 'Time': 'bg-indigo-100 text-indigo-700' };
+                const cBadge = catColors[row.category] || 'bg-gray-100 text-gray-700';
+
+                html += `
+                <tr class="${rowClass} border-b border-gray-100 group">
+                    <td class="p-3">
+                        <div class="font-black text-gray-800">${row.id}</div>
+                        <div class="text-[9px] text-gray-500 mt-0.5 truncate max-w-[250px] italic">${row.notes || ''}</div>
+                    </td>
+                    <td class="p-3"><span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${cBadge}">${row.category}</span></td>
+                    <td class="p-3 text-center text-[10px] font-bold text-gray-400">${row.unit || ''}</td>
+                    <td class="p-3 text-right font-mono font-bold text-blue-600">${row.default_value}</td>
+                    <td class="p-3 text-right font-mono font-black ${hasOverride ? 'text-orange-600' : 'text-gray-300'}">${hasOverride ? row.override_value : '---'}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="openModal('${row.id}')" class="bg-white border border-gray-300 hover:border-gray-500 text-gray-600 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition">
+                            Edit
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function openModal(id) {
+            activeRowId = id;
+            const row = tableData.find(r => r.id === id);
+            
+            document.getElementById('mod-id').innerText = row.id;
+            document.getElementById('mod-desc').innerText = row.notes;
+            document.getElementById('mod-actual').value = row.default_value;
+            document.getElementById('mod-override').value = row.override_value !== null ? row.override_value : '';
+            document.getElementById('mod-reason').value = '';
+            
+            document.getElementById('override-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('override-modal').classList.add('hidden');
+        }
+
+        async function saveOverride() {
+            const val = document.getElementById('mod-override').value;
+            const reason = document.getElementById('mod-reason').value.trim();
+            const user = sessionStorage.getItem('signos_user') || 'Admin';
+
+            if (val !== '' && !reason) return alert("Audit Diagnostic Note is required when setting an override.");
+
+            const numVal = val === '' ? null : parseFloat(val);
+
+            try {
+                // 1. Update the table
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?id=eq.${activeRowId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify({ override_value: numVal })
+                });
+
+                if (!res.ok) throw new Error("Failed to write to database.");
+
+                // 2. Audit Telemetry (Forensic Logging)
+                const logPayload = {
+                    target: activeRowId,
+                    action: numVal === null ? 'CLEARED_OVERRIDE' : 'MANUAL_OVERRIDE',
+                    role: sessionStorage.getItem('signos_role') || 'ADMIN',
+                    meta_data: { new_value: numVal, old_actual: document.getElementById('mod-actual').value, reason: reason, user: user }
+                };
+
+                await fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify(logPayload)
+                });
+
+                closeModal();
+                fetchData();
+
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        function clearOverride() {
+            document.getElementById('mod-override').value = '';
+            document.getElementById('mod-reason').value = 'Cleared manual override; returning to system actual.';
+            saveOverride();
+        }
+    </script>
+</body>
+</html>
