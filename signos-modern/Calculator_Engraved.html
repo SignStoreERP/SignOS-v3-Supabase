@@ -558,23 +558,29 @@
         const statusDot = document.getElementById("status-dot");
 
         try {
-            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark']);
+            // 1. SECURE FETCH A: Get ONLY the non-financial Product Config variables (no materials)
+            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', []);
             backendData = payload.config;
 
             if (typeof SignOS_Sandbox !== 'undefined' && window.ENGRAVED_CONFIG) {
                 SignOS_Sandbox.init(window.ENGRAVED_CONFIG, backendData, runCalc);
             }
 
-            // ROBUST MAPPING: Handles both PascalCase and lowercase keys from the API
-            const rawRowmark = payload.tables['ref_colors_rowmark'] || payload.tables['REF_Colors_Rowmark'] || [];
+            // 2. SECURE FETCH B: Direct database query that EXPLICITLY EXCLUDES the 'Cost_Per_Sheet' column
+            const colorRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Series,Thickness,Cap_Color,Core_Color,Cap_Hex,Core_Hex&limit=1000`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            
+            const rawRowmark = colorRes.ok ? await colorRes.json() : [];
 
+            // 3. MAP THE SECURE DATA (Case-insensitive to handle the API payload)
             coreColors = rawRowmark.filter(r => {
                 const s = String(r.Series || r.series || '');
                 return s.includes('Ultra-Mattes') || s.includes('Mattes');
             }).map(c => ({
                 Code: c.Item_Code || c.item_code,
                 Name: c.Cap_Color || c.cap_color,
-                Hex_Code: ((c.Cap_Hex || c.cap_hex) === 'Transparent' || (c.Cap_Color || c.cap_color).includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex),
+                Hex_Code: ((c.Cap_Hex || c.cap_hex) === 'Transparent' || String(c.Cap_Color || c.cap_color).includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex),
                 Core_Hex: c.Core_Hex || c.core_hex
             }));
 
