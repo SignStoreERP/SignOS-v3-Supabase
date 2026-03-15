@@ -104,7 +104,6 @@
                         </div>
                         <div id="layer-list" class="flex flex-col gap-2 mt-2 max-h-64 overflow-y-auto custom-scroll pr-1 mb-3"></div>
                         
-                        <!-- NEW: NON-STANDARD COMBINATION WARNING -->
                         <div id="custom-combo-warn" class="hidden mb-3 bg-orange-100 text-orange-800 border border-orange-300 p-2 rounded shadow-sm text-[9px] font-bold uppercase tracking-widest flex items-center gap-2">
                             <span class="text-sm">⚠️</span> NON-STANDARD COMBO: CONFIRM PRICING.
                         </div>
@@ -121,6 +120,19 @@
                                 <option value="1/32_CLR">1/32" Clear Lens</option>
                             </select>
                             <button onclick="addLayer()" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-3 py-1.5 rounded text-[9px] uppercase tracking-widest shadow-sm transition focus:outline-none">+ Add</button>
+                        </div>
+                    </div>
+                    
+                    <!-- FUNCTIONAL ADD ONS -->
+                    <div class="pt-2">
+                        <label class="block text-[10px] font-bold text-blue-800 uppercase tracking-widest mb-2">3. Functional Add-Ons</label>
+                        <div class="space-y-2 bg-gray-50 border border-gray-200 p-3 rounded shadow-sm">
+                            <label class="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer transition">
+                                <input type="checkbox" id="addon-window-paper" onchange="runCalc()" class="w-4 h-4 text-blue-600 rounded"> Routed Window for Paper Insert
+                            </label>
+                            <label class="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer transition">
+                                <input type="checkbox" id="addon-window-engraved" onchange="runCalc()" class="w-4 h-4 text-blue-600 rounded"> Routed Window for Engraved Slider
+                            </label>
                         </div>
                     </div>
 
@@ -194,6 +206,8 @@
             retails: [
                 { key: 'Retail_Price_ADA_Basic_AB', label: 'Base SqIn ($)' },
                 { key: 'Retail_Price_ADA_Basic_Clear', label: 'Clear Base SqIn ($)' },
+                { key: 'Retail_Price_Window_Paper', label: 'Paper Window Add ($)' },
+                { key: 'Retail_Price_Window_Engraved', label: 'Engraved Window Add ($)' },
                 { key: 'Retail_Min_Order', label: 'Shop Min ($)' }
             ],
             costs: [
@@ -202,8 +216,9 @@
                 { key: 'Cost_Sub_ADA_Core_116', label: '1/16" Core ($/Sht)' },
                 { key: 'Cost_Sub_ADA_Core_18', label: '1/8" Core ($/Sht)' },
                 { key: 'Cost_Sub_PVC', label: '3mm PVC ($/Sht)' },
-                { key: 'Cost_Stock_6mm_4x8', label: '6mm PVC ($/Sht)' }, // NEWLY ADDED 6mm PVC COST
+                { key: 'Cost_Stock_6mm_4x8', label: '6mm PVC ($/Sht)' }, 
                 { key: 'Cost_Sub_Acrylic', label: '3/16" Acr ($/Sht)' },
+                { key: 'Cost_ADA_Tape', label: 'Dbl-Sided Tape ($/SqFt)' },
                 { key: 'Cost_Hem_Tape', label: 'Mounting Tape ($/LF)' },
                 { key: 'Cost_Raster_Bead', label: 'Raster Bead ($/Ea)' },
                 { key: 'Rate_Operator', label: 'Operator ($/Hr)' },
@@ -214,6 +229,7 @@
                 { key: 'Time_Engraver_Load_Per_Item', label: 'Load/Unload (Mins)' },
                 { key: 'Time_Engrave_SqIn', label: 'Engrave (Min/SqIn)' },
                 { key: 'Time_CNC_Easy_SqFt', label: 'CNC (Min/SqFt)' },
+                { key: 'Time_CNC_Complex_SqFt', label: 'Complex CNC (Min/SqFt)' },
                 { key: 'Waste_Factor', label: 'Waste Multiplier' },
                 { key: 'Factor_Risk', label: 'Risk Multiplier' }
             ]
@@ -242,7 +258,6 @@
             renderSpatialView();
         }
 
-        // NEW: Enforces the warning when the user strays from standard Combos A, B, or C
         function checkComboWarning() {
             const types = buildState.layers.map(l => l.type).join('|');
             const isStandard = (types === '1/32|1/8') || (types === '1/32|1/16|3mm') || (types === '1/32|1/16|3/16');
@@ -321,6 +336,7 @@
             }
         }
 
+        // --- COLOR MODAL LOGIC & SMART FILTERING ---
         function openColorModal(layerId) {
             activeLayerId = layerId;
             document.getElementById('color-modal').classList.remove('hidden');
@@ -328,9 +344,7 @@
             renderColorGrid();
         }
 
-        function closeModal() {
-            document.getElementById('color-modal').classList.add('hidden');
-        }
+        function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
 
         function renderColorGrid() {
             const grid = document.getElementById('modal-grid');
@@ -376,13 +390,8 @@
 
         function selectColor(hex, name) {
             const layer = buildState.layers.find(l => l.id === activeLayerId);
-            if (layer) {
-                layer.hex = hex;
-                layer.colorName = name;
-            }
-            closeModal();
-            renderLayerStack();
-            runCalc();
+            if (layer) { layer.hex = hex; layer.colorName = name; }
+            closeModal(); renderLayerStack(); runCalc();
         }
 
         function renderLayerStack() {
@@ -411,9 +420,7 @@
                 </div>`;
             });
             list.innerHTML = html;
-            
-            checkComboWarning(); // NEW: Triggers the UI Warning Box Check
-            renderSpatialView();
+            checkComboWarning(); renderSpatialView();
         }
 
         function renderSpatialView() {
@@ -445,7 +452,7 @@
                             hex: l.hex,
                             isTactile: isTactile,
                             content: layerContent,
-                            role: l.role // <-- THIS FIXES THE UNDEFINED CALLOUT
+                            role: l.role
                         };
                     })
                 };
@@ -465,10 +472,15 @@
 
                     const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
 
+                    // Harvest Window Addons
+                    const addonArray = [];
+                    if(document.getElementById('addon-window-paper') && document.getElementById('addon-window-paper').checked) addonArray.push('window_paper');
+                    if(document.getElementById('addon-window-engraved') && document.getElementById('addon-window-engraved').checked) addonArray.push('window_engraved');
+
                     const payloadInputs = {
                         qty: qty, w: w, h: h, product: buildState.product,
                         layers: buildState.layers,
-                        addons: [], mounting: 'Foam Tape', brailleLines: 1
+                        addons: addonArray, mounting: 'Foam Tape', brailleLines: 1
                     };
 
                     const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
@@ -534,11 +546,7 @@
                     if (res.ok) {
                         const rawRowmark = await res.json();
                         globalColors = rawRowmark.map(c => ({
-                            code: c.Item_Code,
-                            name: c.Cap_Color,
-                            hex: c.Cap_Hex,
-                            series: c.Series,
-                            thickness: c.Thickness
+                            code: c.Item_Code, name: c.Cap_Color, hex: c.Cap_Hex, series: c.Series, thickness: c.Thickness
                         }));
                     }
                 } catch(e) { 
@@ -547,9 +555,7 @@
                         { code: '311-2048', name: 'White', hex: '#FFFFFF', thickness: '1/32"', series: 'ADA Alternative' },
                         { code: '311-4018', name: 'Black', hex: '#121514', thickness: '1/32"', series: 'ADA Alternative' },
                         { code: '322-201', name: 'White', hex: '#FFFFFF', thickness: '1/16"', series: 'Ultra-Mattes Reverse' },
-                        { code: '322-401', name: 'Black', hex: '#121514', thickness: '1/16"', series: 'Ultra-Mattes Reverse' },
-                        { code: '342-201', name: 'White', hex: '#FFFFFF', thickness: '1/8"', series: 'Ultra-Mattes Reverse' },
-                        { code: '342-401', name: 'Black', hex: '#121514', thickness: '1/8"', series: 'Ultra-Mattes Reverse' }
+                        { code: '322-401', name: 'Black', hex: '#121514', thickness: '1/16"', series: 'Ultra-Mattes Reverse' }
                     ];
                 }
 

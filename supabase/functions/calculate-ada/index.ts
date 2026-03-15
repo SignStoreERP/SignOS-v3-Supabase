@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const R = (label: string, total: number, formula: string) => { if(total !== 0 && !isNaN(total)) ret.push({label, total, unit: total / inputs.qty, formula}); return total; };
     const L = (label: string, total: number, formula: string) => { if(total !== 0 && !isNaN(total)) cst.push({label, total, unit: total / inputs.qty, formula}); return total; };
 
-    // NEW: Advanced Variable Wrapper (Injects Values, Hover Hooks, and Tooltips)
+    // The Ultimate Wrapper: Injects Value, Hover Attribute, and Tooltip definitions
     const getDesc = (k: string) => config['META_NOTE_' + k] || "System parameter.";
     const num = (val: any, fallback: string) => { const p = parseFloat(val); return isNaN(p) ? parseFloat(fallback) : p; };
     const V = (k: string, fb: string) => `<span class="hover-var text-blue-600 border-b border-dotted border-blue-400 cursor-help transition-all font-bold" data-var="${k}" title="${getDesc(k)}">[${k}: ${num(config[k], fb)}]</span>`;
@@ -48,15 +48,36 @@ Deno.serve(async (req) => {
         if (matDict[l.type]) {
           let m = matDict[l.type];
           let layerCost = (totalSqin * (m.cost / m.yield)) * wastePct;
-          
           L(`${m.name} (${l.isBase ? 'Base' : 'Add-on'})`, layerCost, `(${totalSqin.toFixed(1)} SqIn * ${V(m.costKey, String(m.cost))} / ${m.yield}) * ${V('Waste_Factor', "1.15")}`);
-          
           if (!l.isBase) addonMaterialCost += layerCost;
           if (l.type === '3mm' || l.type === '6mm' || l.type === '3/16') hasCNC = true;
           if (l.type === '1/32' || l.type === '1/32_CLR') tactileLayers++;
           else solidLayers++;
         }
       });
+    }
+
+    // NEW WINDOW INSERTS LOGIC
+    let safeAddons = inputs.addons || [];
+    if (safeAddons.includes('window_paper')) {
+        hasCNC = true;
+        let lensCost = num(config.ADA_APP_132_CLR, "58.12");
+        L(`1/32" Clear Lens (Paper Insert Window)`, (totalSqin * (lensCost / 1152)) * wastePct, `(${totalSqin.toFixed(1)} SqIn * ${V('ADA_APP_132_CLR', "58.12")} / 1152) * ${V('Waste_Factor', "1.15")}`);
+        
+        let tapeCost = num(config.Cost_ADA_Tape, "0.30"); // SqFt cost for adhesive tape
+        L(`Double-Sided Lens Adhesive`, (totalSqin / 144) * tapeCost * wastePct, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Cost_ADA_Tape', "0.30")}) * ${V('Waste_Factor', "1.15")}`);
+        
+        R(`Paper Insert Window Option`, totalSqin * num(config.Retail_Price_Window_Paper, "0.40"), `${totalSqin.toFixed(1)} SqIn * ${V('Retail_Price_Window_Paper', "0.40")}`);
+        L(`CNC Router Penalty (Window Pocket)`, ((totalSqin * num(config.Time_CNC_Easy_SqFt, "1") / 144) / 60) * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Easy_SqFt', "1")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
+    }
+
+    if (safeAddons.includes('window_engraved')) {
+        hasCNC = true;
+        let insertCost = num(config.Cost_Sub_ADA_Core_116, "50");
+        L(`1/16" ADA Core (Engraved Insert Window)`, (totalSqin * (insertCost / 1152)) * wastePct, `(${totalSqin.toFixed(1)} SqIn * ${V('Cost_Sub_ADA_Core_116', "50")} / 1152) * ${V('Waste_Factor', "1.15")}`);
+        
+        R(`Engraved Insert Window Option`, totalSqin * num(config.Retail_Price_Window_Engraved, "0.20"), `${totalSqin.toFixed(1)} SqIn * ${V('Retail_Price_Window_Engraved', "0.20")}`);
+        L(`CNC Router Penalty (Window Pocket & Insert)`, ((totalSqin * num(config.Time_CNC_Complex_SqFt, "2") / 144) / 60) * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Complex_SqFt', "2")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
     }
 
     let tapeLayers = Math.max(0, solidLayers - 1);
@@ -73,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     if (hasCNC) {
-      L(`CNC Router Run`, ((totalSqin * num(config.Time_CNC_Easy_SqFt, "1") / 144) / 60) * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Easy_SqFt', "1")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
+      L(`CNC Router Run (Cutting)`, ((totalSqin * num(config.Time_CNC_Easy_SqFt, "1") / 144) / 60) * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Easy_SqFt', "1")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
     }
 
     if (tapeLayers > 0) {
