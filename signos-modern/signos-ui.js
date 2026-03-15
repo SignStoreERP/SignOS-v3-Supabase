@@ -39,74 +39,40 @@ window.SignOS_UI = {
         }
     },
 
-    // --- SWATCH & ICON GRIDS ---
-    buildColorGrid: function(config) {
+    // --- LABELED COLOR GRID INJECTOR (For Modals) ---
+    buildLabeledColorGrid: function(config) {
         const grid = document.getElementById(config.containerId);
         if(!grid) return;
         grid.innerHTML = '';
-
-        if(config.showCustom) {
-            const customBtn = document.createElement('button');
-            customBtn.className = "w-8 h-8 rounded-full border-2 border-dashed border-gray-400 text-gray-500 hover:text-blue-600 hover:border-blue-500 flex items-center justify-center font-bold text-xs bg-gray-50 transition";
-            customBtn.innerHTML = "+";
-            customBtn.title = "Custom Manual Input";
-            customBtn.onclick = () => {
-                this._clearActive(grid, config.activeRingClass || 'ring-blue-500');
-                customBtn.classList.add('ring-2', 'ring-offset-1', config.activeRingClass || 'ring-blue-500', 'border-transparent');
-                if(config.onCustom) config.onCustom();
-            };
-            grid.appendChild(customBtn);
-        }
-
-        const fragment = document.createDocumentFragment();
+        const search = config.searchQuery ? config.searchQuery.toLowerCase() : '';
 
         config.data.forEach(item => {
-            const btn = document.createElement('button');
-            btn.className = `w-8 h-8 rounded border border-gray-300 shadow-sm hover:scale-110 transition focus:outline-none relative group overflow-hidden shrink-0 ${config.btnClass || ''}`;
-            
-            let bgStyle = '';
-            let title = '';
-            let searchData = '';
+            const name = item.Name || item.Cap_Color || item.Display_Name || '';
+            const code = item.Code || item.Item_Code || item.Color_Code || '';
 
-            if (config.type === 'rowmark') {
-                let code = item.Item_Code || item.Code || '';
-                let name = item.Cap_Color || item.Name || '';
-                let cap = item.Cap_Hex || item.Hex_Code || '#ffffff';
-                let core = item.Core_Hex || '#000000';
-                
-                if (cap === 'Transparent' || name.includes('Clear')) cap = '#e5e7eb';
-                if (core === 'Transparent') core = '#e5e7eb';
-                
-                if (config.isReverse) bgStyle = `linear-gradient(135deg, ${core} 50%, ${cap} 50%)`;
-                else bgStyle = cap;
-                
-                title = `${name} (${code})`;
-                searchData = title.toLowerCase();
-                btn.dataset.code = code;
+            if (search && !name.toLowerCase().includes(search) && !code.toLowerCase().includes(search)) return;
 
-            } else if (config.type === 'paint' || config.type === 'vinyl') {
-                bgStyle = item.Hex_Code || '#FFFFFF';
-                let code = item.Code || item.Color_Code || '';
-                let name = item.Name || item.Display_Name || '';
-                title = `${name} (${code})`;
-                searchData = title.toLowerCase();
-                if(config.type === 'paint') btn.classList.add('rounded-full');
+            let hex = item.Hex_Code || item.Cap_Hex || '#ffffff';
+            let core = item.Core_Hex || '#000000';
+            if (hex === 'Transparent' || name.includes('Clear')) hex = '#e5e7eb';
+
+            let bgStyle = `background-color: ${hex};`;
+            if (config.type === 'rowmark' && item.Core_Hex && hex !== '#e5e7eb') {
+                bgStyle = `background: linear-gradient(135deg, ${hex} 50%, ${core} 50%);`;
             }
 
-            btn.style.background = bgStyle;
-            btn.title = title;
-            btn.dataset.search = searchData;
-
-            btn.onclick = () => {
-                this._clearActive(grid, config.activeRingClass || 'ring-blue-500');
-                btn.classList.add('ring-2', 'ring-offset-1', config.activeRingClass || 'ring-blue-500', 'border-transparent');
-                if(config.onSelect) config.onSelect(item);
-            };
-
-            fragment.appendChild(btn);
+            // Dynamically constructs the full labeled button
+            const btn = document.createElement('button');
+            btn.className = "flex flex-col items-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] focus:outline-none border border-transparent hover:border-gray-300";
+            btn.innerHTML = `
+                <div class="w-10 h-10 rounded-full border border-gray-400 shadow-sm shrink-0" style="${bgStyle}"></div>
+                <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">${name}</span>
+                <span class="text-[8px] font-black text-gray-400">${code}</span>
+            `;
+            // Securely binds the exact data object to the click event
+            btn.onclick = () => { if(config.onSelect) config.onSelect(item); };
+            grid.appendChild(btn);
         });
-
-        grid.appendChild(fragment);
     },
 
     buildIconGrid: function(config) {

@@ -220,11 +220,11 @@
     function createLayer(typeStr, roleStr) {
         let layer = { id: generateId(), role: roleStr || typeStr, type: typeStr };
         if (typeStr === '1/32') {
-            // FIXED: Added  to tactileColors fallback
+            // FIXED: tactileColors successfully pulls the first color object instead of the array
             const defCol = tactileColors.find(c => c.Name && c.Name.includes('White')) || tactileColors || {Hex_Code: '#FFFFFF', Name: 'White', Code: 'N/A'};
             layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code; layer.hasBraille = true;
         } else if (typeStr === '1/16' || typeStr === '1/8') {
-            // FIXED: Added  to coreColors fallback
+            // FIXED: coreColors successfully pulls the first color object instead of the array
             const defCol = coreColors.find(c => c.Name && c.Name.includes('Black')) || coreColors || {Hex_Code: '#000000', Name: 'Black', Code: 'N/A'};
             layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code;
         } else if (typeStr === '3mm') {
@@ -307,7 +307,6 @@
         renderLayers(); runCalc();
     }
 
-    // Z-INDEX DRIVEN REORDERING
     function moveLayer(id, direction) {
         const idx = layerStack.findIndex(l => l.id === id);
         if (idx < 0) return;
@@ -372,10 +371,9 @@
         activeColorId = id;
         const modal = document.getElementById('color-modal');
         if(modal) modal.classList.remove('hidden');
-        if(window.renderColorGrid) window.renderColorGrid(); // Trigger the injected schema engine
+        if(window.renderColorGrid) window.renderColorGrid(); 
     }
 
-    // These functions are exposed so the injected HTML from signos-ui.js can talk to this file's logic
     window.closeModal = function() { 
         const modal = document.getElementById('color-modal');
         if(modal) modal.classList.add('hidden'); 
@@ -392,16 +390,19 @@
             data = [ {Name:'Black', Hex_Code:'#000000', Code:'PVC-BLK'}, {Name:'White', Hex_Code:'#ffffff', Code:'PVC-WHT'} ];
         }
 
-        // USE THE CENTRALIZED UI ENGINE INSTEAD OF MANUAL HTML
-        SignOS_UI.buildColorGrid({
+        const searchInput = document.getElementById('color-search');
+        const search = searchInput ? searchInput.value : '';
+
+        // NEW: Calls the new Labeled Color Grid Engine
+        SignOS_UI.buildLabeledColorGrid({
             containerId: 'modal-grid',
             data: data,
             type: 'rowmark',
-            activeRingClass: 'ring-blue-500',
+            searchQuery: search,
             onSelect: (item) => {
-                layer.colorHex = item.Hex_Code;
-                layer.colorName = item.Name;
-                layer.colorCode = item.Code;
+                layer.colorHex = item.Hex_Code || item.Cap_Hex;
+                layer.colorName = item.Name || item.Cap_Color;
+                layer.colorCode = item.Code || item.Item_Code;
                 window.closeModal();
                 renderLayers();
                 runCalc();
@@ -425,7 +426,6 @@
             layers: []
         };
 
-        // UI Layer Stack now dictates physical Z-Index (Backers are at the bottom of the list)
         layerStack.forEach((l, index) => {
             let zPos = layerStack.length - 1 - index;
             let isTactile = l.type === '1/32' || l.type === 'Window_Engraved';
