@@ -83,125 +83,132 @@
 </div>
 
 <script>
-let backendData = {};
+    let backendData = {};
+    let calcTimeout = null;
 
-function enforceSheetLimits(maxShort, maxLong) {
-    let wEl = document.getElementById('w');
-    let hEl = document.getElementById('h');
-    let warnEl = document.getElementById('sheet-warn');
-    if (!wEl || !hEl) return;
-    
-    let w = parseFloat(wEl.value) || 0;
-    let h = parseFloat(hEl.value) || 0;
-    let didClamp = false;
-
-    // Roll constraint: The short edge cannot exceed 62"
-    if (w > maxShort && h > maxShort) {
-        if (w > h) { h = maxShort; hEl.value = h; } else { w = maxShort; wEl.value = w; }
-        didClamp = true;
-    }
-
-    if (warnEl) {
-        if (didClamp) {
+    function enforceSheetLimits(maxShort, maxLong) {
+        let wEl = document.getElementById('w');
+        let hEl = document.getElementById('h');
+        let warnEl = document.getElementById('sheet-warn');
+        if (!wEl || !hEl) return;
+        let w = parseFloat(wEl.value) || 0;
+        let h = parseFloat(hEl.value) || 0;
+        let didClamp = false;
+        
+        if (w > maxLong) { w = maxLong; wEl.value = w; didClamp = true; }
+        if (h > maxLong) { h = maxLong; hEl.value = h; didClamp = true; }
+        
+        // Ensure the shortest dimension doesn't exceed roll width
+        if (Math.min(w, h) > maxShort) {
+            if (w < h) { w = maxShort; wEl.value = w; } else { h = maxShort; hEl.value = h; }
+            didClamp = true;
+        }
+        
+        if (warnEl && didClamp) {
             warnEl.classList.remove('hidden');
             clearTimeout(warnEl.timeoutId);
             warnEl.timeoutId = setTimeout(() => warnEl.classList.add('hidden'), 3000);
         }
     }
-}
 
-async function runCalc() {
-    if(!backendData) return;
-    enforceSheetLimits(62, 1800); // 62" printable width max
-    
-    try {
-        const inputs = {
-            qty: parseFloat(document.getElementById('qty').value) || 1,
-            w: parseFloat(document.getElementById('w').value) || 72,
-            h: parseFloat(document.getElementById('h').value) || 36,
-            sides: parseInt(document.getElementById('sides').value) || 1,
-            pockets: document.getElementById('pockets').value,
-            windSlits: document.getElementById('windSlits').value
-        };
-
-        const fnUrl = `${EDGE_URL}/functions/v1/calculate-banner`;
-        const response = await fetch(fnUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-            body: JSON.stringify({ inputs: inputs, config: backendData })
-        });
+    async function runCalc() {
+        if(!backendData) return;
+        enforceSheetLimits(62, 1800); // 62" printable width max
         
-        if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-        const result = await response.json();
+        clearTimeout(calcTimeout);
+        calcTimeout = setTimeout(async () => {
+            try {
+                const inputs = {
+                    qty: parseFloat(document.getElementById('qty').value) || 1,
+                    w: parseFloat(document.getElementById('w').value) || 72,
+                    h: parseFloat(document.getElementById('h').value) || 36,
+                    sides: parseInt(document.getElementById('sides').value) || 1,
+                    pockets: document.getElementById('pockets').value || 'None',
+                    windSlits: document.getElementById('windSlits').value || 'No',
+                    material: document.getElementById('material') ? document.getElementById('material').value : '13oz'
+                };
 
-        if (!result || !result.retail) return;
-        const ret = result.retail;
-        const fmt = (n) => "$" + (n || 0).toFixed(2);
+                // Route through the new Universal Sandbox data if active
+                const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
+                
+                const fnUrl = `${EDGE_URL}/functions/v1/calculate-banner`;
+                const response = await fetch(fnUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                    body: JSON.stringify({ inputs: inputs, config: dataToUse })
+                });
 
-        // Use Math.ceil just like the math engine to display the rounded sqft
-        const totalSqFt = Math.ceil((inputs.w * inputs.h) / 144) * inputs.qty;
-        document.getElementById('lbl-sqft').innerText = totalSqFt.toFixed(0);
-        
-        document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-        document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-        document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-        document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-        
-        // FIXED: Loop through the breakdown array to display all upcharges dynamically
-        let lineItemsHtml = '';
-        ret.breakdown.forEach(item => {
-            if(item.label !== 'Shop Minimum') {
-                lineItemsHtml += `<div class="flex justify-between"><span>${item.label}:</span><span class="font-bold">${fmt(item.total)}</span></div>`;
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+                const result = await response.json();
+                if (!result || !result.retail) return;
+
+                const ret = result.retail;
+                const fmt = (n) => "$" + (n || 0).toFixed(2);
+
+                const totalSqFt = Math.ceil((inputs.w * inputs.h) / 144) * inputs.qty;
+                const sqftEl = document.getElementById('lbl-sqft');
+                if (sqftEl) sqftEl.innerText = totalSqFt.toFixed(0);
+
+                document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+                document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+
+                let lineItemsHtml = '';
+                ret.breakdown.forEach(item => {
+                    if(item.label !== 'Shop Minimum Surcharge' && item.label !== 'Shop Minimum') {
+                        lineItemsHtml += `<div class="flex justify-between"><span>${item.label}:</span><span class="font-bold">${fmt(item.total)}</span></div>`;
+                    }
+                });
+                document.getElementById('ui-line-items').innerHTML = lineItemsHtml;
+
+                const minOrder = parseFloat(dataToUse.Retail_Min_Order || 50);
+                document.getElementById('ui-min-text').innerText = `Shop Minimum: $${minOrder}`;
+                document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+
+                const sideTxt = inputs.sides === 2 ? "Double-Sided" : "Single-Sided";
+                const pktTxt = inputs.pockets === 'None' ? 'Hem & Grommets' : `${inputs.pockets} Pole Pockets`;
+                const slitTxt = inputs.windSlits === 'Yes' ? ' w/ Wind Slits' : '';
+                document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" 13oz Vinyl Banners.\n${sideTxt}. ${pktTxt}${slitTxt}`;
+
+                if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.renderLedger(result);
+
+            } catch(e) {
+                console.error("Cloud Calculation Error:", e);
             }
-        });
-        document.getElementById('ui-line-items').innerHTML = lineItemsHtml;
-
-        const minOrder = parseFloat(backendData.Retail_Min_Order || 50);
-        document.getElementById('ui-min-text').innerText = `Shop Minimum: $${minOrder}`;
-        document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
-
-        const sideTxt = inputs.sides === 2 ? "Double-Sided" : "Single-Sided";
-        const pktTxt = inputs.pockets === 'None' ? 'Hem & Grommets' : `${inputs.pockets} Pole Pockets`;
-        const slitTxt = inputs.windSlits === 'Yes' ? ' w/ Wind Slits' : '';
-
-        document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" 13oz Vinyl Banners.\n${sideTxt}. ${pktTxt}.${slitTxt}`;
-    } catch(e) {
-        console.error("Cloud Calculation Error:", e);
+        }, 200);
     }
-}
 
-// API FETCH & NATIVE STATUS BAR UPDATER
-window.addEventListener('load', async () => {
-    if (typeof injectHeader === 'function') injectHeader("Vinyl Banners");
-    const statusText = document.getElementById("status-text");
-    const statusDot = document.getElementById("status-dot");
-    try {
-        const payload = await SignOS.fetchProductData('PROD_Vinyl_Banners');
-        backendData = payload.config; // Existing line
+    window.addEventListener('load', async () => {
+        if (typeof injectHeader === 'function') injectHeader("Vinyl Banners");
+        const statusText = document.getElementById("status-text");
+        const statusDot = document.getElementById("status-dot");
 
-        // ADD THIS: Inject the universal Cost Sandbox using the new DB schema
-        if (typeof SignOS_Sandbox !== 'undefined' && backendData.ui_schema) {
-            SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
-        }
-        if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
+        try {
+            const payload = await SignOS.fetchProductData('PROD_Vinyl_Banners');
+            backendData = payload.config;
 
-        if(statusText) {
-            statusText.innerText = "ONLINE";
-            statusText.className = "font-bold text-green-500";
-            if(statusDot) {
-                statusDot.className = "w-2 h-2 rounded-full bg-green-500";
-                statusDot.classList.remove("animate-pulse");
+            if (typeof SignOS_Sandbox !== 'undefined' && backendData.ui_schema) {
+                SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
             }
+
+            if(!backendData || payload.error) throw new Error(payload.error || "Connection Failed");
+
+            if(statusText) {
+                statusText.innerText = "ONLINE";
+                statusText.className = "font-bold text-green-500";
+                if(statusDot) {
+                    statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                    statusDot.classList.remove("animate-pulse");
+                }
+            }
+            runCalc();
+        } catch(e) {
+            if(statusText) {
+                statusText.innerText = "OFFLINE";
+                statusText.className = "font-bold text-red-500";
+            }
+            console.error(e);
         }
-        runCalc();
-    } catch(e) {
-        if(statusText) {
-            statusText.innerText = "OFFLINE";
-            statusText.className = "font-bold text-red-500";
-        }
-        console.error(e);
-    }
-});
+    });
 </script>
 </body>
 </html>

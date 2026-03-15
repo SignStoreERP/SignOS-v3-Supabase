@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Omni-Terminal v2.0 | SignOS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <script src="signos-sandbox.js"></script>
+    <style>
+        .custom-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f8fafc; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen font-sans flex flex-col overflow-hidden">
+
+    <!-- HEADER -->
+    <div class="bg-gray-900 text-white px-6 py-4 flex justify-between items-center shadow-lg z-30 shrink-0">
+        <div>
+            <h1 class="text-lg font-black tracking-widest flex items-center gap-2">
+                <span class="text-blue-500">⚡</span> OMNI-TERMINAL <span class="text-gray-500 text-xs font-bold">v2.0</span>
+            </h1>
+            <div class="text-[10px] font-bold text-gray-400 mt-0.5 tracking-widest uppercase">Universal Schema-Driven Quoter</div>
+        </div>
+        <a href="menu.html" class="text-xs font-bold text-gray-300 border border-gray-600 px-4 py-2 rounded hover:bg-gray-800 transition uppercase tracking-widest">Exit</a>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- SIDEBAR PRODUCT SELECTOR -->
+        <div class="w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm z-20 shrink-0">
+            <div class="p-4 bg-slate-50 border-b border-gray-100 flex justify-between items-center shrink-0">
+                <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Standard Products</h2>
+                <span id="status-dot" class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            </div>
+            <div id="product-list" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scroll">
+                <div class="text-center text-xs font-bold text-gray-400 animate-pulse py-10">Fetching Database...</div>
+            </div>
+        </div>
+
+        <!-- DYNAMIC WORKSPACE -->
+        <div class="flex-1 bg-gray-50 overflow-y-auto custom-scroll relative p-6 flex flex-col items-center">
+            
+            <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-opacity duration-300">
+                <span class="text-5xl mb-4">📐</span>
+                <h2 class="text-xl font-black text-gray-800 uppercase tracking-widest">Select a Product</h2>
+                <p class="text-sm font-bold text-gray-400 mt-2">The UI will render automatically.</p>
+            </div>
+
+            <div id="dynamic-workspace" class="w-full max-w-lg bg-white shadow-xl rounded-xl border border-gray-200 flex flex-col hidden transition-all duration-300 transform scale-95 opacity-0">
+                
+                <!-- Title & Sandbox Trigger -->
+                <div class="p-5 border-b border-gray-200 flex justify-between items-center bg-blue-50 rounded-t-xl shrink-0">
+                    <h2 id="ws-title" class="text-lg font-black text-blue-900 uppercase tracking-widest">Product Name</h2>
+                    <button id="btn-sandbox" onclick="SignOS_Sandbox.toggle()" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black px-3 py-1.5 rounded shadow-sm uppercase tracking-widest transition">
+                        Cost Sandbox
+                    </button>
+                </div>
+
+                <!-- Dynamically Injected Inputs -->
+                <div class="p-6 space-y-4">
+                    <div id="ws-inputs"></div>
+                </div>
+
+                <!-- Results Footer -->
+                <div class="bg-blue-50 p-6 border-t border-blue-200 shadow-inner rounded-b-xl shrink-0">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
+                        <span id="ws-unit" class="text-2xl font-black text-blue-900 tracking-tight leading-none">$0.00</span>
+                    </div>
+                    <div class="border-t border-blue-200/50 my-3"></div>
+                    <div class="flex justify-between items-end pt-1">
+                        <div>
+                            <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
+                            <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ws-min-text">Shop Minimum: --</span>
+                            <div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div>
+                        </div>
+                        <span class="text-4xl font-black text-blue-700 tracking-tight leading-none" id="ws-total">---</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Universal Routing Map connecting DB Product IDs to their Edge Functions
+        const ROUTER_MAP = {
+            'PROD_Yard_Signs': 'calculate-yard',
+            'PROD_Coroplast_Signs': 'calculate-coro',
+            'PROD_ACM': 'calculate-acm',
+            'PROD_PVC': 'calculate-pvc',
+            'PROD_Foam': 'calculate-foam',
+            'PROD_Acr': 'calculate-acrylic',
+            'PROD_Vinyl_Banners': 'calculate-banner',
+            'PROD_Decals': 'calculate-decal',
+            'PROD_Cut': 'calculate-cut'
+        };
+
+        let activeConfig = null;
+        let activeProductId = null;
+        let calcTimeout = null;
+
+        window.onload = async function() {
+            const role = sessionStorage.getItem('signos_role');
+            if(role === 'ADMIN' || role === 'SUPER') document.getElementById('btn-sandbox').classList.remove('hidden');
+
+            try {
+                // Fetch all products that have a UI schema defined
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/product_configurations?select=id,display_name,ui_schema`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                const data = await res.json();
+                
+                const list = document.getElementById('product-list');
+                list.innerHTML = '';
+
+                data.forEach(prod => {
+                    if(!ROUTER_MAP[prod.id] || !prod.ui_schema) return; // Only show supported standard signs
+                    
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-3 rounded-lg border border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50 transition group flex flex-col focus:outline-none";
+                    btn.innerHTML = `
+                        <span class="text-xs font-black text-gray-800 uppercase tracking-widest group-hover:text-blue-700">${prod.display_name}</span>
+                        <span class="text-[9px] font-bold text-gray-400 mt-0.5">${prod.id}</span>
+                    `;
+                    btn.onclick = () => loadProduct(prod.id, prod.display_name, btn);
+                    list.appendChild(btn);
+                });
+
+            } catch (e) {
+                document.getElementById('product-list').innerHTML = `<div class="text-red-500 font-bold text-xs text-center p-5">Connection Failed</div>`;
+            }
+        };
+
+        async function loadProduct(id, name, btnEl) {
+            // UI Button Highlighting
+            document.querySelectorAll('#product-list button').forEach(b => {
+                b.classList.remove('border-blue-500', 'bg-blue-50');
+                b.classList.add('border-gray-200', 'bg-white');
+            });
+            btnEl.classList.remove('border-gray-200', 'bg-white');
+            btnEl.classList.add('border-blue-500', 'bg-blue-50');
+
+            document.getElementById('empty-state').classList.add('opacity-0');
+            const ws = document.getElementById('dynamic-workspace');
+            ws.classList.add('scale-95', 'opacity-0');
+            
+            activeProductId = id;
+            document.getElementById('ws-title').innerText = name;
+
+            try {
+                // Fetch the full schema and variables securely from the backend
+                const payload = await SignOS.fetchProductData(id);
+                activeConfig = payload.config;
+
+                // Initialize Sandbox
+                if (typeof SignOS_Sandbox !== 'undefined' && activeConfig.ui_schema) {
+                    SignOS_Sandbox.init(activeConfig.ui_schema, activeConfig, runDynamicCalc);
+                }
+
+                buildDynamicUI(activeConfig.ui_schema.controls);
+                
+                setTimeout(() => {
+                    ws.classList.remove('hidden');
+                    setTimeout(() => ws.classList.remove('scale-95', 'opacity-0'), 50);
+                    runDynamicCalc();
+                }, 150);
+
+            } catch (e) {
+                alert("Failed to load product schema.");
+            }
+        }
+
+        function buildDynamicUI(controls) {
+            const container = document.getElementById('ws-inputs');
+            
+            // Standard Base Dimensions
+            let html = `
+            <div class="grid grid-cols-3 gap-3 mb-4 pb-4 border-b border-gray-100">
+                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="dyn_qty" value="1" min="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center bg-gray-50 outline-none focus:border-blue-500 shadow-inner" oninput="runDynamicCalc()"></div>
+                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width (in)</label><input type="number" id="dyn_w" value="24" min="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center bg-white outline-none focus:border-blue-500 shadow-inner" oninput="runDynamicCalc()"></div>
+                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height (in)</label><input type="number" id="dyn_h" value="18" min="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center bg-white outline-none focus:border-blue-500 shadow-inner" oninput="runDynamicCalc()"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">`;
+
+            // Dynamically Inject Schema Controls
+            controls.forEach(c => {
+                if (c.id === 'qty' || c.id === 'w' || c.id === 'h') return;
+                html += `<div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${c.label}</label>`;
+                
+                if (c.type === 'select') {
+                    html += `<select id="dyn_${c.id}" class="w-full border border-gray-300 p-2 rounded text-sm font-bold bg-white outline-none focus:border-blue-500 h-[42px] shadow-sm" onchange="runDynamicCalc()">`;
+                    c.opts.forEach(o => { html += `<option value="${o.v}">${o.t}</option>`; });
+                    html += `</select></div>`;
+                } else if (c.type === 'toggle') {
+                    html += `<select id="dyn_${c.id}" class="w-full border border-gray-300 p-2 rounded text-sm font-bold bg-white outline-none focus:border-blue-500 h-[42px] shadow-sm" onchange="runDynamicCalc()">
+                        <option value="true" ${c.def ? 'selected' : ''}>Yes</option>
+                        <option value="false" ${!c.def ? 'selected' : ''}>No</option>
+                    </select></div>`;
+                }
+            });
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        async function runDynamicCalc() {
+            if(!activeConfig || !activeProductId) return;
+
+            clearTimeout(calcTimeout);
+            calcTimeout = setTimeout(async () => {
+                document.getElementById('ws-total').classList.add('opacity-50');
+
+                // 1. Harvest inputs dynamically based on the schema
+                let payloadInputs = {
+                    qty: parseFloat(document.getElementById('dyn_qty').value) || 1,
+                    w: parseFloat(document.getElementById('dyn_w').value) || 24,
+                    h: parseFloat(document.getElementById('dyn_h').value) || 18,
+                };
+
+                activeConfig.ui_schema.controls.forEach(c => {
+                    if (c.id === 'qty' || c.id === 'w' || c.id === 'h') return;
+                    const el = document.getElementById(`dyn_${c.id}`);
+                    if (el) {
+                        if (c.type === 'toggle') payloadInputs[c.id] = el.value === 'true';
+                        else payloadInputs[c.id] = isNaN(el.value) ? el.value : parseFloat(el.value);
+                    }
+                });
+
+                // Handle mapping discrepancies for specific edge functions
+                if(payloadInputs.hasStakes !== undefined) payloadInputs.sides = payloadInputs.sides || 1;
+                if(activeProductId === 'PROD_Cut') payloadInputs.complexity = payloadInputs.weeding;
+
+                try {
+                    const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : activeConfig;
+                    const fnUrl = `${EDGE_URL}/functions/v1/${ROUTER_MAP[activeProductId]}`;
+                    
+                    const response = await fetch(fnUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                        body: JSON.stringify({ inputs: payloadInputs, config: dataToUse })
+                    });
+
+                    const result = await response.json();
+                    if (!result || !result.retail) return;
+
+                    const fmt = (n) => "$" + (n || 0).toFixed(2);
+                    document.getElementById('ws-unit').innerText = fmt(result.retail.unitPrice);
+                    document.getElementById('ws-total').innerText = fmt(result.retail.grandTotal);
+                    document.getElementById('ws-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 50)}`;
+                    document.getElementById('min-badge').classList.toggle('hidden', !result.retail.isMinApplied);
+
+                    if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.renderLedger(result);
+
+                } catch(e) {
+                    console.error("Calculation Error:", e);
+                    document.getElementById('ws-total').innerText = "ERROR";
+                } finally {
+                    document.getElementById('ws-total').classList.remove('opacity-50');
+                }
+            }, 200);
+        }
+    </script>
+</body>
+</html>

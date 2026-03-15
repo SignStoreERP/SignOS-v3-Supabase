@@ -196,50 +196,81 @@
 </div>
 
 <script>
-    let backendData = {};
-    let tactileColors = [], coreColors = [];
-    let activeProduct = 'BasicB';
-    
-    // UNIFIED LAYER STACK
-    let layerStack = [];
-    let activeColorId = null;
-    let is3D = true;
+    // --- 1. HARDCODED UI SCHEMA FOR INLINE SANDBOX ---
+    const ADA_UI_SCHEMA = {
+        retails: [
+            { key: 'Retail_Price_ADA_Basic_AB', label: 'Base SqIn ($)' },
+            { key: 'Retail_Price_ADA_Basic_Clear', label: 'Clear Base SqIn ($)' },
+            { key: 'Retail_Min_Order', label: 'Shop Min ($)' },
+            { key: 'Tier_1_Qty', label: 'Discount Qty' },
+            { key: 'Tier_1_Disc', label: 'Discount % (Dec)' }
+        ],
+        costs: [
+            { key: 'Cost_Sub_ADA_Core_116', label: '1/16" Core ($/Sht)' },
+            { key: 'Cost_Sub_ADA_Core_18', label: '1/8" Core ($/Sht)' },
+            { key: 'Cost_Sub_PVC', label: '3mm PVC ($/Sht)' },
+            { key: 'Cost_Sub_Acrylic', label: '3/16" Acr ($/Sht)' },
+            { key: 'Cost_Paint_SqIn', label: 'Paint ($/SqIn)' },
+            { key: 'Rate_Operator', label: 'Operator ($/Hr)' },
+            { key: 'Rate_Machine_Engraver', label: 'Engraver ($/Hr)' },
+            { key: 'Rate_Machine_CNC', label: 'CNC ($/Hr)' },
+            { key: 'Rate_Shop_Labor', label: 'Assembly ($/Hr)' },
+            { key: 'Time_Engrave_SqIn', label: 'Engrave (Min/SqIn)' },
+            { key: 'Waste_Factor', label: 'Waste Multiplier' },
+            { key: 'Factor_Risk', label: 'Risk Multiplier' }
+        ]
+    };
 
-    function generateId() { return Math.random().toString(36).substr(2, 9); }
+    let backendData = {}, coreColors = [], systemFonts = [];
+    let buildState = {
+        qty: 1, w: 8, h: 8, purpose: 'Restroom / Room ID', chassis: 'Flush',
+        baseColor: null, addons: { window: false, slider: false, magnetic: false, accent: false },
+        typography: { text: 'ROOM 101', font: 'sans-serif', hasBraille: true }
+    };
+    let is3D = true;
+    let customSimData = null;
+    let lastSimResult = null;
 
     function toggle3D() {
         is3D = !is3D;
-        SignOS_UI.Camera3D.toggle(is3D);
-        document.getElementById('preview-wrapper').classList.toggle('isometric-view', is3D);
+        if(typeof SignOS_UI !== 'undefined' && SignOS_UI.Camera3D) SignOS_UI.Camera3D.toggle(is3D);
+        const wrapper = document.getElementById('preview-wrapper');
+        if(wrapper) wrapper.classList.toggle('isometric-view', is3D);
         const btn3d = document.getElementById('btn-3d');
         if (btn3d) btn3d.innerText = is3D ? "Flat 2D View" : "3D Isometric View";
         runCalc();
     }
 
-    function createLayer(typeStr, roleStr) {
-        let layer = { id: generateId(), role: roleStr || typeStr, type: typeStr };
-        if (typeStr === '1/32') {
-            // FIXED: tactileColors successfully pulls the first color object instead of the array
-            const defCol = tactileColors.find(c => c.Name && c.Name.includes('White')) || tactileColors || {Hex_Code: '#FFFFFF', Name: 'White', Code: 'N/A'};
-            layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code; layer.hasBraille = true;
-        } else if (typeStr === '1/16' || typeStr === '1/8') {
-            // FIXED: coreColors successfully pulls the first color object instead of the array
-            const defCol = coreColors.find(c => c.Name && c.Name.includes('Black')) || coreColors || {Hex_Code: '#000000', Name: 'Black', Code: 'N/A'};
-            layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code;
-        } else if (typeStr === '3mm' || typeStr === '6mm') {
-            layer.colorName = 'Black'; layer.colorHex = '#111827';
-        } else if (typeStr === '3/16') {
-            layer.colorName = 'Clear'; layer.colorHex = 'rgba(255,255,255,0.4)';
-        } else if (typeStr === 'Window_Engraved') {
-            layer.colorName = 'White'; layer.colorHex = '#FFFFFF'; layer.sliderH = 2;
-        } else if (typeStr === 'Window_Paper') {
-            layer.colorName = 'N/A'; layer.colorHex = '#f3f4f6'; 
-        }
-        return layer;
+    function toggleStep(stepNum) {
+        const steps = document.querySelectorAll('.wizard-step');
+        steps.forEach(step => {
+            const num = parseInt(step.getAttribute('data-step'));
+            const content = step.querySelector('.step-content');
+            const chevron = step.querySelector('.chevron');
+            const header = step.querySelector('.p-3');
+            const badge = step.querySelector('.num-badge');
+            const title = step.querySelector('.title-text');
+
+            if (num === stepNum) {
+                if(content) { content.style.maxHeight = '500px'; content.classList.add('p-4'); content.classList.remove('p-0'); }
+                step.classList.remove('opacity-50');
+                if(header) { header.classList.remove('bg-slate-50', 'border-gray-100'); header.classList.add('bg-blue-50', 'border-blue-100'); }
+                if(badge) badge.className = "w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black num-badge";
+                if(title) title.className = "text-xs font-black text-blue-900 uppercase tracking-widest title-text";
+                if(chevron) { chevron.classList.remove('-rotate-90'); chevron.classList.add('text-blue-500'); }
+            } else {
+                if(content) { content.style.maxHeight = '0px'; content.classList.remove('p-4'); content.classList.add('p-0'); }
+                step.classList.add('opacity-50');
+                if(header) { header.classList.remove('bg-blue-50', 'border-blue-100'); header.classList.add('bg-slate-50', 'border-gray-100'); }
+                if(badge) badge.className = "w-6 h-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-xs font-black num-badge";
+                if(title) title.className = "text-xs font-black text-gray-600 uppercase tracking-widest title-text";
+                if(chevron) { chevron.classList.add('-rotate-90'); chevron.classList.remove('text-blue-500'); }
+            }
+        });
     }
 
     function setProduct(prod) {
-        activeProduct = prod;
+        buildState.product = prod;
         document.querySelectorAll('#product-btns button').forEach(btn => {
             if (btn.getAttribute('data-prod') === prod) {
                 btn.classList.add('border-2', 'border-slate-900', 'bg-slate-800');
@@ -250,314 +281,151 @@
                 btn.querySelector('span:last-child').classList.remove('text-gray-500');
             } else {
                 btn.classList.remove('border-2', 'border-slate-900', 'bg-slate-800');
-                btn.classList.add('border', 'border-gray-300', 'bg-gray-100', 'hover:bg-gray-200', 'hover:border-gray-400');
+                btn.classList.add('border-gray-300', 'bg-gray-100', 'hover:bg-gray-200', 'hover:border-gray-400');
                 btn.querySelector('span:first-child').classList.remove('text-white');
                 btn.querySelector('span:first-child').classList.add('text-gray-700');
                 btn.querySelector('span:last-child').classList.remove('text-slate-300');
                 btn.querySelector('span:last-child').classList.add('text-gray-500');
             }
         });
-
-        layerStack = [];
-        layerStack.push(createLayer('1/32', '1/32" Tactile Applique'));
-        
-        if (prod === 'BasicA') {
-            layerStack.push(createLayer('1/8', '1/8" ADA Core'));
-        } else if (prod === 'BasicB') {
-            layerStack.push(createLayer('1/16', '1/16" ADA Core'));
-            layerStack.push(createLayer('3mm', '3mm PVC Backer'));
-        } else if (prod === 'BasicClear') {
-            layerStack.push(createLayer('1/16', '1/16" ADA Core'));
-            layerStack.push(createLayer('3/16', '3/16" Clear Acrylic'));
-        }
-
-        renderLayers();
         runCalc();
     }
 
-    function addLayer() {
-        layerStack.push(createLayer('1/16', 'Extra 1/16" Core'));
-        renderLayers();
+    function setAddon(type, isChecked) {
+        buildState.addons[type] = isChecked;
         runCalc();
     }
 
-    function updateLayerType(id, val) {
-        const idx = layerStack.findIndex(x => x.id === id);
-        if (idx > -1) {
-            let roleStr = `Extra ${val.replace('_', ' ')}`;
-            if (val === 'Window_Paper') roleStr = 'Window Pocket (Paper)';
-            if (val === 'Window_Engraved') roleStr = 'Window (Engraved Slider)';
-            if (val === '3mm') roleStr = '3mm PVC Backer';
-            if (val === '6mm') roleStr = '6mm PVC Backer';
-            if (val === '3/16') roleStr = '3/16" Clear Acrylic';
-
-            layerStack[idx] = createLayer(val, roleStr);
-            layerStack[idx].id = id; 
-            renderLayers(); runCalc();
-        }
-    }
-
-    function updateLayerSlider(id, val) {
-        const a = layerStack.find(x => x.id === id);
-        if (a) { a.sliderH = parseFloat(val) || 0.5; runCalc(); }
-    }
-
-    function removeLayer(id) {
-        layerStack = layerStack.filter(x => x.id !== id);
-        renderLayers(); runCalc();
-    }
-
-    function moveLayer(id, direction) {
-        const idx = layerStack.findIndex(l => l.id === id);
-        if (idx < 0) return;
-        const newIdx = idx + direction;
-        if (newIdx < 0 || newIdx >= layerStack.length) return;
-        
-        const temp = layerStack[idx];
-        layerStack[idx] = layerStack[newIdx];
-        layerStack[newIdx] = temp;
-        
-        renderLayers(); runCalc();
-    }
-
-    function renderLayers() {
-        const container = document.getElementById('layer-stack');
-        
-        if (container) {
-            container.innerHTML = layerStack.map((a, index) => {
-                const isMat = ['1/32', '1/16', '1/8', '3mm', '6mm', '3/16'].includes(a.type);
-                const isEngraved = a.type === 'Window_Engraved';
-                const hasColor = isMat && a.type !== '3/16';
-                
-                return `
-                <div class="flex flex-col gap-2 bg-white p-2 rounded border border-gray-200 shadow-sm mb-2 transition">
-                    <div class="flex items-center gap-2">
-                        <div class="flex flex-col items-center justify-center pr-2 border-r border-gray-100 shrink-0">
-                            <button onclick="moveLayer('${a.id}', -1)" class="text-gray-300 hover:text-blue-500 transition focus:outline-none leading-none ${index===0?'opacity-30 cursor-not-allowed':''}" ${index===0?'disabled':''}>▲</button>
-                            <button onclick="moveLayer('${a.id}', 1)" class="text-gray-300 hover:text-blue-500 transition focus:outline-none leading-none ${index===layerStack.length-1?'opacity-30 cursor-not-allowed':''}" ${index===layerStack.length-1?'disabled':''}>▼</button>
-                        </div>
-                        <select onchange="updateLayerType('${a.id}', this.value)" class="flex-1 border border-gray-200 p-1 rounded text-[9px] font-bold text-gray-700 bg-gray-50 outline-none focus:border-blue-500">
-                            <optgroup label="Window Routing">
-                                <option value="Window_Paper" ${a.type==='Window_Paper'?'selected':''}>Window Pocket (Paper Insert)</option>
-                                <option value="Window_Engraved" ${a.type==='Window_Engraved'?'selected':''}>Window w/ Engraved Slider</option>
-                            </optgroup>
-                            <optgroup label="Material Layers">
-                                <option value="1/32" ${a.type==='1/32'?'selected':''}>1/32" Layer</option>
-                                <option value="1/16" ${a.type==='1/16'?'selected':''}>1/16" Layer</option>
-                                <option value="1/8" ${a.type==='1/8'?'selected':''}>1/8" Layer</option>
-                                <option value="3mm" ${a.type==='3mm'?'selected':''}>3mm PVC Backer</option>
-                                <option value="6mm" ${a.type==='6mm'?'selected':''}>6mm PVC Backer</option>
-                                <option value="3/16" ${a.type==='3/16'?'selected':''}>3/16" Clear Acrylic</option>
-                            </optgroup>
-                        </select>
-                        ${hasColor ? `
-                        <div class="cursor-pointer flex items-center gap-1.5 bg-gray-50 border border-gray-300 p-1 rounded hover:border-blue-500 transition" onclick="openColorModal('${a.id}')">
-                            <div class="w-3.5 h-3.5 rounded-full border border-gray-400 shrink-0" style="background-color: ${a.colorHex}"></div>
-                            <span class="text-[9px] font-bold text-gray-600 w-12 truncate">${a.colorName}</span>
-                        </div>` : ''}
-                        <button onclick="removeLayer('${a.id}')" class="text-gray-300 hover:text-red-500 transition font-black focus:outline-none px-1 shrink-0">✕</button>
-                    </div>
-                    ${isEngraved ? `
-                    <div class="flex items-center justify-between border-t border-gray-100 pt-1.5 mt-1 ml-1">
-                        <span class="text-[9px] font-bold text-gray-500 uppercase">Slider Height (in)</span>
-                        <input type="number" value="${a.sliderH}" step="0.25" min="0.5" oninput="updateLayerSlider('${a.id}', this.value)" class="w-16 border border-gray-300 rounded p-1 text-center text-[10px] font-black text-blue-900 outline-none focus:border-blue-500 shadow-inner">
-                    </div>` : ''}
-                </div>`;
-            }).join('');
-        }
-    }
-
-    // --- SCHEMA-DRIVEN UI HANDLERS ---
-    function openColorModal(id) {
-        activeColorId = id;
-        const modal = document.getElementById('color-modal');
-        if(modal) modal.classList.remove('hidden');
-        if(window.renderColorGrid) window.renderColorGrid(); 
-    }
-
-    window.closeModal = function() { 
-        const modal = document.getElementById('color-modal');
-        if(modal) modal.classList.add('hidden'); 
-    };
-
-    window.renderColorGrid = function() {
-        let layer = layerStack.find(l => l.id === activeColorId);
-        if (!layer) return;
-
-        let data = [];
-        if (layer.type === '1/32' || layer.type === 'Window_Engraved') {
-            data = tactileColors;
-        }
-        else if (layer.type === '1/16' || layer.type === '1/8') {
-            // SCHEMA-DRIVEN FILTER: Only show colors that match the physical thickness of the selected layer!
-            let targetThick = layer.type === '1/16' ? '1/16"' : '1/8"';
-            data = coreColors.filter(c => c.Thickness === targetThick || c.Name === 'Clear');
-        }
-        else if (layer.type === '3mm' || layer.type === '6mm') {
-            data = [ {Name:'Black', Hex_Code:'#000000', Code:'PVC-BLK'}, {Name:'White', Hex_Code:'#ffffff', Code:'PVC-WHT'} ];
-        }
-
-        const searchInput = document.getElementById('color-search');
-        const search = searchInput ? searchInput.value : '';
-
-        SignOS_UI.buildLabeledColorGrid({
-            containerId: 'modal-grid',
-            data: data,
-            type: 'rowmark',
-            searchQuery: search,
-            onSelect: (item) => {
-                layer.colorHex = item.Hex_Code || item.Cap_Hex;
-                layer.colorName = item.Name || item.Cap_Color;
-                layer.colorCode = item.Code || item.Item_Code;
-                window.closeModal();
-                renderLayers();
-                runCalc();
-            }
-        });
-    };
-
-    // --- INTEGRATING THE UNIVERSAL 3D RENDER ENGINE ---
-    function updatePreview() {
-        const w = parseFloat(document.getElementById('w').value) || 8;
-        const h = parseFloat(document.getElementById('h').value) || 8;
-        
-        let hasWindow = layerStack.some(a => ['Window_Paper', 'Window_Engraved'].includes(a.type));
-        let scale = Math.min(180 / w, 150 / h);
-        
-        const pictoPath = 'M58.29,43.92c8.57,0,15.54-6.97,15.54-15.54s-6.97-15.53-15.54-15.53-15.53,6.95-15.53,15.53,6.95,15.54,15.53,15.54ZM90.18,61.06c-1.65-4.92-7.98-13.86-18.84-13.86h-26.22c-10.95,0-17.26,8.86-18.7,13.86l-13.29,43.82c-2.77,9.43,9.3,13.04,12.16,4.24l11.98-40.35h5.18l-20.6,71.53h19.19v55.68c0,9.58,14.36,9.58,14.36,0v-56.04h5.82v56.1c0,9.48,14.29,9.52,14.29,0v-55.73h19.15l-20.77-71.53h5.44l11.98,40.2c2.86,9.18,14.85,5.29,12.17-4.12l-13.31-43.79ZM181,33.51c5.06-10.8-7.22-23.57-18.3-20.08-10.69,2.16-15.21,16.92-7.76,24.83,6.78,8.96,22.87,6.11,26.05-4.74ZM197.26,51.83c-7.51-6.34-18.07-4.97-27.19-5.13-10.59.44-21.64-1.47-31.72,2.53-6.34,2.48-9.57,9.41-9.37,15.92-.08,17.14-.14,34.29.03,51.43-.29,2.95,1.89,6.79,5.21,6.49,5.67,1.3,7.86-5.63,7.86-10.05.12-13.52-.15-27.04.09-40.56h3.83c.29,40.78-.14,81.56.21,122.32-.35,8.35,10.22,10.63,15.77,6.06,1.75-4.35,2.16-9.12,2.14-13.74-.11-21.38-.03-42.73-.05-64.09h4c.12,24.48-.21,49.01.13,73.5.82,10.08,17.96,7.86,16.91-1.91.26-40.75-.04-81.53.17-122.29,1.19-.03,3.58-.06,4.78-.08.03,14.2-.06,28.42.02,42.66-.17,4.2,3.04,9.37,7.85,8.2,4.07.15,5.41-4.9,5.27-8.2.14-14.66-.04-29.3.06-43.95-.09-6.68-.31-14.59-6.03-19.1ZM113.42,203.15h6.16V12.85h-6.16v190.3Z';
-
-        let manifest = {
-            w: w, h: h,
-            is3D: is3D,
-            layers: []
-        };
-
-        // DYNAMIC SCALING MATH: Calculate proportional pixels based on minimum dimension
-        let baseUnit = Math.min(w, h) * scale;
-        let iconSize = baseUnit * 0.35;
-        let textSize = baseUnit * 0.12;
-        let brailleSize = baseUnit * 0.07;
-        let gapSize = baseUnit * 0.05;
-
-        // UI Layer Stack now dictates physical Z-Index
-        layerStack.forEach((l, index) => {
-            let zPos = layerStack.length - 1 - index;
-            let isTactile = l.type === '1/32' || l.type === 'Window_Engraved';
-            let isBottomLayer = index === layerStack.length - 1;
-
-            let layerContent = '';
-            if (isTactile) {
-                // FIXED: Removed static Tailwind sizes and injected the dynamic inline scale pixels
-                layerContent = `
-                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-2" style="filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.5)); color: ${l.colorHex};">
-                        <svg viewBox="0 0 216 216" fill="currentColor" style="width: ${iconSize}px; height: ${iconSize}px; margin-bottom: ${gapSize}px;"><path d="${pictoPath}"></path></svg>
-                        <span class="font-black tracking-widest leading-none truncate" style="font-size: ${textSize}px; font-family: sans-serif; width: 100%;">RESTROOM</span>
-                        <span class="font-mono tracking-[0.2em] opacity-50 leading-none" style="font-size: ${brailleSize}px; margin-top: ${gapSize}px;">. .. . . ..</span>
-                    </div>`;
-            }
-
-            manifest.layers.push({
-                id: l.id,
-                role: l.role || l.type,
-                hex: l.colorHex,
-                z: zPos,
-                isTactile: isTactile,
-                isWindow: hasWindow && isBottomLayer, 
-                content: layerContent
-            });
-        });
-        
-        if (typeof SignOS_View !== 'undefined') SignOS_View.render('svg-preview-container', manifest);
+    function updateText() {
+        const textEl = document.getElementById('sign-text');
+        const fontEl = document.getElementById('sign-font');
+        const brailleEl = document.getElementById('has-braille');
+        if(textEl) buildState.typography.text = textEl.value;
+        if(fontEl) buildState.typography.font = fontEl.value;
+        if(brailleEl) buildState.typography.hasBraille = brailleEl.checked;
+        runCalc();
     }
 
     async function runCalc() {
         if(!backendData || (!backendData.Retail_Min_Order && !backendData.Retail_Min_Order_Etch)) return;
-        if(typeof SignOS_Canvas !== 'undefined') SignOS_Canvas.enforceSheetLimits('w', 'h', 'sheet-warn', 24, 48);
-
-        const mountingEl = document.getElementById('mounting');
         
-        const inputs = {
-            qty: parseFloat(document.getElementById('qty').value) || 1,
-            w: parseFloat(document.getElementById('w').value) || 8,
-            h: parseFloat(document.getElementById('h').value) || 8,
-            product: activeProduct,
-            layers: layerStack,
-            addons: layerStack.filter(a => ['Window_Paper', 'Window_Engraved'].includes(a.type)),
-            mounting: mountingEl ? mountingEl.value : 'Foam Tape',
-            brailleLines: 1
-        };
-
+        const wEl = document.getElementById('w');
+        const hEl = document.getElementById('h');
+        if(wEl) { buildState.w = parseFloat(wEl.value) || 8; document.getElementById('lbl-w').innerText = buildState.w; }
+        if(hEl) { buildState.h = parseFloat(hEl.value) || 8; document.getElementById('lbl-h').innerText = buildState.h; }
+        
         try {
             const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
+            
+            // Build the layers array dynamically based on the prebuilt starters
+            let simulatedLayers = [];
+            simulatedLayers.push({ type: '1/32', role: '1/32" Tactile Applique' });
+            if (buildState.product === 'BasicA') {
+                simulatedLayers.push({ type: '1/8', role: '1/8" ADA Core' });
+            } else if (buildState.product === 'BasicB') {
+                simulatedLayers.push({ type: '1/16', role: '1/16" ADA Core' });
+                simulatedLayers.push({ type: '3mm', role: '3mm PVC Backer' });
+            } else if (buildState.product === 'BasicClear') {
+                simulatedLayers.push({ type: '1/16', role: '1/16" ADA Core' });
+                simulatedLayers.push({ type: '3/16', role: '3/16" Clear Acrylic' });
+            }
+            
+            // Push any routed window addons as pseudo-layers
+            if(buildState.addons.window) simulatedLayers.push({ type: 'Window_Paper' });
+            if(buildState.addons.slider) simulatedLayers.push({ type: 'Window_Engraved', sliderH: 2 });
+
+            const payloadInputs = {
+                qty: parseFloat(document.getElementById('qty')?.value) || 1,
+                w: buildState.w,
+                h: buildState.h,
+                product: buildState.product,
+                layers: simulatedLayers,
+                addons: Object.entries(buildState.addons).filter(([k,v]) => v).map(([k,v]) => ({type: 'Window_' + (k==='window'?'Paper':'Engraved')})),
+                mounting: 'Foam Tape',
+                brailleLines: 1
+            };
 
             const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
             const response = await fetch(fnUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                body: JSON.stringify({ inputs: inputs, config: dataToUse })
+                body: JSON.stringify({ inputs: payloadInputs, config: dataToUse })
             });
 
             if (!response.ok) throw new Error(`Server Error: ${response.status}`);
             const result = await response.json();
-
             if (!result || !result.retail) return;
-            
+
             const ret = result.retail;
             const fmt = (n) => "$" + (n || 0).toFixed(2);
 
-            document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-            document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-            document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || dataToUse.Retail_Min_Order_Etch || 50)}`;
-            document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+            const unitEl = document.getElementById('ui-unit');
+            const totalEl = document.getElementById('ui-total');
+            if(unitEl) unitEl.innerText = fmt(ret.unitPrice);
+            if(totalEl) totalEl.innerText = fmt(ret.grandTotal);
 
-            let layerStrs = layerStack.map(l => {
-                let code = l.colorCode ? l.colorCode : 'TBD';
-                if (l.type === '1/32') return `1/32" Rowmark [${code}] ${l.colorName} Tactile w/ Braille`;
-                if (l.type.includes('Core')) return `${l.type.replace(' Core', '')} Rowmark [${code}] ${l.colorName} Core`;
-                if (l.type === '3mm') return `3mm [${code}] ${l.colorName} PVC Backer`;
-                if (l.type === '6mm') return `6mm [${code}] ${l.colorName} PVC Backer`;
-                if (l.type === '3/16') return `3/16" Clear Acrylic Backer`;
-                if (l.type === 'Window_Paper') return `Routed Window Pocket (For Paper Insert)`;
-                if (l.type === 'Window_Engraved') return `Routed Window Pocket (For ${l.sliderH || 2}" Slider)`;
-                return l.type;
-            });
-
-            let layerDesc = layerStrs.length > 0 ? layerStrs.join("\n   - ") : "(No Layers Selected)";
-            let mountStr = inputs.mounting === 'Foam Tape' ? "Mounting: Foam Tape (VHB)" : "No Mounting Hardware";
-
-            const descEl = document.getElementById('job-desc');
-            if(descEl) {
-                descEl.value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ADA Sign.\nLayers:\n   - ${layerDesc}.\n\n${mountStr}`;
-            }
+            const minOrder = parseFloat(dataToUse.Retail_Min_Order || dataToUse.Retail_Min_Order_Etch || 50);
+            const minEl = document.getElementById('ui-min-text');
+            const minBadge = document.getElementById('min-badge');
+            if(minEl) minEl.innerText = `Shop Minimum: $${minOrder}`;
+            if(minBadge) minBadge.classList.toggle('hidden', !ret.isMinApplied);
 
             let sublineHtml = '';
             ret.breakdown.forEach(item => {
                 if (item.label !== 'Shop Minimum Surcharge') {
-                    sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${item.unit.toFixed(2)})</span>`;
+                    sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${(item.unit||0).toFixed(2)})</span>`;
                 }
             });
             const sublineEl = document.getElementById('ui-subline');
-            if (sublineEl) sublineEl.innerHTML = sublineHtml;
-            
-            const volDispEl = document.getElementById('ui-volume-disp');
-            if (volDispEl) volDispEl.innerText = `${inputs.qty}x Unit${inputs.qty > 1 ? 's' : ''} (${((inputs.w * inputs.h) * inputs.qty).toFixed(1)} sq in)`;
+            if(sublineEl) sublineEl.innerHTML = sublineHtml;
 
-            const backerWarn = document.getElementById('backer-warn');
-            if(backerWarn) backerWarn.classList.toggle('hidden', !ret.forcedBacker);
+            let activeAddons = Object.entries(buildState.addons).filter(([k,v]) => v).map(([k,v]) => k).join(', ');
+            const descEl = document.getElementById('job-desc');
+            if(descEl) descEl.value = `(x${payloadInputs.qty}) ${payloadInputs.w}" x ${payloadInputs.h}" ADA Sign.\nProduct: ${buildState.product}\nIncludes: ${activeAddons || 'Standard Layout'}`;
+
+            // PHYSICS-FIRST BRIDGE & 3D RENDER
+            if(typeof SignOS_Builder !== 'undefined') {
+                const cont = document.getElementById('svg-preview-container');
+                const githubBase = "https://raw.githubusercontent.com/SignStoreERP/signos-app/main/fonts/";
+                const fontSelect = document.getElementById('sign-font');
+                const fontFileName = fontSelect ? (fontSelect.options[fontSelect.selectedIndex]?.dataset.filename || 'Arimo-Regular.ttf') : 'Arimo-Regular.ttf';
+
+                const buildInputs = {
+                    w: buildState.w, h: buildState.h, align: 'center',
+                    textVal: buildState.typography.text, hasPicto: false, hasText: !!buildState.typography.text,
+                    hasBraille: buildState.typography.hasBraille, isAutoScale: true, fontFileName: fontFileName
+                };
+                
+                const layout = await SignOS_Builder.buildADA(buildInputs, githubBase);
+                
+                let bgHex = buildState.baseColor ? buildState.baseColor.Hex_Code : '#e5e7eb';
+                let fgHex = buildState.baseColor ? buildState.baseColor.Core_Hex : '#000000';
+
+                if(cont) {
+                    cont.className = "w-full h-full flex items-center justify-center p-4 pointer-events-none";
+                    cont.style.backgroundColor = 'transparent';
+                    cont.style.border = 'none';
+
+                    let windowSVG = '';
+                    if (buildState.addons.window) {
+                        windowSVG = `<rect x="0.5" y="${buildInputs.h - 2.5}" width="${buildInputs.w - 1}" height="2" fill="#000000" fill-opacity="0.1" stroke="#000000" stroke-width="0.05" stroke-dasharray="0.1,0.1" /><text x="${buildInputs.w/2}" y="${buildInputs.h - 1.4}" font-family="sans-serif" font-size="0.25" fill="#000" text-anchor="middle" opacity="0.5">ROUTED WINDOW SLOT</text>`;
+                    }
+
+                    cont.innerHTML = `<svg id="live-production-preview" width="100%" height="100%" viewBox="0 0 ${buildInputs.w} ${buildInputs.h}" data-width-in="${buildInputs.w}" data-height-in="${buildInputs.h}" class="overflow-visible shadow-2xl rounded drop-shadow-xl" style="background-color: ${bgHex}; transform: translateZ(10px);"><g id="scale-group" transform="translate(0, 0)"><g id="text-layer" fill="${fgHex}">${layout.textPaths}</g><g id="braille-layer" fill="transparent" stroke="#000" stroke-width="0.02">${layout.braillePaths}</g>${windowSVG}</g></svg>`;
+                }
+            }
 
             if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.renderLedger(result);
 
-            updatePreview();
-
-        } catch(e) { console.error("Math Engine Error:", e); }
+        } catch(e) { console.error("Physics Engine Error:", e); }
     }
 
+    // --- INITIALIZATION ---
     window.addEventListener('load', async () => {
-        if (typeof injectHeader === 'function') injectHeader("ADA Compliant Signs");
-
-        // SCHEMA-DRIVEN UI: INJECT COLOR MODAL DYNAMICALLY
-        if (typeof SignOS_UI !== 'undefined' && typeof SignOS_UI.injectColorModal === 'function') {
-            SignOS_UI.injectColorModal();
+        if (typeof injectHeader === 'function') injectHeader("Architectural Sign Builder");
+        if(window.SignOS_UI && SignOS_UI.Camera3D) {
+            SignOS_UI.Camera3D.init('zoom-stage');
+            SignOS_UI.Camera3D.toggle(true);
         }
 
         const btnSandbox = document.getElementById('btn-sandbox');
@@ -565,66 +433,65 @@
             btnSandbox.classList.remove('hidden');
         }
 
-        if(window.SignOS_UI && SignOS_UI.Camera3D) {
-            SignOS_UI.Camera3D.init('zoom-stage');
-            SignOS_UI.Camera3D.toggle(true);
-        }
+        const addonWin = document.getElementById('addon-window');
+        const addonSli = document.getElementById('addon-slider');
+        const addonMag = document.getElementById('addon-magnetic');
+        const addonAcc = document.getElementById('addon-accent');
+        
+        if(addonWin) addonWin.onchange = (e) => setAddon('window', e.target.checked);
+        if(addonSli) addonSli.onchange = (e) => setAddon('slider', e.target.checked);
+        if(addonMag) addonMag.onchange = (e) => setAddon('magnetic', e.target.checked);
+        if(addonAcc) addonAcc.onchange = (e) => setAddon('accent', e.target.checked);
 
+        if(typeof SignOS_UI !== 'undefined') SignOS_UI.showLoader('wrapper', 'Connecting to Matrices...');
         const statusText = document.getElementById("status-text");
         const statusDot = document.getElementById("status-dot");
 
         try {
-            // 1. SECURE FETCH A: Get ONLY the non-financial Product Config variables
-            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', []);
-        backendData = payload.config; // Existing line
+            // FIXED: Fetch PROD_Nameplates because it shares the same base data and actually exists in your DB
+            const payload = await SignOS.fetchProductData('PROD_Nameplates', ['REF_Colors_Rowmark', 'REF_Fonts']);
+            backendData = payload.config;
+            backendData.ui_schema = ADA_UI_SCHEMA; // Inject Schema natively for the sandbox!
 
-        // ADD THIS: Inject the universal Cost Sandbox using the new DB schema
-        if (typeof SignOS_Sandbox !== 'undefined' && backendData.ui_schema) {
-            SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
-        }
+            // Fire up the Global Cost Sandbox
+            if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
-            if (typeof SignOS_Sandbox !== 'undefined' && window.ENGRAVED_CONFIG) {
-                SignOS_Sandbox.init(window.ENGRAVED_CONFIG, backendData, runCalc);
+            const rawRowmark = payload.tables['REF_Colors_Rowmark'] || [];
+            const rawFonts = payload.tables['REF_Fonts'] || [];
+            
+            systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
+            if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
+
+            coreColors = rawRowmark.filter(r => r.Series && (r.Series.includes('Ultra-Mattes') || r.Series.includes('Mattes'))).map(c => ({
+                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex, Core_Hex: c.Core_Hex
+            }));
+
+            if(typeof SignOS_UI !== 'undefined') {
+                SignOS_UI.buildColorGrid({
+                    containerId: 'rowmark-grid', data: coreColors, type: 'rowmark',
+                    onSelect: (item) => {
+                        buildState.baseColor = item;
+                        const label = document.getElementById('selected-color-label');
+                        if(label) label.innerText = item.Name || item.Cap_Color;
+                        runCalc();
+                    }
+                });
             }
 
-            // 2. SECURE FETCH B: Direct database query EXPLICITLY EXCLUDING financial data for absolute security
-            const colorRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Series,Thickness,Cap_Color,Core_Color,Cap_Hex,Core_Hex&limit=1000`, {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            
-            const rawRowmark = colorRes.ok ? await colorRes.json() : [];
-
-            // 3. MAP THE SECURE DATA
-            // STRICT FILTER: Only load "Ultra-Mattes Reverse" for the base cores
-            coreColors = rawRowmark.filter(r => {
-                const s = String(r.Series || r.series || '');
-                return s.includes('Ultra-Mattes Reverse');
-            }).map(c => ({
-                Code: c.Item_Code || c.item_code,
-                Name: c.Cap_Color || c.cap_color,
-                Thickness: c.Thickness || c.thickness, // Saved specifically for the UI thickness filter
-                // UI HACK: Omitting 'Core_Hex' forces the UI engine to render a beautiful solid circle!
-                Hex_Code: ((c.Cap_Hex || c.cap_hex) === 'Transparent' || String(c.Cap_Color || c.cap_color).includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex)
-            }));
-
-            if (!coreColors.find(c => c.Name && c.Name.includes('Clear'))) coreColors.push({ Code: '322-101', Name: 'Clear', Hex_Code: '#e5e7eb', Thickness: '1/16"' });
-
-            tactileColors = rawRowmark.filter(r => {
-                const s = String(r.Series || r.series || '');
-                return s.includes('ADA Alternative');
-            }).map(c => ({
-                Code: c.Item_Code || c.item_code,
-                Name: c.Cap_Color || c.cap_color,
-                Hex_Code: c.Cap_Hex || c.cap_hex
-            }));
+            const fontSelect = document.getElementById('sign-font');
+            if(fontSelect) {
+                systemFonts.forEach(f => { fontSelect.innerHTML += `<option value="${f.CSS_Family}" data-filename="${f.File_Name}">${f.Font_Name}</option>`; });
+            }
 
             if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
-
-            setProduct('BasicB');
+            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('wrapper');
+            
+            setTimeout(() => { const firstBtn = document.querySelector('#rowmark-grid button'); if(firstBtn) firstBtn.click(); toggleStep(1); }, 100);
 
         } catch(e) {
             console.error("API Error:", e);
             if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('wrapper', true);
         }
     });
 </script>
