@@ -40,16 +40,51 @@
             <div class="p-4 bg-slate-50 border-b border-gray-100">
                 <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest">Database Tables</h2>
             </div>
-            <div class="flex-1 overflow-y-auto p-2 space-y-1">
-                <button class="w-full text-left px-4 py-3 rounded-lg bg-blue-50 text-blue-700 font-black text-xs border border-blue-200 shadow-sm uppercase tracking-wide">
-                    Global Variables
-                </button>
-                <button class="w-full text-left px-4 py-3 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled title="Coming in next update">
-                    Material Costs
-                </button>
-                <button class="w-full text-left px-4 py-3 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled title="Coming in next update">
-                    Labor Rates
-                </button>
+            <div class="flex-1 overflow-y-auto p-2 space-y-4 custom-scroll">
+                
+                <!-- ECONOMICS & LOGIC -->
+                <div>
+                    <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Economics & Logic</span>
+                    <button class="w-full text-left px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-black text-xs border border-blue-200 shadow-sm uppercase tracking-wide">
+                        Global Variables
+                    </button>
+                    <button class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled>
+                        Retail Curves (Algorithms)
+                    </button>
+                    <button class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled>
+                        Flat Services & Fees
+                    </button>
+                </div>
+
+                <!-- PHYSICAL INVENTORY -->
+                <div class="border-t border-gray-100 pt-2">
+                    <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Physical Inventory</span>
+                    <button class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition flex justify-between" disabled>
+                        Raw Materials 
+                        <span class="text-[9px] bg-gray-200 text-gray-500 px-1 rounded">WIP</span>
+                    </button>
+                    <button class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled>
+                        Parts & Hardware
+                    </button>
+                    <button class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled>
+                        Supplier Registry
+                    </button>
+                </div>
+
+                <!-- WORKFORCE & OPERATIONS -->
+                <div class="border-t border-gray-100 pt-2">
+                    <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Operations</span>
+                    <button class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled>
+                        Labor Rates
+                    </button>
+                    <button class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition" disabled>
+                        Machine Overheads
+                    </button>
+                    <a href="admin_staff.html" class="block w-full text-left px-3 py-2 rounded-lg text-indigo-600 hover:bg-indigo-50 font-bold text-xs uppercase tracking-wide transition border border-transparent hover:border-indigo-200">
+                        Workforce Manager ↗
+                    </a>
+                </div>
+
             </div>
         </div>
 
