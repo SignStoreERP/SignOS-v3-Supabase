@@ -21,13 +21,16 @@
         .isometric-view #svg-preview-container { transform: rotateX(60deg) rotateZ(-45deg); }
         .blueprint-callout { opacity: 0; transition: opacity 0.5s ease 0.4s, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; }
         .isometric-view .blueprint-callout { opacity: 1; }
+        .color-scroll::-webkit-scrollbar { width: 6px; }
+        .color-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px;}
+        .color-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
 
 <div id="app-wrapper" class="w-full max-w-md mx-auto mt-8 transition-all duration-500 flex justify-center items-start gap-4 px-4 sm:px-0">
 
-    <!-- LEFT: INLINE FINANCIAL LEDGER (Populated by Sandbox) -->
+    <!-- LEFT: INLINE FINANCIAL LEDGER -->
     <div id="sandbox-ledger" class="hidden w-[380px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
         <div class="p-4 bg-slate-50 border-b border-gray-200 flex flex-col shrink-0 rounded-t-xl gap-3">
             <div class="flex justify-between items-center">
@@ -96,15 +99,15 @@
                     <div class="grid grid-cols-3 gap-2" id="product-btns">
                         <button onclick="setProduct('BasicA')" data-prod="BasicA" class="aspect-square p-2 border border-gray-300 bg-gray-100 hover:bg-gray-200 rounded-xl text-center transition shadow-sm focus:outline-none group flex flex-col justify-center items-center gap-1 hover:border-gray-400">
                             <span class="block text-xs sm:text-sm font-black text-gray-700 uppercase leading-tight group-hover:text-gray-900 transition">Basic 1/8"<br>ADA</span>
-                            <span class="text-[9px] sm:text-[10px] font-bold text-gray-500 normal-case block leading-tight opacity-80 group-hover:opacity-100 transition mt-1">1/32" tactile and braille on 1/8" ADA core</span>
+                            <span class="text-[9px] sm:text-[10px] font-bold text-gray-500 normal-case block leading-tight opacity-80 group-hover:opacity-100 transition mt-1">1/32" tactile & braille on 1/8" ADA core</span>
                         </button>
                         <button onclick="setProduct('BasicB')" data-prod="BasicB" class="aspect-square p-2 border-2 border-slate-900 bg-slate-800 rounded-xl text-center transition shadow-md focus:outline-none group flex flex-col justify-center items-center gap-1">
                             <span class="block text-xs sm:text-sm font-black text-white uppercase leading-tight">Basic Backer<br>ADA</span>
-                            <span class="text-[9px] sm:text-[10px] font-bold text-slate-300 normal-case block leading-tight mt-1">1/32" tactile and braille on 1/16" ADA core on 3mm PVC</span>
+                            <span class="text-[9px] sm:text-[10px] font-bold text-slate-300 normal-case block leading-tight mt-1">1/32" tactile & braille on 1/16" core on 3mm PVC</span>
                         </button>
                         <button onclick="setProduct('BasicClear')" data-prod="BasicClear" class="aspect-square p-2 border border-gray-300 bg-gray-100 hover:bg-gray-200 rounded-xl text-center transition shadow-sm focus:outline-none group flex flex-col justify-center items-center gap-1 hover:border-gray-400">
                             <span class="block text-xs sm:text-sm font-black text-gray-700 uppercase leading-tight group-hover:text-gray-900 transition">Basic Clear<br>ADA</span>
-                            <span class="text-[9px] sm:text-[10px] font-bold text-gray-500 normal-case block leading-tight opacity-80 group-hover:opacity-100 transition mt-1">1/32" tactile and braille on 1/16" ADA core on 3/16" clear acrylic</span>
+                            <span class="text-[9px] sm:text-[10px] font-bold text-gray-500 normal-case block leading-tight opacity-80 group-hover:opacity-100 transition mt-1">1/32" tactile & braille on 1/16" core on clear acrylic</span>
                         </button>
                     </div>
                 </div>
@@ -128,6 +131,57 @@
                         <option value="Foam Tape" selected>Foam Tape (Standard)</option>
                         <option value="None">None (Slide-in / Bracket)</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- RESTORED: DESIGN & TYPOGRAPHY ACCORDION -->
+            <div class="bg-gray-50 border-t border-b border-gray-200 relative z-10">
+                <div class="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-100 transition" onclick="toggleAcc('acc-design', 'arr-design')">
+                    <span class="text-[10px] font-black text-gray-800 uppercase tracking-widest">Design Elements</span>
+                    <svg id="arr-design" class="w-4 h-4 text-gray-400 transition-transform duration-200 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="acc-design" class="p-5 pt-0 space-y-3">
+                    <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex justify-between items-center">
+                            <label class="flex items-center gap-2 text-xs font-bold text-blue-800 uppercase tracking-widest cursor-pointer">
+                                <input type="checkbox" id="toggle-picto" checked onchange="runCalc()" class="w-4 h-4 text-blue-600 rounded"> Pictogram
+                            </label>
+                            <div id="picto-size-wrap" class="flex items-center gap-2 bg-gray-50 p-1 rounded border border-gray-200 shadow-inner">
+                                <label class="text-[9px] font-bold text-gray-500 uppercase">Height:</label>
+                                <input type="number" id="picto-size" value="4" step="0.25" min="1" oninput="runCalc()" class="w-12 border p-0.5 rounded text-xs font-bold text-center outline-none">
+                            </div>
+                        </div>
+                        <div id="wrap-picto" class="mt-3 pt-3 border-t border-gray-100">
+                            <div id="icon-grid" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto color-scroll p-2 border rounded-lg bg-gray-50 shadow-inner"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="flex items-center gap-2 text-xs font-bold text-blue-800 uppercase tracking-widest cursor-pointer">
+                                <input type="checkbox" id="toggle-text" checked onchange="runCalc()" class="w-4 h-4 text-blue-600 rounded"> Text Copy
+                            </label>
+                        </div>
+                        <div id="wrap-text" class="grid grid-cols-2 gap-3 pt-3 mt-2 border-t border-gray-100">
+                            <div class="col-span-2">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Text String</label>
+                                <input type="text" id="sign-text" value="RESTROOM" oninput="runCalc()" class="w-full border p-2 rounded text-xs font-bold uppercase text-gray-800 focus:border-blue-500 outline-none shadow-sm h-[38px]">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Font Style</label>
+                                <select id="sign-font" onchange="runCalc()" class="w-full border p-2 rounded bg-white font-bold text-xs h-[38px] focus:border-blue-500 outline-none shadow-sm"></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 flex items-center justify-between">
+                                    Height (in)
+                                    <span class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="auto-scale-text" checked onchange="syncAutoScale(this.id)" class="w-3 h-3 text-blue-600 rounded">
+                                        <span class="text-[8px] text-blue-600 tracking-wider">AUTO</span>
+                                    </span>
+                                </label>
+                                <input type="number" id="text-height" value="0.625" step="0.125" min="0.25" oninput="runCalc()" class="w-full border p-2 rounded text-xs font-bold text-center text-gray-800 focus:border-blue-500 outline-none shadow-sm h-[38px]">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -215,8 +269,14 @@
     let activeColorId = null, isActiveBase = false;
     let selectedIcon = null;
     let is3D = true;
+    const GITHUB_BASE = "https://raw.githubusercontent.com/SignStoreERP/signos-app/main/fonts/";
 
     function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+    function toggleAcc(contentId, arrowId) {
+        document.getElementById(contentId).classList.toggle('hidden');
+        document.getElementById(arrowId).classList.toggle('rotate-180');
+    }
 
     function toggle3D() {
         is3D = !is3D;
@@ -224,6 +284,13 @@
         document.getElementById('preview-wrapper').classList.toggle('isometric-view', is3D);
         const btn3d = document.getElementById('btn-3d');
         if (btn3d) btn3d.innerText = is3D ? "Flat 2D View" : "3D Isometric View";
+        runCalc();
+    }
+
+    function syncAutoScale(sourceId) {
+        const isChecked = document.getElementById(sourceId).checked;
+        if(document.getElementById('auto-scale-text')) document.getElementById('auto-scale-text').checked = isChecked;
+        runCalc();
     }
 
     function setProduct(prod) {
@@ -420,7 +487,8 @@
 
     function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
 
-    function updatePreview() {
+    // --- RESTORED DYNAMIC TYPOGRAPHY ENGINE ---
+    async function updatePreview() {
         const container = document.getElementById('svg-preview-container');
         if(!container) return;
         try {
@@ -431,25 +499,49 @@
             container.style.width = `${w * scale}px`;
             container.style.height = `${h * scale}px`;
             
+            // Build visual stack exactly like before
             let visualStack = [];
-            
-            // FIXED: Layers physically stack from Back to Front
-            
-            // 1. Backers (Lowest Z)
             baseLayers.filter(l => ['3mm', '3/16'].includes(l.type)).forEach(l => visualStack.push({ role: l.role, hex: l.colorHex, depth: l.type==='3mm'?4:3, type: l.type }));
             addonLayers.filter(a => ['3mm', '3/16'].includes(a.type)).forEach(a => visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: a.type==='3mm'?4:3, type: a.type }));
             
-            // 2. Cores (Middle Z)
             baseLayers.filter(l => ['1/8', '1/16'].includes(l.type)).forEach(l => visualStack.push({ role: l.role, hex: l.colorHex, depth: l.type==='1/8'?2:1, type: l.type }));
             addonLayers.filter(a => ['1/8', '1/16'].includes(a.type)).forEach(a => visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: a.type==='1/8'?2:1, type: a.type }));
             
-            // 3. Tactile & Details (Highest Z)
             baseLayers.filter(l => l.type === '1/32').forEach(l => visualStack.push({ role: l.role, hex: l.colorHex, depth: 0, type: l.type }));
             addonLayers.filter(a => a.type === '1/32').forEach(a => visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: 0, type: a.type }));
             
-            let html = '';
+            // Prepare inputs for SignOS_Builder layout generator
+            const fontSelect = document.getElementById('sign-font');
+            const fontFileName = fontSelect ? (fontSelect.options[fontSelect.selectedIndex]?.dataset.filename || 'Arimo-Regular.ttf') : 'Arimo-Regular.ttf';
             
-            // Because backers are pushed first, they get Z=0. Tactiles pushed last get the highest Z (closest to camera).
+            const buildInputs = {
+                w: w, h: h, align: 'center',
+                textVal: document.getElementById('sign-text') ? document.getElementById('sign-text').value.toUpperCase() : 'RESTROOM',
+                hasPicto: document.getElementById('toggle-picto') ? document.getElementById('toggle-picto').checked : true,
+                hasText: document.getElementById('toggle-text') ? document.getElementById('toggle-text').checked : true,
+                hasBraille: true,
+                isAutoScale: document.getElementById('auto-scale-text') ? document.getElementById('auto-scale-text').checked : true,
+                selectedIcon: selectedIcon,
+                fontFileName: fontFileName,
+                pictoSize: parseFloat(document.getElementById('picto-size') ? document.getElementById('picto-size').value : 4),
+                fontSize: parseFloat(document.getElementById('text-height') ? document.getElementById('text-height').value : 0.625)
+            };
+
+            // Call the universal typography math engine
+            const layout = typeof SignOS_Builder !== 'undefined' ? await SignOS_Builder.buildADA(buildInputs, GITHUB_BASE) : { svgContent: '' };
+            
+            if(document.getElementById('picto-size')) {
+                document.getElementById('picto-size').value = layout.pictoSize || 4;
+                document.getElementById('picto-size').disabled = buildInputs.isAutoScale;
+                document.getElementById('picto-size').parentElement.classList.toggle('opacity-50', buildInputs.isAutoScale);
+            }
+            if(document.getElementById('text-height')) {
+                document.getElementById('text-height').value = layout.fontSize || 0.625;
+                document.getElementById('text-height').disabled = buildInputs.isAutoScale;
+                document.getElementById('text-height').parentElement.classList.toggle('opacity-50', buildInputs.isAutoScale);
+            }
+
+            let html = '';
             let currentZ = 0; 
             
             visualStack.forEach((l, i) => {
@@ -461,13 +553,11 @@
                 let content = '';
                 
                 if (isTactile) {
-                    content = `<div class="absolute inset-0 flex flex-col items-center justify-center text-center p-2" style="filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.5));">
-                        <span class="font-black tracking-widest leading-none truncate" style="color: ${l.hex}; font-size: ${h * scale * 0.15}px;">SAMPLE</span>
-                        <span class="font-mono tracking-[0.2em] mt-1 opacity-50 leading-none" style="color: ${l.hex}; font-size: 10px;">. .. . . ..</span>
+                    content = `<div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none" style="filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.5)); color: ${l.hex};">
+                        <svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" fill="currentColor" style="overflow: visible;">${layout.svgContent}</svg>
                     </div>`;
                 }
                 
-                // Because visualStack has Tactile at the end, (length - 1 - i) will give Tactile the highest screen placement (Y=0) and Backer the lowest (Y=30).
                 let cascadeY = is3D ? ((visualStack.length - 1 - i) * 15) : 0;
                 
                 html += `
@@ -480,7 +570,7 @@
                         <div class="w-6 border-b-[1.5px] border-blue-500 shadow-sm"></div>
                     </div>` : ''}
                 </div>`;
-                currentZ += 30; // Closer to camera
+                currentZ += 30;
             });
             container.innerHTML = html;
         } catch(e) {
@@ -598,7 +688,7 @@
         const statusDot = document.getElementById("status-dot");
 
         try {
-            const payload = await SignOS.fetchProductData('PROD_ADA_Signs');
+            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark', 'REF_Pictograms', 'REF_Fonts']);
             backendData = payload.config;
 
             // INITIALIZE THE UNIVERSAL SANDBOX
@@ -606,16 +696,14 @@
                 SignOS_Sandbox.init(window.ENGRAVED_CONFIG, backendData, runCalc);
             }
 
-            const fetchTable = async (table) => {
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                });
-                return res.ok ? await res.json() : [];
-            };
+            const rawRowmark = payload.tables['REF_Colors_Rowmark'] || [];
+            pictograms = payload.tables['REF_Pictograms'] || [];
+            systemFonts = payload.tables['REF_Fonts'] || [];
 
-            const rawRowmark = await fetchTable('ref_colors_rowmark');
-            pictograms = await fetchTable('ref_pictograms');
-            systemFonts = await fetchTable('ref_fonts');
+            const fontSelect = document.getElementById('sign-font');
+            let fontHtml = '';
+            systemFonts.forEach(f => { if(String(f.Is_Active).toUpperCase() === 'TRUE') fontHtml += `<option value="${f.CSS_Family}" data-filename="${f.File_Name}">${f.Font_Name}</option>`; });
+            if(fontSelect) fontSelect.innerHTML = fontHtml;
 
             coreColors = rawRowmark.filter(r => r.Series && (r.Series.includes('Ultra-Mattes') || r.Series.includes('Mattes'))).map(c => ({
                 Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex
@@ -625,6 +713,12 @@
             tactileColors = rawRowmark.filter(r => r.Series && r.Series.includes('ADA Alternative')).map(c => ({
                 Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex
             }));
+
+            const activeIcons = pictograms.filter(p => String(p.Is_Active).toUpperCase() === 'TRUE');
+            if (activeIcons.length > 0) {
+                selectedIcon = activeIcons.find(p => p.Name.toLowerCase().includes('unisex') || p.Name.toLowerCase().includes('family')) || activeIcons;
+            }
+            if (SignOS_UI.buildIconGrid) SignOS_UI.buildIconGrid({ containerId: 'icon-grid', data: activeIcons, activeRingClass: 'ring-blue-500', onSelect: (item) => { selectedIcon = item; runCalc(); } });
 
             if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
 

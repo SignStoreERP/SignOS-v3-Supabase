@@ -220,3 +220,39 @@ window.SignOS_Sandbox = {
         document.body.insertAdjacentHTML('beforeend', html);
     }
 };
+
+// --- GLOBAL HOVER SYNCHRONIZATION ENGINE ---
+document.addEventListener('mouseover', e => {
+    const target = e.target.closest('.hover-var');
+    if(target) {
+        const varName = target.getAttribute('data-var');
+        // Highlight all instances in the ledger
+        document.querySelectorAll(`.hover-var[data-var="${varName}"]`).forEach(el => {
+            el.style.backgroundColor = '#fef08a'; // yellow-200
+            el.style.color = '#854d0e'; // yellow-900
+        });
+        // Highlight the corresponding input box in the Sandbox
+        const inputEl = document.getElementById(`glb_sbx_${varName}`);
+        if(inputEl) {
+            inputEl.style.backgroundColor = '#fef08a';
+            inputEl.style.borderColor = '#eab308';
+        }
+    }
+});
+
+document.addEventListener('mouseout', e => {
+    const target = e.target.closest('.hover-var');
+    if(target) {
+        const varName = target.getAttribute('data-var');
+        // Remove highlights
+        document.querySelectorAll(`.hover-var[data-var="${varName}"]`).forEach(el => {
+            el.style.backgroundColor = '';
+            el.style.color = '';
+        });
+        const inputEl = document.getElementById(`glb_sbx_${varName}`);
+        if(inputEl) {
+            inputEl.style.backgroundColor = '';
+            inputEl.style.borderColor = '';
+        }
+    }
+});

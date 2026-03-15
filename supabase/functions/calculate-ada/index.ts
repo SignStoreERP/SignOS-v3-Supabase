@@ -13,7 +13,14 @@ Deno.serve(async (req) => {
     const totalSqin = sqin * inputs.qty;
 
     const getDesc = (k: string) => config['META_NOTE_' + k] || "System parameter.";
-    const V = (k: string) => `<span class="hover-var text-blue-600 border-b border-dotted border-blue-400 cursor-help transition-all" data-var="${k}" title="${getDesc(k)}">[${k}]</span>`;
+    
+    // NEW: Exposes both the variable name AND the actual injected value in the equation
+    const V = (k: string) => {
+      let val = config[k] !== undefined ? config[k] : 'N/A';
+      if (!isNaN(parseFloat(val))) val = parseFloat(val).toFixed(2);
+      return `<span class="hover-var text-blue-600 border-b border-dotted border-blue-400 cursor-help transition-all" data-var="${k}" title="${getDesc(k)}">[${k}: ${val}]</span>`;
+    };
+    
     const C = (k: string, val: string) => `<span class="hover-var text-emerald-600 border-b border-dotted border-emerald-400 cursor-help transition-all font-bold" data-var="${k}">${val}</span>`;
 
     const ret: any[] = []; const cst: any[] = [];
