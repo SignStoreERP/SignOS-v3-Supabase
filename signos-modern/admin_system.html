@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Command Center v1.0 | SignOS Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <style>
+        .custom-scroll { scrollbar-width: thin; scrollbar-color: #475569 #1e293b; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-300 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-500/30">
+
+    <!-- GLOBAL HEADER -->
+    <div class="bg-black text-white border-b border-slate-800 px-6 py-4 flex justify-between items-center shadow-2xl z-30 shrink-0">
+        <div>
+            <h1 class="text-lg font-black tracking-widest flex items-center gap-2 uppercase">
+                <span class="text-blue-500">👁️‍🗨️</span> CPOS Command Center <span class="text-slate-600 text-xs font-bold">v1.0</span>
+            </h1>
+            <div class="text-[10px] font-bold text-slate-500 mt-0.5 tracking-widest uppercase">
+                VIR_AGENT_ORCHESTRATOR | Global System Overwatch
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-right hidden sm:block">
+                <span class="block text-[9px] text-slate-500 uppercase tracking-widest">Master Auth</span>
+                <span class="font-black text-sm text-blue-400" id="auth-user">---</span>
+            </div>
+            <a href="menu.html" class="text-xs font-black text-slate-400 border border-slate-700 px-4 py-2 rounded hover:bg-slate-800 hover:text-white transition uppercase tracking-widest">
+                Exit
+            </a>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD GRID -->
+    <div class="flex-1 overflow-y-auto custom-scroll p-6">
+        <div class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- WIDGET 1: SYSTEM HEALTH & QUICK LINKS -->
+            <div class="flex flex-col gap-6">
+                <!-- Health Card -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                    <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">Infrastructure Health</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-bold text-slate-300">Supabase DB (Memory)</span>
+                            <span class="flex items-center gap-2 text-xs font-black text-green-400 uppercase tracking-widest">
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Online
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-bold text-slate-300">Edge Functions (Brain)</span>
+                            <span class="flex items-center gap-2 text-xs font-black text-green-400 uppercase tracking-widest">
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Online
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-bold text-slate-300">Vercel UI (Face)</span>
+                            <span class="flex items-center gap-2 text-xs font-black text-green-400 uppercase tracking-widest">
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Online
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Tools Jump Menu -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg">
+                    <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">Overwatch Tools</h2>
+                    <div class="grid grid-cols-2 gap-3">
+                        <a href="admin_viewer.html" class="p-3 bg-slate-900 border border-slate-700 rounded-lg hover:border-blue-500 transition group">
+                            <span class="block text-lg mb-1 group-hover:scale-110 transition-transform">⚡</span>
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-blue-400">Log Viewer</span>
+                        </a>
+                        <a href="admin_changelog.html" class="p-3 bg-slate-900 border border-slate-700 rounded-lg hover:border-purple-500 transition group">
+                            <span class="block text-lg mb-1 group-hover:scale-110 transition-transform">📜</span>
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-purple-400">GitHub Commits</span>
+                        </a>
+                        <a href="admin_roadmap.html" class="p-3 bg-slate-900 border border-slate-700 rounded-lg hover:border-orange-500 transition group">
+                            <span class="block text-lg mb-1 group-hover:scale-110 transition-transform">🚧</span>
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-orange-400">Epic Roadmap</span>
+                        </a>
+                        <a href="admin_staff.html" class="p-3 bg-slate-900 border border-slate-700 rounded-lg hover:border-emerald-500 transition group">
+                            <span class="block text-lg mb-1 group-hover:scale-110 transition-transform">👥</span>
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-emerald-400">Staff & Roles</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WIDGET 2: CONNECTED MODULES REGISTRY -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-lg flex flex-col h-[600px] lg:h-auto">
+                <div class="p-5 border-b border-slate-700 flex justify-between items-center shrink-0">
+                    <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">Connected UI Modules</h2>
+                    <span id="module-count" class="bg-slate-700 text-slate-300 text-[10px] font-black px-2 py-0.5 rounded">0 ACTIVE</span>
+                </div>
+                <div class="flex-1 overflow-y-auto custom-scroll p-2">
+                    <div id="modules-list" class="space-y-1">
+                        <div class="p-4 text-center text-xs font-bold text-slate-500 animate-pulse uppercase tracking-widest">Fetching Registry...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WIDGET 3: LIVE TELEMETRY / ACCESS LOGS -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-lg flex flex-col h-[600px] lg:h-auto">
+                <div class="p-5 border-b border-slate-700 flex justify-between items-center shrink-0">
+                    <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">Live Event Telemetry</h2>
+                    <button onclick="fetchLogs()" class="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest">Refresh</button>
+                </div>
+                <div class="flex-1 overflow-y-auto custom-scroll p-4 bg-black/20 font-mono">
+                    <div id="logs-list" class="space-y-3">
+                        <div class="text-center text-xs font-bold text-slate-600 animate-pulse uppercase tracking-widest">Intercepting Stream...</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        window.onload = async function() {
+            const role = sessionStorage.getItem('signos_role');
+            if (role !== 'ADMIN' && role !== 'SUPER') {
+                alert("SECURITY VIOLATION: Command Center is restricted to Administrators.");
+                window.location.href = 'menu.html';
+                return;
+            }
+            document.getElementById('auth-user').innerText = sessionStorage.getItem('signos_user') || 'ADMIN';
+            
+            fetchModules();
+            fetchLogs();
+        };
+
+        // Fetch Connected UI Tools from system_modules table
+        async function fetchModules() {
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=*&order=category.asc,display_name.asc`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                if (!res.ok) throw new Error("Registry Error");
+                const data = await res.json();
+                
+                document.getElementById('module-count').innerText = `${data.length} CONNECTED`;
+                let html = '';
+                
+                data.forEach(mod => {
+                    const statusColor = mod.dev_status === 'LIVE' ? 'text-green-400 border-green-500/30 bg-green-500/10' : 'text-orange-400 border-orange-500/30 bg-orange-500/10';
+                    html += `
+                    <div class="flex items-center justify-between p-3 hover:bg-slate-700/50 rounded-lg transition border border-transparent hover:border-slate-600 cursor-default">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-slate-200">${mod.display_name}</span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">${mod.file_link}</span>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${statusColor}">${mod.dev_status}</span>
+                            <span class="text-[9px] font-bold text-slate-400">Live: v${mod.live_ver || '?'} | Dev: v${mod.dev_ver || '?'}</span>
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('modules-list').innerHTML = html;
+            } catch(e) {
+                document.getElementById('modules-list').innerHTML = `<div class="p-4 text-center text-xs font-bold text-red-500 uppercase">Error loading registry</div>`;
+            }
+        }
+
+        // Fetch Recent 15 Access Logs
+        async function fetchLogs() {
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/access_logs?select=timestamp,role,action,target&order=timestamp.desc&limit=15`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                if (!res.ok) throw new Error("Telemetry Error");
+                const data = await res.json();
+                
+                let html = '';
+                data.forEach(log => {
+                    const date = new Date(log.timestamp);
+                    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                    
+                    let actionColor = "text-blue-400";
+                    if (log.action.includes('ERROR') || log.action.includes('LIMIT')) actionColor = "text-red-400";
+                    if (log.action.includes('LOGIN')) actionColor = "text-emerald-400";
+                    if (log.action.includes('OVERRIDE')) actionColor = "text-orange-400";
+
+                    html += `
+                    <div class="border-l-2 border-slate-700 pl-3 py-1 flex flex-col hover:border-slate-500 transition">
+                        <div class="flex justify-between items-center text-[10px] text-slate-500 mb-0.5">
+                            <span>[${dateStr} ${timeStr}]</span>
+                            <span class="uppercase font-bold">${log.role}</span>
+                        </div>
+                        <div class="text-xs">
+                            <span class="${actionColor} font-bold">${log.action}</span>
+                            <span class="text-slate-400 ml-1">→ ${log.target || 'System'}</span>
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('logs-list').innerHTML = html;
+            } catch(e) {
+                document.getElementById('logs-list').innerHTML = `<div class="p-4 text-center text-xs font-bold text-red-500 uppercase">Telemetry feed interrupted</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
