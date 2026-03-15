@@ -384,8 +384,14 @@
         if (!layer) return;
 
         let data = [];
-        if (layer.type === '1/32' || layer.type === 'Window_Engraved') data = tactileColors;
-        else if (layer.type === '1/16' || layer.type === '1/8') data = coreColors;
+        if (layer.type === '1/32' || layer.type === 'Window_Engraved') {
+            data = tactileColors;
+        }
+        else if (layer.type === '1/16' || layer.type === '1/8') {
+            // SCHEMA-DRIVEN FILTER: Only show colors that match the physical thickness of the selected layer!
+            let targetThick = layer.type === '1/16' ? '1/16"' : '1/8"';
+            data = coreColors.filter(c => c.Thickness === targetThick || c.Name === 'Clear');
+        }
         else if (layer.type === '3mm') {
             data = [ {Name:'Black', Hex_Code:'#000000', Code:'PVC-BLK'}, {Name:'White', Hex_Code:'#ffffff', Code:'PVC-WHT'} ];
         }
@@ -393,7 +399,6 @@
         const searchInput = document.getElementById('color-search');
         const search = searchInput ? searchInput.value : '';
 
-        // NEW: Calls the new Labeled Color Grid Engine
         SignOS_UI.buildLabeledColorGrid({
             containerId: 'modal-grid',
             data: data,
@@ -558,7 +563,7 @@
         const statusDot = document.getElementById("status-dot");
 
         try {
-            // 1. SECURE FETCH A: Get ONLY the non-financial Product Config variables (no materials)
+            // 1. SECURE FETCH A: Get ONLY the non-financial Product Config variables
             const payload = await SignOS.fetchProductData('PROD_ADA_Signs', []);
             backendData = payload.config;
 
@@ -566,25 +571,27 @@
                 SignOS_Sandbox.init(window.ENGRAVED_CONFIG, backendData, runCalc);
             }
 
-            // 2. SECURE FETCH B: Direct database query that EXPLICITLY EXCLUDES the 'Cost_Per_Sheet' column
+            // 2. SECURE FETCH B: Direct database query EXPLICITLY EXCLUDING financial data for absolute security
             const colorRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Series,Thickness,Cap_Color,Core_Color,Cap_Hex,Core_Hex&limit=1000`, {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
             });
             
             const rawRowmark = colorRes.ok ? await colorRes.json() : [];
 
-            // 3. MAP THE SECURE DATA (Case-insensitive to handle the API payload)
+            // 3. MAP THE SECURE DATA
+            // STRICT FILTER: Only load "Ultra-Mattes Reverse" for the base cores
             coreColors = rawRowmark.filter(r => {
                 const s = String(r.Series || r.series || '');
-                return s.includes('Ultra-Mattes') || s.includes('Mattes');
+                return s.includes('Ultra-Mattes Reverse');
             }).map(c => ({
                 Code: c.Item_Code || c.item_code,
                 Name: c.Cap_Color || c.cap_color,
-                Hex_Code: ((c.Cap_Hex || c.cap_hex) === 'Transparent' || String(c.Cap_Color || c.cap_color).includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex),
-                Core_Hex: c.Core_Hex || c.core_hex
+                Thickness: c.Thickness || c.thickness, // Saved specifically for the UI thickness filter
+                // UI HACK: Omitting 'Core_Hex' forces the UI engine to render a beautiful solid circle!
+                Hex_Code: ((c.Cap_Hex || c.cap_hex) === 'Transparent' || String(c.Cap_Color || c.cap_color).includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex)
             }));
 
-            if (!coreColors.find(c => c.Name && c.Name.includes('Clear'))) coreColors.push({ Code: '322-101', Name: 'Clear', Hex_Code: '#e5e7eb' });
+            if (!coreColors.find(c => c.Name && c.Name.includes('Clear'))) coreColors.push({ Code: '322-101', Name: 'Clear', Hex_Code: '#e5e7eb', Thickness: '1/16"' });
 
             tactileColors = rawRowmark.filter(r => {
                 const s = String(r.Series || r.series || '');
