@@ -448,16 +448,15 @@
         const statusDot = document.getElementById("status-dot");
 
         try {
-            // FIXED: Fetch PROD_Nameplates because it shares the same base data and actually exists in your DB
-            const payload = await SignOS.fetchProductData('PROD_Nameplates', ['REF_Colors_Rowmark', 'REF_Fonts']);
+            // FIXED: Forced lowercase arrays to prevent 404s
+            const payload = await SignOS.fetchProductData('PROD_Nameplates', ['ref_colors_rowmark', 'ref_fonts']);
             backendData = payload.config;
-            backendData.ui_schema = ADA_UI_SCHEMA; // Inject Schema natively for the sandbox!
+            backendData.ui_schema = ADA_UI_SCHEMA; 
 
-            // Fire up the Global Cost Sandbox
             if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
-            const rawRowmark = payload.tables['REF_Colors_Rowmark'] || [];
-            const rawFonts = payload.tables['REF_Fonts'] || [];
+            const rawRowmark = payload.tables['ref_colors_rowmark'] || [];
+            const rawFonts = payload.tables['ref_fonts'] || [];
             
             systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
             if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
@@ -467,7 +466,8 @@
             }));
 
             if(typeof SignOS_UI !== 'undefined') {
-                SignOS_UI.buildColorGrid({
+                // FIXED: Using correct function name buildLabeledColorGrid
+                SignOS_UI.buildLabeledColorGrid({
                     containerId: 'rowmark-grid', data: coreColors, type: 'rowmark',
                     onSelect: (item) => {
                         buildState.baseColor = item;

@@ -62,25 +62,33 @@
         </div>
     </div>
 
-    <!-- RESULTS -->
-    <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
-        <div class="flex justify-between items-end mb-2">
-            <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
-            <span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span>
+        <!-- RESULTS -->
+        <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
+            <div class="flex justify-between items-end mb-2">
+                <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
+                <span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span>
+            </div>
+            <div class="border-t border-blue-200/50 my-3"></div>
+
+            <!-- LINE ITEMS -->
+            <div id="ui-line-items" class="space-y-1 text-xs text-blue-900/70 pt-1 pb-2"></div>
+
+            <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
+                <div>
+                    <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
+                    <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $50</span>
+                    <div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div>
+                </div>
+                <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
+            </div>
         </div>
-        
-        <div class="border-t border-blue-200/50 my-3"></div>
 
-    <!-- LINE ITEMS -->
-    <div id="ui-line-items" class="space-y-1 text-xs text-blue-900/70 pt-1"></div>
-
-    <!-- DESCRIPTION GENERATOR -->
-    <div class="bg-gray-50 p-4 border-t border-gray-200">
-        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
-        <textarea id="job-desc" class="w-full text-xs p-2 border rounded bg-white h-20 text-gray-600 font-mono outline-none" readonly></textarea>
+        <!-- DESCRIPTION GENERATOR -->
+        <div class="bg-gray-50 p-4 border-t border-gray-200">
+            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
+            <textarea id="job-desc" class="w-full text-xs p-2 border rounded bg-white h-20 text-gray-600 font-mono outline-none" readonly></textarea>
+        </div>
     </div>
-
-</div>
 
 <script>
     let backendData = {};

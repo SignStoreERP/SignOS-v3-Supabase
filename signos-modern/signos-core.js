@@ -171,7 +171,8 @@ SignOS.fetchProductData = async function(productId, refTables = []) {
         const prodData = await prodRes.json();
 
         if (prodData && prodData.length > 0) {
-            const productRow = prodData;
+            // FIXED: Using .at() to prevent parser deletion
+            const productRow = prodData.at(0); 
             let matrixOverrides = {};
             try {
                 matrixOverrides = typeof productRow.matrix_overrides === 'string' ? JSON.parse(productRow.matrix_overrides) : (productRow.matrix_overrides || {});
