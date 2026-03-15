@@ -104,7 +104,8 @@
                         </div>
                         <div id="layer-list" class="flex flex-col gap-2 mt-2 max-h-64 overflow-y-auto custom-scroll pr-1 mb-3"></div>
                         <div class="flex gap-2">
-                            <select id="new-layer-type" class="flex-1 border border-gray-300 p-1.5 rounded text-xs font-bold text-gray-700 outline-none">
+                            <select id="new-layer-type" class="flex-1 border border-gray-300 p-1.5 rounded text-xs font-bold text-gray-700 outline-none bg-white">
+                                <option value="" disabled selected>Select Layer Material...</option>
                                 <option value="1/32">1/32" Tactile Applique</option>
                                 <option value="1/16">1/16" ADA Core</option>
                                 <option value="1/8">1/8" ADA Core</option>
@@ -191,16 +192,20 @@
             ],
             costs: [
                 { key: 'Cost_Sub_Tactile', label: '1/32" Tactile ($/Sht)' },
+                { key: 'ADA_APP_132_CLR', label: '1/32" Clear Lens ($/Sht)' },
                 { key: 'Cost_Sub_ADA_Core_116', label: '1/16" Core ($/Sht)' },
                 { key: 'Cost_Sub_ADA_Core_18', label: '1/8" Core ($/Sht)' },
                 { key: 'Cost_Sub_PVC', label: '3mm PVC ($/Sht)' },
+                { key: 'Cost_Stock_6mm_4x8', label: '6mm PVC ($/Sht)' },
                 { key: 'Cost_Sub_Acrylic', label: '3/16" Acr ($/Sht)' },
-                { key: 'Cost_Paint_SqIn', label: 'Paint ($/SqIn)' },
+                { key: 'Cost_Hem_Tape', label: 'Mounting Tape ($/LF)' },
+                { key: 'Cost_Raster_Bead', label: 'Raster Bead ($/Ea)' },
                 { key: 'Rate_Operator', label: 'Operator ($/Hr)' },
                 { key: 'Rate_Machine_Engraver', label: 'Engraver ($/Hr)' },
                 { key: 'Rate_Machine_CNC', label: 'CNC ($/Hr)' },
                 { key: 'Rate_Shop_Labor', label: 'Assembly ($/Hr)' },
                 { key: 'Time_Preflight_Job', label: 'Prepress (Mins)' },
+                { key: 'Time_Engraver_Load_Per_Item', label: 'Load/Unload (Mins)' },
                 { key: 'Time_Engrave_SqIn', label: 'Engrave (Min/SqIn)' },
                 { key: 'Time_CNC_Easy_SqFt', label: 'CNC (Min/SqFt)' },
                 { key: 'Waste_Factor', label: 'Waste Multiplier' },
@@ -259,6 +264,8 @@
 
         function addLayer() {
             const sel = document.getElementById('new-layer-type');
+            if(!sel.value) return; // Prevent adding if "Select Material" is active
+            
             buildState.layers.push({
                 id: Date.now(),
                 type: sel.value,
@@ -266,6 +273,8 @@
                 isBase: false, 
                 hex: '#94a3b8'
             });
+            
+            sel.value = ""; // Reset the dropdown
             renderLayerStack();
             runCalc();
         }
@@ -274,6 +283,28 @@
             buildState.layers = buildState.layers.filter(l => l.id !== id);
             renderLayerStack();
             runCalc();
+        }
+        
+        function moveLayerUp(id) {
+            const index = buildState.layers.findIndex(l => l.id === id);
+            if (index > 0) {
+                const temp = buildState.layers[index];
+                buildState.layers[index] = buildState.layers[index - 1];
+                buildState.layers[index - 1] = temp;
+                renderLayerStack();
+                runCalc();
+            }
+        }
+        
+        function moveLayerDown(id) {
+            const index = buildState.layers.findIndex(l => l.id === id);
+            if (index < buildState.layers.length - 1) {
+                const temp = buildState.layers[index];
+                buildState.layers[index] = buildState.layers[index + 1];
+                buildState.layers[index + 1] = temp;
+                renderLayerStack();
+                runCalc();
+            }
         }
 
         // --- COLOR MODAL LOGIC & SMART FILTERING ---
@@ -296,7 +327,6 @@
             const activeLayer = buildState.layers.find(l => l.id === activeLayerId);
             let pool = globalColors;
 
-            // FIXED: Apply strict physical material constraints to the color options
             if (activeLayer) {
                 if (activeLayer.type === '1/32' || activeLayer.type === '1/32_CLR') {
                     pool = globalColors.filter(c => c.thickness === '1/32"');
@@ -349,8 +379,12 @@
                 const tagColor = l.isBase ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-purple-100 text-purple-700 border-purple-200';
                 const tagText = l.isBase ? 'BASE' : 'ADD-ON';
                 html += `
-                <div class="bg-white border border-slate-200 p-2 rounded shadow-sm flex justify-between items-center">
-                    <div class="flex items-center gap-3">
+                <div class="bg-white border border-slate-200 p-2 rounded shadow-sm flex justify-between items-center group">
+                    <div class="flex items-center gap-2">
+                        <div class="flex flex-col gap-0.5 mr-1">
+                            <button onclick="moveLayerUp(${l.id})" class="text-slate-300 hover:text-blue-500 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded px-1 text-[10px] leading-none transition" ${idx === 0 ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>▲</button>
+                            <button onclick="moveLayerDown(${l.id})" class="text-slate-300 hover:text-blue-500 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded px-1 text-[10px] leading-none transition" ${idx === buildState.layers.length - 1 ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>▼</button>
+                        </div>
                         <button onclick="openColorModal(${l.id})" class="w-5 h-5 rounded-full border border-gray-400 shadow-sm shrink-0 focus:outline-none hover:scale-110 transition" style="background-color: ${l.hex};" title="Change Color"></button>
                         <div class="flex flex-col">
                             <span class="text-[10px] font-bold text-slate-700 leading-tight">${l.role}</span>
@@ -360,7 +394,7 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="removeLayer(${l.id})" class="text-red-400 hover:text-red-600 font-black px-2 hover:bg-red-50 rounded transition">✕</button>
+                    <button onclick="removeLayer(${l.id})" class="text-red-400 hover:text-red-600 font-black px-2 py-1 hover:bg-red-50 rounded transition focus:outline-none">✕</button>
                 </div>`;
             });
             list.innerHTML = html;
@@ -478,7 +512,6 @@
                 backendData.ui_schema = ADA_UI_SCHEMA;
                 
                 try {
-                    // FIXED: Expanded the query to select Series and Thickness for constraint mapping
                     const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Series,Thickness,Cap_Color,Cap_Hex&limit=500`, {
                         headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
                     });
@@ -494,7 +527,6 @@
                     }
                 } catch(e) { 
                     console.warn("Color DB Fetch Failed. Utilizing Fallback Array."); 
-                    // Fail-safe mock data mapping to ensure UI constraints still pass
                     globalColors = [
                         { code: '311-2048', name: 'White', hex: '#FFFFFF', thickness: '1/32"', series: 'ADA Alternative' },
                         { code: '311-4018', name: 'Black', hex: '#121514', thickness: '1/32"', series: 'ADA Alternative' },
@@ -507,10 +539,29 @@
 
                 if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
+                // FIXED: Explicitly clear the connecting status loader logic
+                const statusText = document.getElementById("status-text");
+                const statusDot = document.getElementById("status-dot");
+                if(statusText) {
+                    statusText.innerText = "ONLINE";
+                    statusText.className = "font-bold text-green-500";
+                    if(statusDot) {
+                        statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                        statusDot.classList.remove("animate-pulse");
+                    }
+                }
+
                 renderLayerStack();
                 runCalc();
 
-            } catch(e) { console.error("API Error:", e); }
+            } catch(e) { 
+                console.error("API Error:", e); 
+                const statusText = document.getElementById("status-text");
+                if(statusText) {
+                    statusText.innerText = "OFFLINE";
+                    statusText.className = "font-bold text-red-500";
+                }
+            }
         });
     </script>
 </body>
