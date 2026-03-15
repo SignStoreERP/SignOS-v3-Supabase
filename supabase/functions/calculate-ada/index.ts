@@ -15,9 +15,10 @@ Deno.serve(async (req) => {
     const R = (label: string, total: number, formula: string) => { if(total !== 0 && !isNaN(total)) ret.push({label, total, unit: total / inputs.qty, formula}); return total; };
     const L = (label: string, total: number, formula: string) => { if(total !== 0 && !isNaN(total)) cst.push({label, total, unit: total / inputs.qty, formula}); return total; };
 
-    // Extracts the variable value and wraps it cleanly for the UI
+    // NEW: Advanced Variable Wrapper (Injects Values, Hover Hooks, and Tooltips)
+    const getDesc = (k: string) => config['META_NOTE_' + k] || "System parameter.";
     const num = (val: any, fallback: string) => { const p = parseFloat(val); return isNaN(p) ? parseFloat(fallback) : p; };
-    const V = (k: string, fb: string) => `<span class="text-blue-600 font-bold" title="${k}">[${k}: ${num(config[k], fb)}]</span>`;
+    const V = (k: string, fb: string) => `<span class="hover-var text-blue-600 border-b border-dotted border-blue-400 cursor-help transition-all font-bold" data-var="${k}" title="${getDesc(k)}">[${k}: ${num(config[k], fb)}]</span>`;
 
     const rateOp = num(config.Rate_Operator, "25");
     const shopRate = num(config.Rate_Shop_Labor, "20");
@@ -48,7 +49,6 @@ Deno.serve(async (req) => {
           let m = matDict[l.type];
           let layerCost = (totalSqin * (m.cost / m.yield)) * wastePct;
           
-          // INJECTED PRECISE MATH VARIABLES
           L(`${m.name} (${l.isBase ? 'Base' : 'Add-on'})`, layerCost, `(${totalSqin.toFixed(1)} SqIn * ${V(m.costKey, String(m.cost))} / ${m.yield}) * ${V('Waste_Factor', "1.15")}`);
           
           if (!l.isBase) addonMaterialCost += layerCost;

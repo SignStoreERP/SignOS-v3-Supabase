@@ -444,7 +444,8 @@
                             z: buildState.layers.length - 1 - i,
                             hex: l.hex,
                             isTactile: isTactile,
-                            content: layerContent
+                            content: layerContent,
+                            role: l.role // <-- THIS FIXES THE UNDEFINED CALLOUT
                         };
                     })
                 };
