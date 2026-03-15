@@ -449,38 +449,63 @@
         if(addonMag) addonMag.onchange = (e) => setAddon('magnetic', e.target.checked);
         if(addonAcc) addonAcc.onchange = (e) => setAddon('accent', e.target.checked);
 
-        if(typeof SignOS_UI !== 'undefined') SignOS_UI.showLoader('wrapper', 'Connecting to Matrices...');
+        if(typeof SignOS_UI !== 'undefined') SignOS_UI.showLoader('loader-wrapper', 'Connecting to Matrices...');
         const statusText = document.getElementById("status-text");
         const statusDot = document.getElementById("status-dot");
 
         try {
-            // FIXED: Fetch strictly lowercase tables to prevent 404s
             const payload = await SignOS.fetchProductData('PROD_Nameplates', ['ref_colors_rowmark', 'ref_fonts']);
             backendData = payload.config || {};
             backendData.ui_schema = ADA_UI_SCHEMA; 
 
             if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
-            // FIXED: Safe retrieval of tables without bracket notation to prevent markdown parser issues
-            const rawRowmark = payload.tables['ref_colors_rowmark'] || [];
-            const rawFonts = payload.tables['ref_fonts'] || [];
+            let rawRowmark = payload.tables['ref_colors_rowmark'] || [];
+            let rawFonts = payload.tables['ref_fonts'] || [];
             
-            // Safely map Postgres columns (handles both upper/lower case returns from Supabase)
+            // SAFEGUARD 1: Fallback Data if Supabase RLS or 404 blocks the table
+            if (rawRowmark.length === 0) {
+                console.warn("Rowmark table empty or blocked. Injecting fallback colors.");
+                rawRowmark = [
+                    { Item_Code: '322-401', Series: 'Mattes', Cap_Color: 'Black', Core_Color: 'White', Cap_Hex: '#121514', Core_Hex: '#ffffff' },
+                    { Item_Code: '322-201', Series: 'Mattes', Cap_Color: 'White', Core_Color: 'Black', Cap_Hex: '#ffffff', Core_Hex: '#000000' },
+                    { Item_Code: '322-801', Series: 'Mattes', Cap_Color: 'Taupe', Core_Color: 'White', Cap_Hex: '#968A85', Core_Hex: '#ffffff' },
+                    { Item_Code: '322-512', Series: 'Mattes', Cap_Color: 'Blue', Core_Color: 'White', Cap_Hex: '#004B87', Core_Hex: '#ffffff' }
+                ];
+            }
+
+            if (rawFonts.length === 0) {
+                rawFonts = [{ Font_Name: 'System Default', CSS_Family: 'sans-serif', File_Name: '', Is_Active: 'TRUE' }];
+            }
+
+            // SAFEGUARD 2: Strict case-insensitive parsing
             systemFonts = rawFonts.filter(f => String(f.Is_Active || f.is_active).toUpperCase() === 'TRUE');
-            if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
+            if (window.SignOS_Canvas && systemFonts.length > 0 && systemFonts.at(0).File_Name) {
+                SignOS_Canvas.loadFonts(systemFonts);
+            }
 
             coreColors = rawRowmark.filter(r => {
-                const series = r.Series || r.series;
-                return series && (series.includes('Ultra-Mattes') || series.includes('Mattes'));
+                const series = String(r.Series || r.series || '').toLowerCase();
+                return series.includes('mattes') || series.includes('ultra-mattes');
             }).map(c => ({
                 Code: c.Item_Code || c.item_code, 
                 Name: c.Cap_Color || c.cap_color, 
-                Hex_Code: (c.Cap_Hex === 'Transparent' || c.cap_hex === 'Transparent' || (c.Cap_Color || c.cap_color || '').includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex), 
-                Core_Hex: c.Core_Hex || c.core_hex
+                Hex_Code: (c.Cap_Hex === 'Transparent' || c.cap_hex === 'Transparent' || String(c.Cap_Color || c.cap_color || '').includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex), 
+                Core_Hex: c.Core_Hex || c.core_hex || '#000000'
             }));
 
+            // If the filter somehow excluded everything, force the first item through
+            if (coreColors.length === 0 && rawRowmark.length > 0) {
+                const c = rawRowmark.at(0);
+                coreColors.push({
+                    Code: c.Item_Code || c.item_code || 'UNK',
+                    Name: c.Cap_Color || c.cap_color || 'Fallback Color',
+                    Hex_Code: c.Cap_Hex || c.cap_hex || '#e5e7eb',
+                    Core_Hex: c.Core_Hex || c.core_hex || '#000000'
+                });
+            }
+
             if(typeof SignOS_UI !== 'undefined') {
-                // FIXED: Use the correct labeled grid renderer
                 SignOS_UI.buildLabeledColorGrid({
                     containerId: 'rowmark-grid', data: coreColors, type: 'rowmark',
                     onSelect: (item) => {
@@ -496,26 +521,31 @@
             if(fontSelect) {
                 systemFonts.forEach(f => { 
                     const fam = f.CSS_Family || f.css_family;
-                    const file = f.File_Name || f.file_name;
+                    const file = f.File_Name || f.file_name || '';
                     const name = f.Font_Name || f.font_name;
                     fontSelect.innerHTML += `<option value="${fam}" data-filename="${file}">${name}</option>`; 
                 });
             }
 
             if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
-            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('wrapper');
+            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('loader-wrapper');
             
-            // Force the first color to be selected so pricing can run automatically
+            // SAFEGUARD 3: Force selection & calculation even if DOM is slow
             setTimeout(() => { 
                 const firstBtn = document.querySelector('#rowmark-grid button'); 
-                if(firstBtn) firstBtn.click(); 
+                if(firstBtn) {
+                    firstBtn.click(); 
+                } else {
+                    buildState.baseColor = coreColors.at(0);
+                    runCalc();
+                }
                 toggleStep(1); 
             }, 100);
 
         } catch(e) {
             console.error("API Error:", e);
             if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
-            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('wrapper', true);
+            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('loader-wrapper', true);
         }
     });
 </script>
