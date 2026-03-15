@@ -181,5 +181,24 @@ window.SignOS_UI = {
         } else {
             overlay.classList.add('hidden');
         }
+    },
+    
+    // --- SCHEMA-DRIVEN UI INJECTORS ---
+    injectColorModal: function() {
+        if(document.getElementById('color-modal')) return; // Prevent duplicates
+        const html = `
+        <div id="color-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[1] flex items-center justify-center p-4 transition-opacity cursor-pointer" onclick="if(window.closeModal) window.closeModal()">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden border border-gray-200 cursor-auto" onclick="event.stopPropagation()">
+                <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
+                    <h3 class="font-black text-gray-800 uppercase tracking-widest text-xs" id="modal-title">Select Color</h3>
+                    <button onclick="if(window.closeModal) window.closeModal()" class="text-gray-400 hover:text-red-500 font-bold transition focus:outline-none text-lg">✕</button>
+                </div>
+                <div class="p-3 shrink-0 border-b border-gray-100 flex flex-col gap-2">
+                    <input type="text" id="color-search" placeholder="Search colors..." oninput="if(window.renderColorGrid) window.renderColorGrid()" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
+                </div>
+                <div id="modal-grid" class="p-4 overflow-y-auto custom-scroll flex flex-wrap gap-2 content-start bg-gray-50 flex-1"></div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
     }
 };

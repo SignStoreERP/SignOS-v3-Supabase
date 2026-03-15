@@ -601,13 +601,26 @@
 
             const rawRowmark = payload.tables['ref_colors_rowmark'] || payload.tables['REF_Colors_Rowmark'] || [];
 
-            coreColors = rawRowmark.filter(r => r.Series && (r.Series.includes('Ultra-Mattes') || r.Series.includes('Mattes'))).map(c => ({
-                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex
+            // ROBUST MAPPING: Handles both PascalCase and lowercase keys from the API
+            coreColors = rawRowmark.filter(r => {
+                const s = r.Series || r.series || '';
+                return s.includes('Ultra-Mattes') || s.includes('Mattes');
+            }).map(c => ({
+                Code: c.Item_Code || c.item_code,
+                Name: c.Cap_Color || c.cap_color,
+                Hex_Code: ((c.Cap_Hex || c.cap_hex) === 'Transparent' || (c.Cap_Color || c.cap_color).includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex),
+                Core_Hex: c.Core_Hex || c.core_hex
             }));
+
             if (!coreColors.find(c => c.Name.includes('Clear'))) coreColors.push({ Code: '322-101', Name: 'Clear', Hex_Code: '#e5e7eb' });
 
-            tactileColors = rawRowmark.filter(r => r.Series && r.Series.includes('ADA Alternative')).map(c => ({
-                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex
+            tactileColors = rawRowmark.filter(r => {
+                const s = r.Series || r.series || '';
+                return s.includes('ADA Alternative');
+            }).map(c => ({
+                Code: c.Item_Code || c.item_code,
+                Name: c.Cap_Color || c.cap_color,
+                Hex_Code: c.Cap_Hex || c.cap_hex
             }));
 
             if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
