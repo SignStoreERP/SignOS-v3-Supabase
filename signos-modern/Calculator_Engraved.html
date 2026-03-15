@@ -15,27 +15,19 @@
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px;}
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px;}
-        
         #preview-wrapper { perspective: 1200px; cursor: grab; }
         #preview-wrapper:active { cursor: grabbing; }
         #svg-preview-container { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
         .isometric-view #svg-preview-container { transform: rotateX(60deg) rotateZ(-45deg); }
         .blueprint-callout { opacity: 0; transition: opacity 0.5s ease 0.4s, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; }
         .isometric-view .blueprint-callout { opacity: 1; }
-        
-        .hover-var { cursor: help; border-bottom: 1px dotted; transition: all 0.2s; }
-        .highlight-var { 
-            background-color: #fef08a !important; color: #854d0e !important; border-color: #eab308 !important; 
-            border-style: solid !important; border-width: 1px !important; border-radius: 4px; padding: 0 4px; 
-            box-shadow: 0 0 8px rgba(234, 179, 8, 0.5); text-decoration: none !important; 
-        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
 
 <div id="app-wrapper" class="w-full max-w-md mx-auto mt-8 transition-all duration-500 flex justify-center items-start gap-4 px-4 sm:px-0">
-    
-    <!-- LEFT: FULL MATH LEDGER -->
+
+    <!-- LEFT: INLINE FINANCIAL LEDGER (Populated by Sandbox) -->
     <div id="sandbox-ledger" class="hidden w-[380px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
         <div class="p-4 bg-slate-50 border-b border-gray-200 flex flex-col shrink-0 rounded-t-xl gap-3">
             <div class="flex justify-between items-center">
@@ -43,21 +35,21 @@
                     <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Financial Ledger</h2>
                     <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Market vs. Physics Breakdown</span>
                 </div>
-                <button onclick="toggleSandbox()" class="text-gray-400 hover:text-red-500 transition font-bold text-lg focus:outline-none">✕</button>
+                <button onclick="SignOS_Sandbox.toggle()" class="text-gray-400 hover:text-red-500 transition font-bold text-lg focus:outline-none">✕</button>
             </div>
             <div class="flex justify-between items-center bg-white p-3 rounded border border-gray-200 shadow-sm">
                 <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Simulated Margin:</span>
-                <span id="sbx-margin" class="text-2xl font-black text-green-600 tracking-tight leading-none">--</span>
+                <span id="glb-sbx-margin" class="text-2xl font-black text-gray-400 tracking-tight leading-none">--</span>
             </div>
         </div>
         <div class="p-5 space-y-6">
             <div>
                 <h3 class="text-[11px] font-black text-blue-700 uppercase tracking-widest border-b-2 border-blue-100 pb-2 mb-3">Market Logic (Retail)</h3>
-                <div id="sbx-retail-breakdown" class="space-y-3 mb-4"></div>
+                <div id="glb-sbx-retail-breakdown" class="space-y-3 mb-4 text-xs italic text-gray-400">Run simulation...</div>
             </div>
             <div>
                 <h3 class="text-[11px] font-black text-red-700 uppercase tracking-widest border-b-2 border-red-100 pb-2 mb-3">Physics Engine (Hard Cost)</h3>
-                <div id="sbx-cost-breakdown" class="space-y-3"></div>
+                <div id="glb-sbx-cost-breakdown" class="space-y-3 text-xs italic text-gray-400">Run simulation...</div>
             </div>
         </div>
     </div>
@@ -65,17 +57,14 @@
     <!-- CENTER: MAIN CALCULATOR ISLAND -->
     <div class="flex flex-col gap-4 w-full max-w-md shrink-0 z-20">
         <div id="main-card" class="w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200 transition-all duration-300 relative">
-            <div id="sim-badge" class="hidden bg-yellow-400 text-yellow-900 text-[10px] font-black text-center py-1 uppercase tracking-widest animate-pulse">Simulation Active</div>
-
+            
             <!-- 3D VIEWER -->
             <div class="bg-blue-50 p-4 shadow-inner flex flex-col items-center justify-center relative border-b border-blue-200 overflow-hidden" id="loader-wrapper">
-                
                 <div class="absolute top-3 left-3 z-30 flex gap-1.5 pointer-events-auto">
                     <button onclick="toggle3D()" id="btn-3d" class="bg-white/90 hover:bg-gray-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Flat 2D View</button>
                     <button onclick="SignOS_UI.Camera3D.reset()" class="bg-white/80 hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Reset Camera</button>
                 </div>
                 <span class="absolute top-3 right-3 text-[8px] font-black text-blue-400 uppercase tracking-widest z-10">Sign Stack Preview</span>
-                
                 <div id="preview-wrapper" class="isometric-view w-full flex justify-center items-center mt-3 mb-2 relative h-48 cursor-grab active:cursor-grabbing overflow-hidden" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
                     <div id="zoom-stage" class="w-full h-full flex items-center justify-center">
                         <div id="svg-preview-container" class="relative" style="width: 150px; height: 150px;">
@@ -83,7 +72,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div id="backer-warn" class="hidden absolute bottom-3 left-3 right-3 bg-yellow-100/95 backdrop-blur border border-yellow-300 text-yellow-800 text-[10px] font-bold p-2.5 rounded shadow-lg flex items-start gap-2 z-10">
                     <span class="text-lg leading-none">⚠️</span>
                     <span><b>Structural Override:</b> A window requires routing. A 3mm PVC Backer has been auto-added.</span>
@@ -95,6 +83,7 @@
                 <div id="sheet-warn" class="hidden mb-3 bg-yellow-50 text-yellow-700 text-[10px] font-bold px-3 py-1.5 rounded border border-yellow-200 transition-opacity">
                     ⚠️ Max Parent Sheet Limit (24" x 48") Reached. Dimensions auto-adjusted.
                 </div>
+                
                 <div class="grid grid-cols-3 gap-3 border-b border-gray-200 pb-4">
                     <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border border-gray-300 p-2 rounded font-black text-blue-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
                     <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width (in)</label><input type="number" id="w" value="8" min="1" step="0.5" class="w-full border border-gray-300 p-2 rounded font-black text-gray-800 text-lg text-center bg-white focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
@@ -132,7 +121,7 @@
                         <span>Add Custom Add-on</span>
                     </button>
                 </div>
-                
+
                 <div class="pt-2">
                     <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Mounting Hardware</label>
                     <select id="mounting" class="w-full border border-gray-200 p-2 rounded text-xs font-bold bg-white text-gray-700 focus:border-blue-500 shadow-sm outline-none" onchange="runCalc()">
@@ -148,7 +137,6 @@
                     <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
                     <span id="ui-unit" class="text-3xl font-black text-blue-900 tracking-tight leading-none">$0.00</span>
                 </div>
-                
                 <div class="mb-3 border-b border-blue-200/50 pb-3">
                     <span class="text-[9px] font-black text-blue-500 uppercase tracking-widest block mb-1">Itemized Unit Build:</span>
                     <div id="ui-subline" class="space-y-0.5"></div>
@@ -157,7 +145,6 @@
                         <span class="text-[10px] font-black text-blue-900" id="ui-volume-disp">--</span>
                     </div>
                 </div>
-
                 <div class="flex justify-between items-end pt-1">
                     <div>
                         <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
@@ -166,22 +153,18 @@
                     </div>
                     <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
                 </div>
-
-                <button id="btn-sandbox" onclick="toggleSandbox()" class="hidden w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black py-2.5 rounded shadow-md uppercase tracking-widest transition">
+                <button id="btn-sandbox" onclick="SignOS_Sandbox.toggle()" class="hidden w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black py-2.5 rounded shadow-md uppercase tracking-widest transition">
                     Launch Cost Sandbox
                 </button>
             </div>
-
-            <!-- THE MISSING COMPONENT FIXED: PRODUCTION TICKET DETAILS -->
             <div class="bg-gray-50 p-4 border-t border-gray-200">
                 <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Production Ticket Details</label>
                 <textarea id="job-desc" class="w-full text-xs p-3 border border-gray-300 rounded bg-white h-24 text-gray-700 font-mono outline-none leading-snug shadow-inner custom-scroll" readonly></textarea>
             </div>
-            
         </div>
     </div>
 
-    <!-- RIGHT: SANDBOX VARIABLES -->
+    <!-- RIGHT: INLINE SANDBOX VARIABLES (Populated by Sandbox) -->
     <div id="sandbox-vars" class="hidden w-[300px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
         <div class="p-4 bg-slate-50 border-b border-gray-200 flex justify-between items-center shrink-0 rounded-t-xl">
             <div>
@@ -191,27 +174,26 @@
         </div>
         <div class="p-5 space-y-6">
             <div>
-                <div class="flex justify-between items-center mb-3">
-                    <span class="text-[10px] font-black text-blue-700 uppercase tracking-widest border-b border-blue-200 pb-1">Market Overrides</span>
-                </div>
-                <div id="sbx-retail-inputs" class="space-y-2"></div>
+                <span class="text-[10px] font-black text-blue-700 uppercase tracking-widest border-b border-blue-200 pb-1 mb-2 block">Market Overrides</span>
+                <div id="glb-sbx-retail-inputs" class="space-y-2 mb-6"></div>
             </div>
             <div>
                 <span class="text-[10px] font-black text-red-700 uppercase tracking-widest border-b border-red-200 pb-1 mb-3 block">Physics Overrides</span>
-                <div id="sbx-cost-inputs" class="space-y-2"></div>
+                <div id="glb-sbx-cost-inputs" class="space-y-2"></div>
             </div>
         </div>
         <div class="p-4 bg-slate-50 border-t border-gray-200 shrink-0 space-y-2 rounded-b-xl z-20">
-            <button onclick="applySandbox()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded shadow text-xs uppercase tracking-widest transition">Run Simulation</button>
+            <button onclick="SignOS_Sandbox.apply()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded shadow text-xs uppercase tracking-widest transition">Apply & Simulate</button>
             <div class="flex gap-2">
-                <button onclick="resetSandbox()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-100 text-gray-600 font-bold py-2 rounded text-[10px] uppercase tracking-widest transition shadow-sm">Reset</button>
-                <button onclick="exportSandbox()" id="btn-export" class="flex-1 hidden bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded text-[10px] uppercase tracking-widest transition shadow-sm">Export TXT</button>
+                <button onclick="SignOS_Sandbox.reset()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-100 text-gray-600 font-bold py-2 rounded text-[10px] uppercase tracking-widest transition shadow-sm">Reset</button>
+                <button onclick="SignOS_Sandbox.exportTXT()" class="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded text-[10px] uppercase tracking-widest transition shadow-sm">Export TXT</button>
             </div>
         </div>
     </div>
+
 </div>
 
-<!-- COLOR MODAL WITH CUSTOM GRID -->
+<!-- COLOR MODAL -->
 <div id="color-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity cursor-pointer" onclick="closeModal()">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden border border-gray-200 cursor-auto" onclick="event.stopPropagation()">
         <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
@@ -242,11 +224,6 @@
         document.getElementById('preview-wrapper').classList.toggle('isometric-view', is3D);
         const btn3d = document.getElementById('btn-3d');
         if (btn3d) btn3d.innerText = is3D ? "Flat 2D View" : "3D Isometric View";
-    }
-
-    function toggleAcc(contentId, arrowId) {
-        document.getElementById(contentId).classList.toggle('hidden');
-        document.getElementById(arrowId).classList.toggle('rotate-180');
     }
 
     function setProduct(prod) {
@@ -443,52 +420,37 @@
 
     function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
 
-    function syncAutoScale(sourceId) {
-        const isChecked = document.getElementById(sourceId).checked;
-        if(document.getElementById('auto-scale-view')) document.getElementById('auto-scale-view').checked = isChecked;
-        if(document.getElementById('auto-scale-text')) document.getElementById('auto-scale-text').checked = isChecked;
-        updatePreview();
-    }
-
-    async function updatePreview() {
+    function updatePreview() {
         const container = document.getElementById('svg-preview-container');
         if(!container) return;
         try {
             const w = parseFloat(document.getElementById('w').value) || 8;
             const h = parseFloat(document.getElementById('h').value) || 8;
-            const r = parseFloat(document.getElementById('radius')?.value) || 0;
             
             const scale = Math.min(180 / w, 150 / h);
             container.style.width = `${w * scale}px`;
             container.style.height = `${h * scale}px`;
             
             let visualStack = [];
-            const hasText = document.getElementById('toggle-text') ? document.getElementById('toggle-text').checked : true;
-            const hasPicto = document.getElementById('toggle-picto') ? document.getElementById('toggle-picto').checked : true;
             
-            baseLayers.forEach(l => {
-                let d = 0;
-                if (l.type === '1/16') d = 1; else if (l.type === '1/8') d = 2; else if (l.type === '3mm') d = 3; else if (l.type === '3/16') d = 3;
-                visualStack.push({ role: l.role, hex: l.colorHex, depth: d, type: l.type });
-            });
+            // FIXED: Layers physically stack from Back to Front
             
-            addonLayers.filter(a => a.type.includes('Core') || a.type === '3mm' || a.type === '3/16').forEach(a => {
-                let d = 0;
-                if (a.type === '1/16') d = 1; else if (a.type === '1/8') d = 2; else if (a.type === '3mm') d = 3; else if (a.type === '3/16') d = 3;
-                visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: d, type: a.type });
-            });
+            // 1. Backers (Lowest Z)
+            baseLayers.filter(l => ['3mm', '3/16'].includes(l.type)).forEach(l => visualStack.push({ role: l.role, hex: l.colorHex, depth: l.type==='3mm'?4:3, type: l.type }));
+            addonLayers.filter(a => ['3mm', '3/16'].includes(a.type)).forEach(a => visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: a.type==='3mm'?4:3, type: a.type }));
             
+            // 2. Cores (Middle Z)
+            baseLayers.filter(l => ['1/8', '1/16'].includes(l.type)).forEach(l => visualStack.push({ role: l.role, hex: l.colorHex, depth: l.type==='1/8'?2:1, type: l.type }));
+            addonLayers.filter(a => ['1/8', '1/16'].includes(a.type)).forEach(a => visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: a.type==='1/8'?2:1, type: a.type }));
+            
+            // 3. Tactile & Details (Highest Z)
+            baseLayers.filter(l => l.type === '1/32').forEach(l => visualStack.push({ role: l.role, hex: l.colorHex, depth: 0, type: l.type }));
             addonLayers.filter(a => a.type === '1/32').forEach(a => visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: 0, type: a.type }));
             
-            let windowAddon = addonLayers.find(a => ['Window_Paper', 'Window_Engraved'].includes(a.type));
-            let hasWindow = !!windowAddon;
-            
             let html = '';
-            let currentZ = 0;
             
-            let pictoPath = 'M58.29,43.92c8.57,0,15.54-6.97,15.54-15.54s-6.97-15.53-15.54-15.53-15.53,6.95-15.53,15.53,6.95,15.54,15.53,15.54ZM90.18,61.06c-1.65-4.92-7.98-13.86-18.84-13.86h-26.22c-10.95,0-17.26,8.86-18.7,13.86l-13.29,43.82c-2.77,9.43,9.3,13.04,12.16,4.24l11.98-40.35h5.18l-20.6,71.53h19.19v55.68c0,9.58,14.36,9.58,14.36,0v-56.04h5.82v56.1c0,9.48,14.29,9.52,14.29,0v-55.73h19.15l-20.77-71.53h5.44l11.98,40.2c2.86,9.18,14.85,5.29,12.17-4.12l-13.31-43.79ZM181,33.51c5.06-10.8-7.22-23.57-18.3-20.08-10.69,2.16-15.21,16.92-7.76,24.83,6.78,8.96,22.87,6.11,26.05-4.74ZM197.26,51.83c-7.51-6.34-18.07-4.97-27.19-5.13-10.59.44-21.64-1.47-31.72,2.53-6.34,2.48-9.57,9.41-9.37,15.92-.08,17.14-.14,34.29.03,51.43-.29,2.95,1.89,6.79,5.21,6.49,5.67,1.3,7.86-5.63,7.86-10.05.12-13.52-.15-27.04.09-40.56h3.83c.29,40.78-.14,81.56.21,122.32-.35,8.35,10.22,10.63,15.77,6.06,1.75-4.35,2.16-9.12,2.14-13.74-.11-21.38-.03-42.73-.05-64.09h4c.12,24.48-.21,49.01.13,73.5.82,10.08,17.96,7.86,16.91-1.91.26-40.75-.04-81.53.17-122.29,1.19-.03,3.58-.06,4.78-.08.03,14.2-.06,28.42.02,42.66-.17,4.2,3.04,9.37,7.85,8.2,4.07.15,5.41-4.9,5.27-8.2.14-14.66-.04-29.3.06-43.95-.09-6.68-.31-14.59-6.03-19.1ZM113.42,203.15h6.16V12.85h-6.16v190.3Z';
-            let pictoBox = '0 0 216 216';
-            if(selectedIcon) { pictoPath = selectedIcon.SVG_Path; pictoBox = selectedIcon.ViewBox; }
+            // Because backers are pushed first, they get Z=0. Tactiles pushed last get the highest Z (closest to camera).
+            let currentZ = 0; 
             
             visualStack.forEach((l, i) => {
                 const isTactile = l.type === '1/32';
@@ -497,28 +459,20 @@
                 const borderClass = isTactile ? '' : 'border border-black/20';
                 
                 let content = '';
-                if(hasWindow && !isTactile && i === visualStack.length - 1) {
-                    content = `<div class="absolute bottom-[10%] left-[5%] right-[5%] h-[20%] border border-dashed border-black/40 bg-black/10 flex items-center justify-center text-[6px] font-black text-black/50 tracking-widest" style="box-shadow: inset 1px -1px 3px rgba(0,0,0,0.2);">ROUTED SLOT</div>`;
-                }
                 
                 if (isTactile) {
-                    const textEl = document.getElementById('sign-text');
-                    const textStr = (textEl && textEl.value) ? textEl.value : 'SAMPLE';
-                    const fFam = document.getElementById('sign-font') ? document.getElementById('sign-font').value : 'sans-serif';
-                    
                     content = `<div class="absolute inset-0 flex flex-col items-center justify-center text-center p-2" style="filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.5));">
-                        ${hasPicto ? `<svg viewBox="${pictoBox}" class="w-10 h-10 mb-1" fill="currentColor" style="color: ${l.hex};"><path d="${pictoPath}"></path></svg>` : ''}
-                        ${hasText ? `<span class="font-black tracking-widest leading-none truncate" style="color: ${l.hex}; font-size: ${h * scale * 0.15}px; font-family: '${fFam}', sans-serif;">${textStr}</span>` : ''}
-                        ${(hasText && document.getElementById('has-braille') && document.getElementById('has-braille').checked) ? `<span class="font-mono tracking-[0.2em] mt-1 opacity-50 leading-none" style="color: ${l.hex}; font-size: 10px;">. .. . . ..</span>` : ''}
+                        <span class="font-black tracking-widest leading-none truncate" style="color: ${l.hex}; font-size: ${h * scale * 0.15}px;">SAMPLE</span>
+                        <span class="font-mono tracking-[0.2em] mt-1 opacity-50 leading-none" style="color: ${l.hex}; font-size: 10px;">. .. . . ..</span>
                     </div>`;
                 }
                 
+                // Because visualStack has Tactile at the end, (length - 1 - i) will give Tactile the highest screen placement (Y=0) and Backer the lowest (Y=30).
                 let cascadeY = is3D ? ((visualStack.length - 1 - i) * 15) : 0;
-                let rx = r * scale;
                 
                 html += `
                 <div class="absolute inset-0 ${borderClass} rounded flex transition-all duration-700 ease-in-out pointer-events-none"
-                     style="background-color: ${bgHex}; box-shadow: ${shadow}; transform: translateZ(${currentZ}px); border-radius: ${rx}px;">
+                     style="background-color: ${bgHex}; box-shadow: ${shadow}; transform: translateZ(${currentZ}px);">
                     ${content}
                     ${is3D ? `
                     <div class="blueprint-callout absolute right-[100%] top-1/2 flex items-center z-50 mr-3 pointer-events-none" style="transform: translateY(calc(-50% + ${cascadeY}px));">
@@ -526,7 +480,7 @@
                         <div class="w-6 border-b-[1.5px] border-blue-500 shadow-sm"></div>
                     </div>` : ''}
                 </div>`;
-                currentZ += 30;
+                currentZ += 30; // Closer to camera
             });
             container.innerHTML = html;
         } catch(e) {
@@ -567,7 +521,7 @@
             const result = await response.json();
 
             if (!result || !result.retail) return;
-
+            
             const ret = result.retail;
             const fmt = (n) => "$" + (n || 0).toFixed(2);
 
@@ -633,8 +587,6 @@
         const btnSandbox = document.getElementById('btn-sandbox');
         if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
             btnSandbox.classList.remove('hidden');
-            // Attach to the universal sandbox
-            btnSandbox.setAttribute('onclick', 'SignOS_Sandbox.toggle()');
         }
 
         if(window.SignOS_UI && SignOS_UI.Camera3D) {
@@ -665,11 +617,6 @@
             pictograms = await fetchTable('ref_pictograms');
             systemFonts = await fetchTable('ref_fonts');
 
-            const fontSelect = document.getElementById('sign-font');
-            let fontHtml = '';
-            systemFonts.forEach(f => { if(String(f.Is_Active).toUpperCase() === 'TRUE') fontHtml += `<option value="${f.CSS_Family}" data-filename="${f.File_Name}">${f.Font_Name}</option>`; });
-            if(fontSelect) fontSelect.innerHTML = fontHtml;
-
             coreColors = rawRowmark.filter(r => r.Series && (r.Series.includes('Ultra-Mattes') || r.Series.includes('Mattes'))).map(c => ({
                 Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex
             }));
@@ -678,12 +625,6 @@
             tactileColors = rawRowmark.filter(r => r.Series && r.Series.includes('ADA Alternative')).map(c => ({
                 Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex
             }));
-
-            const activeIcons = pictograms.filter(p => String(p.Is_Active).toUpperCase() === 'TRUE');
-            if (activeIcons.length > 0) {
-                selectedIcon = activeIcons.find(p => p.Name.toLowerCase().includes('unisex') || p.Name.toLowerCase().includes('family')) || activeIcons;
-            }
-            if (SignOS_UI.buildIconGrid) SignOS_UI.buildIconGrid({ containerId: 'icon-grid', data: activeIcons, activeRingClass: 'ring-blue-500', onSelect: (item) => { selectedIcon = item; runCalc(); } });
 
             if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
 

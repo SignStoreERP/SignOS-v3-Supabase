@@ -1,6 +1,7 @@
 /**
- * SignOS Universal Cost Sandbox & Ledger (v4.0)
- * Bolt-on tool for all calculators. Injects an off-canvas drawer.
+ * SignOS Universal Cost Sandbox & Ledger (v4.1 - Dual-Mode)
+ * Automatically detects if the calculator has an inline 3-column layout. 
+ * If not, it injects a global off-canvas drawer.
  */
 window.SignOS_Sandbox = {
     config: null,
@@ -9,6 +10,7 @@ window.SignOS_Sandbox = {
     triggerCalc: null,
     lastResult: null,
     isOpen: false,
+    isInline: false,
 
     init: function(productConfig, initialBackendData, calcFunction) {
         this.config = productConfig;
@@ -16,15 +18,44 @@ window.SignOS_Sandbox = {
         this.simData = { ...initialBackendData };
         this.triggerCalc = calcFunction;
         
-        this.injectUI();
+        // Dual-Mode Sensor: Check if the HTML has 3-Column Placeholders
+        if (document.getElementById('sandbox-ledger') && document.getElementById('sandbox-vars')) {
+            this.isInline = true;
+        } else {
+            this.isInline = false;
+            this.injectDrawerUI();
+        }
+        
         this.buildInputs();
     },
 
     toggle: function() {
         this.isOpen = !this.isOpen;
+
+        // INLINE 3-COLUMN MODE
+        if (this.isInline) {
+            const wrap = document.getElementById('app-wrapper');
+            const left = document.getElementById('sandbox-ledger');
+            const right = document.getElementById('sandbox-vars');
+            
+            if (this.isOpen) {
+                wrap.classList.remove('max-w-md', 'max-w-lg', 'max-w-xl');
+                wrap.classList.add('max-w-[1200px]');
+                left.classList.remove('hidden'); left.classList.add('flex');
+                right.classList.remove('hidden'); right.classList.add('flex');
+                if(!this.simData) { this.reset(); }
+            } else {
+                wrap.classList.add('max-w-md'); // Safely snaps back to center column width
+                wrap.classList.remove('max-w-[1200px]');
+                left.classList.add('hidden'); left.classList.remove('flex');
+                right.classList.add('hidden'); right.classList.remove('flex');
+            }
+            return;
+        }
+
+        // OFF-CANVAS DRAWER MODE
         const drawer = document.getElementById('glb-sandbox-drawer');
         const overlay = document.getElementById('glb-sandbox-overlay');
-        
         if (this.isOpen) {
             drawer.classList.remove('translate-x-full');
             overlay.classList.remove('hidden');
@@ -87,28 +118,36 @@ window.SignOS_Sandbox = {
         if (!res || !res.cost || !res.cost.breakdown) return;
 
         // Render Retail Breakdown
-        let retHtml = res.retail.breakdown.map(i => `
-            <div class="mb-2 border-b border-gray-100 pb-1.5">
-                <div class="flex justify-between text-[11px] text-blue-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
-                <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
-            </div>`).join('');
-        retHtml += `<div class="flex justify-between text-[12px] font-black text-blue-700 mt-2 pt-2 border-t-2 border-blue-200"><span>Gross Retail:</span><span>${fmt(res.retail.grandTotal)}</span></div>`;
-        document.getElementById('glb-sbx-retail-breakdown').innerHTML = retHtml;
+        const retBreakdownEl = document.getElementById('glb-sbx-retail-breakdown');
+        if (retBreakdownEl) {
+            let retHtml = res.retail.breakdown.map(i => `
+                <div class="mb-2 border-b border-gray-100 pb-1.5">
+                    <div class="flex justify-between text-[11px] text-blue-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
+                    <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
+                </div>`).join('');
+            retHtml += `<div class="flex justify-between text-[12px] font-black text-blue-700 mt-2 pt-2 border-t-2 border-blue-200"><span>Gross Retail:</span><span>${fmt(res.retail.grandTotal)}</span></div>`;
+            retBreakdownEl.innerHTML = retHtml;
+        }
 
         // Render Cost Breakdown
-        let cstHtml = res.cost.breakdown.map(i => `
-            <div class="mb-2 border-b border-gray-100 pb-1.5">
-                <div class="flex justify-between text-[11px] text-red-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
-                <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
-            </div>`).join('');
-        cstHtml += `<div class="flex justify-between text-[12px] font-black text-red-700 mt-2 pt-2 border-t-2 border-red-200"><span>Total Hard Cost:</span><span>${fmt(res.cost.total)}</span></div>`;
-        document.getElementById('glb-sbx-cost-breakdown').innerHTML = cstHtml;
+        const cstBreakdownEl = document.getElementById('glb-sbx-cost-breakdown');
+        if (cstBreakdownEl) {
+            let cstHtml = res.cost.breakdown.map(i => `
+                <div class="mb-2 border-b border-gray-100 pb-1.5">
+                    <div class="flex justify-between text-[11px] text-red-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
+                    <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div>
+                </div>`).join('');
+            cstHtml += `<div class="flex justify-between text-[12px] font-black text-red-700 mt-2 pt-2 border-t-2 border-red-200"><span>Total Hard Cost:</span><span>${fmt(res.cost.total)}</span></div>`;
+            cstBreakdownEl.innerHTML = cstHtml;
+        }
 
         // Render Margin
         const margin = res.metrics.margin * 100;
         const mEl = document.getElementById('glb-sbx-margin');
-        mEl.innerText = margin.toFixed(1) + '%';
-        mEl.className = margin >= 50 ? 'text-2xl font-black text-green-600 tracking-tight leading-none' : (margin > 0 ? 'text-2xl font-black text-yellow-600 tracking-tight leading-none' : 'text-2xl font-black text-red-600 tracking-tight leading-none');
+        if (mEl) {
+            mEl.innerText = margin.toFixed(1) + '%';
+            mEl.className = margin >= 50 ? 'text-2xl font-black text-green-600 tracking-tight leading-none' : (margin > 0 ? 'text-2xl font-black text-yellow-600 tracking-tight leading-none' : 'text-2xl font-black text-red-600 tracking-tight leading-none');
+        }
     },
 
     exportTXT: function() {
@@ -135,12 +174,11 @@ window.SignOS_Sandbox = {
         a.click();
     },
 
-    injectUI: function() {
+    injectDrawerUI: function() {
         if(document.getElementById('glb-sandbox-drawer')) return;
         const html = `
         <div id="glb-sandbox-overlay" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 hidden transition-opacity" onclick="SignOS_Sandbox.toggle()"></div>
         <div id="glb-sandbox-drawer" class="fixed top-0 right-0 h-full w-[400px] bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col border-l border-gray-200">
-            
             <div class="p-4 bg-slate-50 border-b border-gray-200 flex justify-between items-center shrink-0">
                 <div>
                     <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Universal Cost Sandbox</h2>
@@ -148,7 +186,6 @@ window.SignOS_Sandbox = {
                 </div>
                 <button onclick="SignOS_Sandbox.toggle()" class="text-gray-400 hover:text-red-500 transition font-bold text-lg">✕</button>
             </div>
-
             <div class="flex-1 overflow-y-auto custom-scroll p-5 space-y-6">
                 <!-- LEDGER -->
                 <div class="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200 shadow-sm">
@@ -163,18 +200,15 @@ window.SignOS_Sandbox = {
                     <h3 class="text-[11px] font-black text-red-700 uppercase tracking-widest border-b-2 border-red-100 pb-2 mb-3">Physics Engine (Hard Cost)</h3>
                     <div id="glb-sbx-cost-breakdown" class="space-y-3 text-xs italic text-gray-400">Run simulation to view ledger...</div>
                 </div>
-
                 <!-- VARIABLES -->
                 <div class="pt-6 border-t border-gray-200">
                     <h3 class="text-[11px] font-black text-gray-800 uppercase tracking-widest mb-4">Override Variables</h3>
                     <span class="text-[10px] font-black text-blue-700 uppercase tracking-widest border-b border-blue-200 pb-1 mb-2 block">Market Variables</span>
                     <div id="glb-sbx-retail-inputs" class="space-y-2 mb-6"></div>
-                    
                     <span class="text-[10px] font-black text-red-700 uppercase tracking-widest border-b border-red-200 pb-1 mb-2 block">Physics Variables</span>
                     <div id="glb-sbx-cost-inputs" class="space-y-2"></div>
                 </div>
             </div>
-
             <div class="p-4 bg-slate-50 border-t border-gray-200 shrink-0 space-y-2">
                 <button onclick="SignOS_Sandbox.apply()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded shadow text-xs uppercase tracking-widest transition">Apply & Simulate</button>
                 <div class="flex gap-2">
