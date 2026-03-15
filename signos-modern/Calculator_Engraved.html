@@ -65,7 +65,6 @@
                     </div>
                     <span class="absolute top-3 right-3 text-[8px] font-black text-blue-400 uppercase tracking-widest z-10">Spatial Preview</span>
                     
-                    <!-- RESTORED: Pan & Zoom Event Listeners -->
                     <div id="preview-wrapper" class="isometric-view w-full flex justify-center items-center mt-3 mb-2 relative h-48" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
                         <div id="svg-preview-container" class="relative"></div>
                     </div>
@@ -169,6 +168,20 @@
         </div>
     </div>
 
+    <!-- COLOR MODAL -->
+    <div id="color-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity cursor-pointer" onclick="closeModal()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden border border-gray-200 cursor-auto" onclick="event.stopPropagation()">
+            <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
+                <h3 class="font-black text-gray-800 uppercase tracking-widest text-xs">Select Material Color</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 font-bold transition focus:outline-none text-lg">✕</button>
+            </div>
+            <div class="p-3 shrink-0 border-b border-gray-100">
+                <input type="text" id="color-search" placeholder="Search colors..." oninput="renderColorGrid()" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
+            </div>
+            <div id="modal-grid" class="p-4 overflow-y-auto custom-scroll flex flex-wrap gap-2 content-start bg-gray-50 flex-1"></div>
+        </div>
+    </div>
+
     <script>
         const ADA_UI_SCHEMA = {
             retails: [
@@ -199,11 +212,22 @@
         let calcTimeout = null;
         let is3D = true;
 
+        // Fallback array if DB fetch fails
+        let globalColors = [
+            { code: 'WHT', name: 'White', hex: '#FFFFFF' },
+            { code: 'BLK', name: 'Black', hex: '#121514' },
+            { code: 'BLU', name: 'Blue', hex: '#004B87' },
+            { code: 'RED', name: 'Red', hex: '#C4252A' },
+            { code: 'SLV', name: 'Silver', hex: '#B6B5B4' },
+            { code: 'CLR', name: 'Clear', hex: '#e5e7eb' }
+        ];
+        let activeLayerId = null;
+
         let buildState = {
             qty: 1, w: 8, h: 8, product: 'BasicA',
             layers: [
-                { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true },
-                { id: Date.now()+1, type: '1/8', role: '1/8" ADA Core', isBase: true }
+                { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true, hex: '#ffffff' },
+                { id: Date.now()+1, type: '1/8', role: '1/8" ADA Core', isBase: true, hex: '#1e293b' }
             ]
         };
 
@@ -219,22 +243,22 @@
             if (preset === 'A') {
                 buildState.product = 'BasicA';
                 buildState.layers = [
-                    { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true },
-                    { id: Date.now()+1, type: '1/8', role: '1/8" ADA Core', isBase: true }
+                    { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true, hex: '#ffffff' },
+                    { id: Date.now()+1, type: '1/8', role: '1/8" ADA Core', isBase: true, hex: '#1e293b' }
                 ];
             } else if (preset === 'B') {
                 buildState.product = 'BasicB';
                 buildState.layers = [
-                    { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true },
-                    { id: Date.now()+1, type: '1/16', role: '1/16" ADA Core', isBase: true },
-                    { id: Date.now()+2, type: '3mm', role: '3mm PVC Backer', isBase: true }
+                    { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true, hex: '#ffffff' },
+                    { id: Date.now()+1, type: '1/16', role: '1/16" ADA Core', isBase: true, hex: '#1e293b' },
+                    { id: Date.now()+2, type: '3mm', role: '3mm PVC Backer', isBase: true, hex: '#94a3b8' }
                 ];
             } else if (preset === 'C') {
                 buildState.product = 'BasicClear';
                 buildState.layers = [
-                    { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true },
-                    { id: Date.now()+1, type: '1/16', role: '1/16" ADA Core', isBase: true },
-                    { id: Date.now()+2, type: '3/16', role: '3/16" Clear Acrylic', isBase: true }
+                    { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true, hex: '#ffffff' },
+                    { id: Date.now()+1, type: '1/16', role: '1/16" ADA Core', isBase: true, hex: '#1e293b' },
+                    { id: Date.now()+2, type: '3/16', role: '3/16" Clear Acrylic', isBase: true, hex: '#e5e7eb' }
                 ];
             }
             renderLayerStack();
@@ -247,7 +271,8 @@
                 id: Date.now(),
                 type: sel.value,
                 role: sel.options[sel.selectedIndex].text,
-                isBase: false // Flagged as an Add-on for 300% retail markup
+                isBase: false, // Flagged as an Add-on for 300% retail markup
+                hex: '#94a3b8'
             });
             renderLayerStack();
             runCalc();
@@ -255,6 +280,45 @@
 
         function removeLayer(id) {
             buildState.layers = buildState.layers.filter(l => l.id !== id);
+            renderLayerStack();
+            runCalc();
+        }
+
+        // --- COLOR MODAL LOGIC ---
+        function openColorModal(layerId) {
+            activeLayerId = layerId;
+            document.getElementById('color-modal').classList.remove('hidden');
+            document.getElementById('color-search').value = '';
+            renderColorGrid();
+        }
+
+        function closeModal() {
+            document.getElementById('color-modal').classList.add('hidden');
+        }
+
+        function renderColorGrid() {
+            const grid = document.getElementById('modal-grid');
+            const search = document.getElementById('color-search').value.toLowerCase();
+            let html = '';
+            globalColors.forEach(c => {
+                if (search && !c.name.toLowerCase().includes(search) && !c.code.toLowerCase().includes(search)) return;
+                let hex = (c.hex === 'Transparent' || c.name.toLowerCase().includes('clear')) ? '#e5e7eb' : c.hex;
+                html += `
+                <button onclick="selectColor('${hex}', '${c.name}')" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] focus:outline-none border border-transparent hover:border-gray-300">
+                    <div class="w-10 h-10 rounded-full border border-gray-400 shadow-sm shrink-0" style="background-color: ${hex}"></div>
+                    <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">${c.name}</span>
+                </button>`;
+            });
+            grid.innerHTML = html;
+        }
+
+        function selectColor(hex, name) {
+            const layer = buildState.layers.find(l => l.id === activeLayerId);
+            if (layer) {
+                layer.hex = hex;
+                layer.colorName = name;
+            }
+            closeModal();
             renderLayerStack();
             runCalc();
         }
@@ -267,9 +331,15 @@
                 const tagText = l.isBase ? 'BASE' : 'ADD-ON';
                 html += `
                 <div class="bg-white border border-slate-200 p-2 rounded shadow-sm flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[9px] font-black uppercase tracking-widest ${tagColor} px-1.5 rounded border">${tagText}</span>
-                        <span class="text-[10px] font-bold text-slate-700">${l.role}</span>
+                    <div class="flex items-center gap-3">
+                        <button onclick="openColorModal(${l.id})" class="w-5 h-5 rounded-full border border-gray-400 shadow-sm shrink-0 focus:outline-none hover:scale-110 transition" style="background-color: ${l.hex};" title="Change Color"></button>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-slate-700 leading-tight">${l.role}</span>
+                            <div class="flex gap-1 items-center mt-0.5">
+                                <span class="text-[8px] font-black uppercase tracking-widest ${tagColor} px-1 rounded border leading-none">${tagText}</span>
+                                <span class="text-[8px] font-bold text-gray-400 italic leading-none">${l.colorName || 'Default'}</span>
+                            </div>
+                        </div>
                     </div>
                     <button onclick="removeLayer(${l.id})" class="text-red-400 hover:text-red-600 font-black px-2 hover:bg-red-50 rounded transition">✕</button>
                 </div>`;
@@ -282,15 +352,35 @@
             if (typeof SignOS_View !== 'undefined' && SignOS_View.render) {
                 const w = parseFloat(document.getElementById('w').value) || 8;
                 const h = parseFloat(document.getElementById('h').value) || 8;
+                
                 const manifest = {
                     w: w, h: h, is3D: is3D,
-                    layers: buildState.layers.map((l, i) => ({
-                        z: i,
-                        hex: i === 0 ? '#1e293b' : (i === buildState.layers.length - 1 ? '#ffffff' : '#94a3b8'),
-                        isTactile: l.type === '1/32' || l.type === '1/32_CLR',
-                        // FIXED: Renders the actual layer role into the visual container to prevent "undefined"
-                        content: `<div class="w-full h-full flex items-center justify-center text-[10px] font-bold ${l.type === '1/32' ? 'text-slate-800' : 'text-white/80 drop-shadow-md'} p-1 text-center leading-tight uppercase tracking-widest">${l.role}</div>`
-                    }))
+                    layers: buildState.layers.map((l, i) => {
+                        const isTactile = l.type === '1/32' || l.type === '1/32_CLR';
+                        let layerContent = '';
+                        
+                        // NEW: Injects SVG Placeholder strictly on the Tactile Applique layer!
+                        if (isTactile) {
+                            layerContent = `
+                            <div class="w-full h-full flex flex-col items-center justify-center p-2 relative pointer-events-none" style="color: ${l.hex || '#ffffff'}; filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.4));">
+                                <svg width="25%" height="25%" viewBox="0 0 108 144" class="mb-1" fill="currentColor"><path d="M97.22,97.9l-10.47,3.81-13.82-30.94h-31.58l-.32-4.59h22.76v-9.14h-23.41l-1.25-17.78c4.51-.62,7.99-4.49,7.99-9.17,0-5.12-4.15-9.27-9.27-9.27s-9.27,4.15-9.27,9.27c0,1.53.38,2.97,1.03,4.24l3.21,45.59h34.17l14.27,31.96,18.58-6.76-2.62-7.21ZM67.43,89.85c-.48,13.84-12.1,24.67-25.94,24.19-13.84-.48-24.67-12.1-24.19-25.94.3-8.5,4.8-15.86,11.43-20.17l-.71-10.02c-11.34,5.25-19.38,16.52-19.85,29.86-.66,18.88,14.11,34.73,32.99,35.39,14.39.5,27.01-7.96,32.5-20.38l-6.23-13.94c0,.34,0,.67,0,1.01Z"></path></svg>
+                                <div class="text-[12px] font-black uppercase tracking-widest leading-none mt-1">ROOM 101</div>
+                                <div class="flex gap-1.5 mt-2 opacity-80">
+                                    <div class="w-1 h-1 rounded-full bg-current"></div><div class="w-1 h-1 rounded-full bg-current"></div><div class="w-1 h-1 rounded-full bg-current"></div><div class="w-1 h-1 rounded-full bg-current"></div>
+                                </div>
+                            </div>`;
+                        } else {
+                            layerContent = `<div class="w-full h-full flex items-center justify-center text-[10px] font-bold text-white/80 drop-shadow-md p-1 text-center leading-tight uppercase tracking-widest">${l.role}</div>`;
+                        }
+
+                        return {
+                            // FIXED: Inverts the Z-Order so the top list item renders highest in 3D Space!
+                            z: buildState.layers.length - 1 - i,
+                            hex: l.hex,
+                            isTactile: isTactile,
+                            content: layerContent
+                        };
+                    })
                 };
                 SignOS_View.render('svg-preview-container', manifest);
             }
@@ -366,9 +456,24 @@
             }
 
             try {
+                // Fetch product configs and immediately grab the global color databases
                 const payload = await SignOS.fetchProductData('PROD_ADA_Signs');
                 backendData = payload.config || {};
                 backendData.ui_schema = ADA_UI_SCHEMA;
+                
+                try {
+                    const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Cap_Color,Cap_Hex&limit=500`, {
+                        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                    });
+                    if (res.ok) {
+                        const rawRowmark = await res.json();
+                        globalColors = rawRowmark.map(c => ({
+                            code: c.Item_Code,
+                            name: c.Cap_Color,
+                            hex: c.Cap_Hex
+                        }));
+                    }
+                } catch(e) { console.warn("Color DB Fetch Failed. Utilizing Fallback Array."); }
 
                 if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
