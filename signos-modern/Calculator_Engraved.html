@@ -10,7 +10,7 @@
     <script src="signos-canvas.js"></script>
     <script src="cost_engraved.js"></script>
     <script src="signos-sandbox.js"></script>
-    <!-- NEW: Inject Universal Preview Engine -->
+    <!-- UNIVERSAL PREVIEW ENGINE -->
     <script src="signos-view-svg.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -196,20 +196,6 @@
 
 </div>
 
-<!-- COLOR MODAL -->
-<div id="color-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity cursor-pointer" onclick="closeModal()">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden border border-gray-200 cursor-auto" onclick="event.stopPropagation()">
-        <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
-            <h3 class="font-black text-gray-800 uppercase tracking-widest text-xs" id="modal-title">Select Color</h3>
-            <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 font-bold transition focus:outline-none text-lg">✕</button>
-        </div>
-        <div class="p-3 shrink-0 border-b border-gray-100">
-            <input type="text" id="color-search" placeholder="Search colors..." oninput="renderColorGrid()" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
-        </div>
-        <div id="modal-grid" class="p-4 overflow-y-auto custom-scroll flex flex-wrap gap-2 content-start bg-gray-50 flex-1"></div>
-    </div>
-</div>
-
 <script>
     let backendData = {};
     let tactileColors = [], coreColors = [];
@@ -319,6 +305,7 @@
         renderLayers(); runCalc();
     }
 
+    // Z-INDEX DRIVEN REORDERING
     function moveLayer(id, direction) {
         const idx = layerStack.findIndex(l => l.id === id);
         if (idx < 0) return;
@@ -378,28 +365,21 @@
         }
     }
 
+    // --- SCHEMA-DRIVEN UI HANDLERS ---
     function openColorModal(id) {
         activeColorId = id;
-        const colorSearch = document.getElementById('color-search');
-        if(colorSearch) colorSearch.value = '';
         const modal = document.getElementById('color-modal');
         if(modal) modal.classList.remove('hidden');
-        if(window.renderColorGrid) window.renderColorGrid();
+        if(window.renderColorGrid) window.renderColorGrid(); // Trigger the injected schema engine
     }
 
-    // --- SCHEMA DRIVEN UI: Expose functions to the globally injected Color Modal ---
+    // These functions are exposed so the injected HTML from signos-ui.js can talk to this file's logic
     window.closeModal = function() { 
         const modal = document.getElementById('color-modal');
         if(modal) modal.classList.add('hidden'); 
     };
 
     window.renderColorGrid = function() {
-        const grid = document.getElementById('modal-grid');
-        if(!grid) return;
-
-        const searchInput = document.getElementById('color-search');
-        const search = searchInput ? searchInput.value.toLowerCase() : '';
-        
         let layer = layerStack.find(l => l.id === activeColorId);
         if (!layer) return;
 
@@ -410,47 +390,24 @@
             data = [ {Name:'Black', Hex_Code:'#000000', Code:'PVC-BLK'}, {Name:'White', Hex_Code:'#ffffff', Code:'PVC-WHT'} ];
         }
 
-        let html = '';
-        data.forEach(c => {
-            const name = c.Name || '';
-            const code = c.Code || '';
-            if (search && !name.toLowerCase().includes(search) && !code.toLowerCase().includes(search)) return;
-            
-            let bgStyle = `background-color: ${c.Hex_Code};`;
-            if ((layer.type === '1/16' || layer.type === '1/8') && c.Core_Hex && c.Hex_Code !== '#e5e7eb' && c.Hex_Code !== 'Transparent') {
-                bgStyle = `background: linear-gradient(135deg, ${c.Hex_Code} 50%, ${c.Core_Hex} 50%);`;
+        // USE THE CENTRALIZED UI ENGINE INSTEAD OF MANUAL HTML
+        SignOS_UI.buildColorGrid({
+            containerId: 'modal-grid',
+            data: data,
+            type: 'rowmark',
+            activeRingClass: 'ring-blue-500',
+            onSelect: (item) => {
+                layer.colorHex = item.Hex_Code;
+                layer.colorName = item.Name;
+                layer.colorCode = item.Code;
+                window.closeModal();
+                renderLayers();
+                runCalc();
             }
-            
-            html += `
-            <button onclick="window.selectColor('${code || name}')" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] focus:outline-none border border-transparent hover:border-gray-300">
-                <div class="w-10 h-10 rounded-full border border-gray-400 shadow-sm shrink-0" style="${bgStyle}"></div>
-                <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">${name}</span>
-                <span class="text-[8px] font-black text-gray-400">${code}</span>
-            </button>`;
         });
-        grid.innerHTML = html;
     };
 
-    window.selectColor = function(codeOrName) {
-        let layer = layerStack.find(l => l.id === activeColorId);
-        if (!layer) return;
-
-        let data = [];
-        if (layer.type === '1/32' || layer.type === 'Window_Engraved') data = tactileColors;
-        else if (layer.type === '1/16' || layer.type === '1/8') data = coreColors;
-        else if (layer.type === '3mm') data = [ {Name:'Black', Hex_Code:'#000000', Code:'PVC-BLK'}, {Name:'White', Hex_Code:'#ffffff', Code:'PVC-WHT'} ];
-
-        const item = data.find(c => c.Code === codeOrName || c.Name === codeOrName);
-        if (item) {
-            layer.colorHex = item.Hex_Code;
-            layer.colorName = item.Name;
-            layer.colorCode = item.Code;
-        }
-        window.closeModal();
-        renderLayers();
-        runCalc();
-    };
-
+    // --- INTEGRATING THE UNIVERSAL 3D RENDER ENGINE ---
     function updatePreview() {
         const w = parseFloat(document.getElementById('w').value) || 8;
         const h = parseFloat(document.getElementById('h').value) || 8;
@@ -466,6 +423,7 @@
             layers: []
         };
 
+        // UI Layer Stack now dictates physical Z-Index (Backers are at the bottom of the list)
         layerStack.forEach((l, index) => {
             let zPos = layerStack.length - 1 - index;
             let isTactile = l.type === '1/32' || l.type === 'Window_Engraved';
@@ -609,7 +567,7 @@
             const rawRowmark = payload.tables['ref_colors_rowmark'] || payload.tables['REF_Colors_Rowmark'] || [];
 
             coreColors = rawRowmark.filter(r => {
-                const s = r.Series || r.series || '';
+                const s = String(r.Series || r.series || '');
                 return s.includes('Ultra-Mattes') || s.includes('Mattes');
             }).map(c => ({
                 Code: c.Item_Code || c.item_code,
@@ -621,7 +579,7 @@
             if (!coreColors.find(c => c.Name && c.Name.includes('Clear'))) coreColors.push({ Code: '322-101', Name: 'Clear', Hex_Code: '#e5e7eb' });
 
             tactileColors = rawRowmark.filter(r => {
-                const s = r.Series || r.series || '';
+                const s = String(r.Series || r.series || '');
                 return s.includes('ADA Alternative');
             }).map(c => ({
                 Code: c.Item_Code || c.item_code,
