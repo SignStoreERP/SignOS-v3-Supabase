@@ -222,11 +222,15 @@
     };
 
     let backendData = {}, coreColors = [], systemFonts = [];
+
+    // FIXED: Initialize with 'BasicA' to prevent the physics engine from aborting
     let buildState = {
         qty: 1, w: 8, h: 8, purpose: 'Restroom / Room ID', chassis: 'Flush',
+        product: 'BasicA', 
         baseColor: null, addons: { window: false, slider: false, magnetic: false, accent: false },
         typography: { text: 'ROOM 101', font: 'sans-serif', hasBraille: true }
     };
+
     let is3D = true;
     let customSimData = null;
     let lastSimResult = null;
@@ -307,7 +311,8 @@
     }
 
     async function runCalc() {
-        if(!backendData || (!backendData.Retail_Min_Order && !backendData.Retail_Min_Order_Etch)) return;
+        // FIXED: Wait until baseColor is populated before calculating
+        if(!backendData || (!backendData.Retail_Min_Order && !backendData.Retail_Min_Order_Etch) || !buildState.baseColor) return;
         
         const wEl = document.getElementById('w');
         const hEl = document.getElementById('h');
@@ -316,10 +321,11 @@
         
         try {
             const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
-            
+
             // Build the layers array dynamically based on the prebuilt starters
             let simulatedLayers = [];
             simulatedLayers.push({ type: '1/32', role: '1/32" Tactile Applique' });
+
             if (buildState.product === 'BasicA') {
                 simulatedLayers.push({ type: '1/8', role: '1/8" ADA Core' });
             } else if (buildState.product === 'BasicB') {
@@ -448,25 +454,35 @@
         const statusDot = document.getElementById("status-dot");
 
         try {
-            // FIXED: Forced lowercase arrays to prevent 404s
-            const payload = await SignOS.fetchProductData('PROD_Nameplates', ['ref_colors_rowmark', 'ref_fonts']);
-            backendData = payload.config;
+            // Fetch Global Variables & Schema
+            const payload = await SignOS.fetchProductData('PROD_Nameplates');
+            backendData = payload.config || {};
             backendData.ui_schema = ADA_UI_SCHEMA; 
 
             if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
-            const rawRowmark = payload.tables['ref_colors_rowmark'] || [];
-            const rawFonts = payload.tables['ref_fonts'] || [];
+            // FIXED: MANUAL FETCH for reference tables using robust fallback methods
+            const colorRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Series,Thickness,Cap_Color,Core_Color,Cap_Hex,Core_Hex&limit=1000`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } });
+            const rawRowmark = colorRes.ok ? await colorRes.json() : [];
+
+            const fontRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_fonts?select=Font_Name,CSS_Family,File_Name,Is_Active&limit=1000`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } });
+            const rawFonts = fontRes.ok ? await fontRes.json() : [];
             
-            systemFonts = rawFonts.filter(f => String(f.Is_Active).toUpperCase() === 'TRUE');
+            // Safely map Postgres columns (handles both upper/lower case returns from Supabase)
+            systemFonts = rawFonts.filter(f => String(f.Is_Active || f.is_active).toUpperCase() === 'TRUE');
             if(window.SignOS_Canvas) SignOS_Canvas.loadFonts(systemFonts);
 
-            coreColors = rawRowmark.filter(r => r.Series && (r.Series.includes('Ultra-Mattes') || r.Series.includes('Mattes'))).map(c => ({
-                Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex, Core_Hex: c.Core_Hex
+            coreColors = rawRowmark.filter(r => {
+                const series = r.Series || r.series;
+                return series && (series.includes('Ultra-Mattes') || series.includes('Mattes'));
+            }).map(c => ({
+                Code: c.Item_Code || c.item_code, 
+                Name: c.Cap_Color || c.cap_color, 
+                Hex_Code: (c.Cap_Hex === 'Transparent' || c.cap_hex === 'Transparent' || (c.Cap_Color || c.cap_color).includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex), 
+                Core_Hex: c.Core_Hex || c.core_hex
             }));
 
             if(typeof SignOS_UI !== 'undefined') {
-                // FIXED: Using correct function name buildLabeledColorGrid
                 SignOS_UI.buildLabeledColorGrid({
                     containerId: 'rowmark-grid', data: coreColors, type: 'rowmark',
                     onSelect: (item) => {
@@ -480,13 +496,23 @@
 
             const fontSelect = document.getElementById('sign-font');
             if(fontSelect) {
-                systemFonts.forEach(f => { fontSelect.innerHTML += `<option value="${f.CSS_Family}" data-filename="${f.File_Name}">${f.Font_Name}</option>`; });
+                systemFonts.forEach(f => { 
+                    const fam = f.CSS_Family || f.css_family;
+                    const file = f.File_Name || f.file_name;
+                    const name = f.Font_Name || f.font_name;
+                    fontSelect.innerHTML += `<option value="${fam}" data-filename="${file}">${name}</option>`; 
+                });
             }
 
             if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
             if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('wrapper');
             
-            setTimeout(() => { const firstBtn = document.querySelector('#rowmark-grid button'); if(firstBtn) firstBtn.click(); toggleStep(1); }, 100);
+            // Force the first color to be selected so pricing can run automatically
+            setTimeout(() => { 
+                const firstBtn = document.querySelector('#rowmark-grid button'); 
+                if(firstBtn) firstBtn.click(); 
+                toggleStep(1); 
+            }, 100);
 
         } catch(e) {
             console.error("API Error:", e);
