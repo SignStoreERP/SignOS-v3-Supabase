@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zero-Variance Simulator v4.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans flex flex-col items-center justify-center p-4">
+
+<div class="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200">
+    <div class="bg-gray-900 px-6 py-4 flex justify-between items-center">
+        <div>
+            <h1 class="text-lg font-black text-white uppercase tracking-widest">SignOS Simulation Engine</h1>
+            <p class="text-gray-400 text-[10px] uppercase tracking-widest">Compliance Protocol 6410</p>
+        </div>
+        <span class="bg-blue-600 text-white text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest">Auto-Test Active</span>
+    </div>
+
+    <div class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4 border-b border-gray-200 pb-4">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Target Edge Function</label>
+                <select id="sim-endpoint" class="w-full border p-2 rounded text-sm font-bold focus:border-blue-500 outline-none bg-gray-50">
+                    <option value="calculate-ada">calculate-ada (PROD_ADA_Signs)</option>
+                    <option value="calculate-nameplate">calculate-nameplate (PROD_Nameplates)</option>
+                    <option value="calculate-acm">calculate-acm (PROD_ACM)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Simulated Qty Range</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="sim-min" value="1" class="w-full border p-2 rounded text-sm font-bold text-center bg-gray-50">
+                    <span class="text-gray-400 font-bold">TO</span>
+                    <input type="number" id="sim-max" value="1000" class="w-full border p-2 rounded text-sm font-bold text-center bg-gray-50">
+                </div>
+            </div>
+        </div>
+
+        <button onclick="runSimulation()" id="btn-run" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-lg shadow-md uppercase tracking-widest transition text-xs">
+            Begin Stress Test (1 - 1000)
+        </button>
+
+        <div id="sim-results" class="hidden border border-gray-200 rounded-lg overflow-hidden">
+            <div class="bg-slate-50 border-b border-gray-200 p-3 flex justify-between items-center">
+                <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Test Exhaust Log</span>
+                <span id="sim-status" class="text-xs font-black text-blue-600 uppercase tracking-widest animate-pulse">Running...</span>
+            </div>
+            <div id="sim-log" class="h-64 overflow-y-auto bg-gray-900 p-4 text-[10px] font-mono text-green-400 space-y-1"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let simLog = [];
+    
+    function logMsg(msg, isError = false) {
+        const el = document.getElementById('sim-log');
+        const color = isError ? 'text-red-400' : 'text-green-400';
+        el.innerHTML += `<div class="${color}">${msg}</div>`;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    async function runSimulation() {
+        document.getElementById('sim-results').classList.remove('hidden');
+        document.getElementById('sim-log').innerHTML = '';
+        document.getElementById('btn-run').disabled = true;
+        const statusEl = document.getElementById('sim-status');
+        statusEl.innerText = "Initializing Configuration...";
+        
+        const endpoint = document.getElementById('sim-endpoint').value;
+        const minQty = parseInt(document.getElementById('sim-min').value) || 1;
+        const maxQty = parseInt(document.getElementById('sim-max').value) || 100;
+        
+        // Map the endpoint to the database ID
+        const prodMap = {
+            'calculate-ada': 'PROD_ADA_Signs',
+            'calculate-nameplate': 'PROD_Nameplates',
+            'calculate-acm': 'PROD_ACM'
+        };
+
+        try {
+            logMsg(`[SYSTEM] Fetching Master Configuration for ${prodMap[endpoint]}...`);
+            const payload = await SignOS.fetchProductData(prodMap[endpoint]);
+            if(payload.error) throw new Error(payload.error);
+            const config = payload.config;
+
+            statusEl.innerText = "Running Batches...";
+            let failures = 0;
+            let success = 0;
+
+            // Generate Base Mock Inputs based on the tool
+            let mockInputs = { w: 10, h: 10, sides: 1, thickness: '3mm', product: 'BasicA', mounting: 'Foam Tape', layers: [], shape: 'Rectangle', laminate: 'None' };
+
+            for (let q = minQty; q <= maxQty; q++) {
+                if(q % 50 === 0) logMsg(`[BATCH] Processing Qty: ${q}...`);
+                mockInputs.qty = q;
+
+                try {
+                    const fnUrl = `${EDGE_URL}/functions/v1/${endpoint}`;
+                    const res = await fetch(fnUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                        body: JSON.stringify({ inputs: mockInputs, config: config })
+                    });
+
+                    if (!res.ok) throw new Error(`Status ${res.status}`);
+                    const out = await res.json();
+
+                    if (!out.retail || !out.cost || isNaN(out.retail.grandTotal) || out.retail.grandTotal === null) {
+                        throw new Error(`Mathematical Null/NaN Crash at Qty ${q}`);
+                    }
+                    success++;
+
+                } catch(err) {
+                    logMsg(`[FAIL] Qty ${q} - Error: ${err.message}`, true);
+                    failures++;
+                    break; // Stop on first fatal failure to review logs
+                }
+            }
+
+            statusEl.classList.remove('animate-pulse');
+            if (failures > 0) {
+                statusEl.innerText = "FAILED: ZERO VARIANCE RULE BROKEN";
+                statusEl.className = "text-xs font-black text-red-600 uppercase tracking-widest";
+            } else {
+                statusEl.innerText = "PASSED: 100% COMPLIANCE";
+                statusEl.className = "text-xs font-black text-green-600 uppercase tracking-widest";
+                logMsg(`[SUCCESS] Completed ${success} calculations. Zero NaN/Null crashes. Approved for LIVE promotion.`);
+            }
+
+        } catch (e) {
+            logMsg(`[FATAL ERROR] ${e.message}`, true);
+        } finally {
+            document.getElementById('btn-run').disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
