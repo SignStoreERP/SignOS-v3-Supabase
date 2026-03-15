@@ -310,6 +310,48 @@
         runCalc();
     }
 
+    function updateText() {
+        const textEl = document.getElementById('sign-text');
+        const fontEl = document.getElementById('sign-font');
+        const brailleEl = document.getElementById('has-braille');
+        if(textEl) buildState.typography.text = textEl.value;
+        if(fontEl) buildState.typography.font = fontEl.value;
+        if(brailleEl) buildState.typography.hasBraille = brailleEl.checked;
+        runCalc();
+    }
+
+    // --- NEW: DYNAMIC LAYER RENDERING ---
+    function renderLayerStack() {
+        const stack = document.getElementById('layer-stack') || document.getElementById('layer-list');
+        if(!stack) return;
+
+        let html = '';
+        let simulatedLayers = [{ type: '1/32', role: '1/32" Tactile Applique' }];
+
+        if (buildState.product === 'BasicA') {
+            simulatedLayers.push({ type: '1/8', role: '1/8" ADA Core' });
+        } else if (buildState.product === 'BasicB') {
+            simulatedLayers.push({ type: '1/16', role: '1/16" ADA Core' });
+            simulatedLayers.push({ type: '3mm', role: '3mm PVC Backer' });
+        } else if (buildState.product === 'BasicClear') {
+            simulatedLayers.push({ type: '1/16', role: '1/16" ADA Core' });
+            simulatedLayers.push({ type: '3/16', role: '3/16" Clear Acrylic' });
+        }
+
+        if(buildState.addons.window) simulatedLayers.push({ type: 'Window_Paper', role: 'Routed Window' });
+        if(buildState.addons.slider) simulatedLayers.push({ type: 'Window_Engraved', role: 'Slider Tab' });
+
+        simulatedLayers.forEach((l, idx) => {
+            html += `<div class="bg-white border border-slate-200 p-2 rounded shadow-sm flex justify-between items-center"><span class="text-[10px] font-bold text-slate-700">${l.role}</span><span class="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-1.5 rounded border border-slate-200">Layer ${idx+1}</span></div>`;
+        });
+
+        stack.innerHTML = html;
+    }
+
+    function addLayer() {
+        alert("Custom manual layers are locked in Standard Architectural mode to ensure ADA compliance. Please use the Prebuilt Starters above to change the chassis.");
+    }
+
     async function runCalc() {
         // FIXED: Wait until baseColor is populated before calculating to avoid silent errors
         if(!backendData || !buildState.baseColor) return;
@@ -417,9 +459,13 @@
                         windowSVG = `<rect x="0.5" y="${buildInputs.h - 2.5}" width="${buildInputs.w - 1}" height="2" fill="#000000" fill-opacity="0.1" stroke="#000000" stroke-width="0.05" stroke-dasharray="0.1,0.1" /><text x="${buildInputs.w/2}" y="${buildInputs.h - 1.4}" font-family="sans-serif" font-size="0.25" fill="#000" text-anchor="middle" opacity="0.5">ROUTED WINDOW SLOT</text>`;
                     }
 
-                    cont.innerHTML = `<svg id="live-production-preview" width="100%" height="100%" viewBox="0 0 ${buildInputs.w} ${buildInputs.h}" data-width-in="${buildInputs.w}" data-height-in="${buildInputs.h}" class="overflow-visible shadow-2xl rounded drop-shadow-xl" style="background-color: ${bgHex}; transform: translateZ(10px);"><g id="scale-group" transform="translate(0, 0)"><g id="text-layer" fill="${fgHex}">${layout.textPaths}</g><g id="braille-layer" fill="transparent" stroke="#000" stroke-width="0.02">${layout.braillePaths}</g>${windowSVG}</g></svg>`;
+                    // FIXED: Uses layout.svgContent to seamlessly render text and braille together
+                    cont.innerHTML = `<svg id="live-production-preview" width="100%" height="100%" viewBox="0 0 ${buildInputs.w} ${buildInputs.h}" data-width-in="${buildInputs.w}" data-height-in="${buildInputs.h}" class="overflow-visible shadow-2xl rounded drop-shadow-xl" style="background-color: ${bgHex}; transform: translateZ(10px);"><g id="scale-group" transform="translate(0, 0)">${windowSVG}<g fill="${fgHex}">${layout.svgContent}</g></g></svg>`;
                 }
             }
+
+            // FIXED: Triggers the Layer Stack UI update on every calculation
+            renderLayerStack();
 
             if (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.renderLedger) {
                 SignOS_Sandbox.renderLedger(result);
