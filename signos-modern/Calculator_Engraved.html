@@ -234,10 +234,10 @@
     function createLayer(typeStr, roleStr) {
         let layer = { id: generateId(), role: roleStr || typeStr, type: typeStr };
         if (typeStr === '1/32') {
-            const defCol = tactileColors.find(c => c.Name.includes('White')) || tactileColors || {Hex_Code: '#FFFFFF', Name: 'White', Code: 'N/A'};
+            const defCol = tactileColors.find(c => c.Name && c.Name.includes('White')) || tactileColors || {Hex_Code: '#FFFFFF', Name: 'White', Code: 'N/A'};
             layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code; layer.hasBraille = true;
         } else if (typeStr === '1/16' || typeStr === '1/8') {
-            const defCol = coreColors.find(c => c.Name.includes('Black')) || coreColors || {Hex_Code: '#000000', Name: 'Black', Code: 'N/A'};
+            const defCol = coreColors.find(c => c.Name && c.Name.includes('Black')) || coreColors || {Hex_Code: '#000000', Name: 'Black', Code: 'N/A'};
             layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code;
         } else if (typeStr === '3mm') {
             layer.colorName = 'Black'; layer.colorHex = '#111827';
@@ -319,7 +319,6 @@
         renderLayers(); runCalc();
     }
 
-    // Z-INDEX DRIVEN REORDERING
     function moveLayer(id, direction) {
         const idx = layerStack.findIndex(l => l.id === id);
         if (idx < 0) return;
@@ -383,12 +382,21 @@
         activeColorId = id;
         const colorSearch = document.getElementById('color-search');
         if(colorSearch) colorSearch.value = '';
-        document.getElementById('color-modal').classList.remove('hidden');
-        renderColorGrid();
+        const modal = document.getElementById('color-modal');
+        if(modal) modal.classList.remove('hidden');
+        if(window.renderColorGrid) window.renderColorGrid();
     }
 
-    function renderColorGrid() {
+    // --- SCHEMA DRIVEN UI: Expose functions to the globally injected Color Modal ---
+    window.closeModal = function() { 
+        const modal = document.getElementById('color-modal');
+        if(modal) modal.classList.add('hidden'); 
+    };
+
+    window.renderColorGrid = function() {
         const grid = document.getElementById('modal-grid');
+        if(!grid) return;
+
         const searchInput = document.getElementById('color-search');
         const search = searchInput ? searchInput.value.toLowerCase() : '';
         
@@ -404,7 +412,9 @@
 
         let html = '';
         data.forEach(c => {
-            if (search && !c.Name.toLowerCase().includes(search) && !(c.Code && c.Code.toLowerCase().includes(search))) return;
+            const name = c.Name || '';
+            const code = c.Code || '';
+            if (search && !name.toLowerCase().includes(search) && !code.toLowerCase().includes(search)) return;
             
             let bgStyle = `background-color: ${c.Hex_Code};`;
             if ((layer.type === '1/16' || layer.type === '1/8') && c.Core_Hex && c.Hex_Code !== '#e5e7eb' && c.Hex_Code !== 'Transparent') {
@@ -412,16 +422,16 @@
             }
             
             html += `
-            <button onclick="selectColor('${c.Code || c.Name}')" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] focus:outline-none border border-transparent hover:border-gray-300">
+            <button onclick="window.selectColor('${code || name}')" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] focus:outline-none border border-transparent hover:border-gray-300">
                 <div class="w-10 h-10 rounded-full border border-gray-400 shadow-sm shrink-0" style="${bgStyle}"></div>
-                <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">${c.Name}</span>
-                <span class="text-[8px] font-black text-gray-400">${c.Code || ''}</span>
+                <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">${name}</span>
+                <span class="text-[8px] font-black text-gray-400">${code}</span>
             </button>`;
         });
         grid.innerHTML = html;
-    }
+    };
 
-    function selectColor(codeOrName) {
+    window.selectColor = function(codeOrName) {
         let layer = layerStack.find(l => l.id === activeColorId);
         if (!layer) return;
 
@@ -436,14 +446,11 @@
             layer.colorName = item.Name;
             layer.colorCode = item.Code;
         }
-        closeModal();
+        window.closeModal();
         renderLayers();
         runCalc();
-    }
+    };
 
-    function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
-
-    // --- INTEGRATING THE UNIVERSAL 3D RENDER ENGINE ---
     function updatePreview() {
         const w = parseFloat(document.getElementById('w').value) || 8;
         const h = parseFloat(document.getElementById('h').value) || 8;
@@ -459,15 +466,12 @@
             layers: []
         };
 
-        // UI Layer Stack now dictates physical Z-Index (Backers are at the bottom of the list)
         layerStack.forEach((l, index) => {
-            // Index 0 (top of UI list) = highest Z. Last index (bottom) = 0 Z.
             let zPos = layerStack.length - 1 - index;
             let isTactile = l.type === '1/32' || l.type === 'Window_Engraved';
             let isBottomLayer = index === layerStack.length - 1;
 
             let layerContent = '';
-            
             if (isTactile) {
                 layerContent = `
                     <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-2" style="filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.5)); color: ${l.colorHex};">
@@ -483,12 +487,11 @@
                 hex: l.colorHex,
                 z: zPos,
                 isTactile: isTactile,
-                isWindow: hasWindow && isBottomLayer, // Render the window dashed line on the bottom-most backer
+                isWindow: hasWindow && isBottomLayer, 
                 content: layerContent
             });
         });
         
-        // Pass manifest to Universal View Engine
         if (typeof SignOS_View !== 'undefined') SignOS_View.render('svg-preview-container', manifest);
     }
 
@@ -510,7 +513,6 @@
         };
 
         try {
-            // UNIVERSAL SANDBOX LINK
             const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
 
             const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
@@ -577,6 +579,11 @@
     window.addEventListener('load', async () => {
         if (typeof injectHeader === 'function') injectHeader("ADA Compliant Signs");
 
+        // SCHEMA-DRIVEN UI: INJECT COLOR MODAL DYNAMICALLY
+        if (typeof SignOS_UI !== 'undefined' && typeof SignOS_UI.injectColorModal === 'function') {
+            SignOS_UI.injectColorModal();
+        }
+
         const btnSandbox = document.getElementById('btn-sandbox');
         if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
             btnSandbox.classList.remove('hidden');
@@ -591,7 +598,6 @@
         const statusDot = document.getElementById("status-dot");
 
         try {
-            // FIXED: Removed heavy typography tables to drastically speed up loading!
             const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark']);
             backendData = payload.config;
 
@@ -599,9 +605,9 @@
                 SignOS_Sandbox.init(window.ENGRAVED_CONFIG, backendData, runCalc);
             }
 
+            // ROBUST MAPPING: Handles both PascalCase and lowercase keys from the API
             const rawRowmark = payload.tables['ref_colors_rowmark'] || payload.tables['REF_Colors_Rowmark'] || [];
 
-            // ROBUST MAPPING: Handles both PascalCase and lowercase keys from the API
             coreColors = rawRowmark.filter(r => {
                 const s = r.Series || r.series || '';
                 return s.includes('Ultra-Mattes') || s.includes('Mattes');
@@ -612,7 +618,7 @@
                 Core_Hex: c.Core_Hex || c.core_hex
             }));
 
-            if (!coreColors.find(c => c.Name.includes('Clear'))) coreColors.push({ Code: '322-101', Name: 'Clear', Hex_Code: '#e5e7eb' });
+            if (!coreColors.find(c => c.Name && c.Name.includes('Clear'))) coreColors.push({ Code: '322-101', Name: 'Clear', Hex_Code: '#e5e7eb' });
 
             tactileColors = rawRowmark.filter(r => {
                 const s = r.Series || r.series || '';
