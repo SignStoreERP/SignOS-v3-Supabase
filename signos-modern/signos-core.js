@@ -149,36 +149,61 @@ window.SignOS = window.SignOS || {};
 
 SignOS.fetchProductData = async function(productId, refTables = []) {
     try {
-        // 1. Fetch the product bundle
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_product_bundle`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-            body: JSON.stringify({ p_product_id: productId, p_ref_tables: refTables })
-        });
-        if (!response.ok) throw new Error("Failed to fetch product bundle");
-        let payload = await response.json();
-
-        // 2. FIX: Resolve 'true' booleans to actual numeric values from the Master Data Engine
+        // 1. Fetch Global Variables (Master Data Engine)
         const gvRes = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?select=id,default_value,override_value`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
-        
-        if (gvRes.ok && payload && payload.config) {
-            const gvData = await gvRes.json();
-            const gvMap = {};
-            gvData.forEach(item => {
-                gvMap[item.id] = item.override_value !== null ? item.override_value : item.default_value;
-            });
+        if (!gvRes.ok) throw new Error("Failed to fetch global variables");
+        const gvData = await gvRes.json();
 
-            // Swap out any boolean 'true' for the actual numeric value so Edge math doesn't crash with NaN
-            for (let key in payload.config) {
-                if (payload.config[key] === true && gvMap[key] !== undefined) {
-                    payload.config[key] = gvMap[key];
+        let config = {};
+        gvData.forEach(item => {
+            // Safely parse numbers so the Edge Functions can do math
+            let val = item.override_value !== null ? item.override_value : item.default_value;
+            config[item.id] = isNaN(parseFloat(val)) ? val : parseFloat(val);
+        });
+
+        // 2. Fetch Product-Specific Overrides and UI Schema
+        const prodRes = await fetch(`${SUPABASE_URL}/rest/v1/product_configurations?id=eq.${productId}&select=matrix_overrides,ui_schema`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        if (!prodRes.ok) throw new Error("Failed to fetch product configuration");
+        const prodData = await prodRes.json();
+
+        if (prodData && prodData.length > 0) {
+            const productRow = prodData;
+            let matrixOverrides = {};
+            try {
+                matrixOverrides = typeof productRow.matrix_overrides === 'string' ? JSON.parse(productRow.matrix_overrides) : (productRow.matrix_overrides || {});
+            } catch(e) {}
+
+            // Apply Product Overrides (and sanitize booleans to prevent NaN crashes)
+            for (let key in matrixOverrides) {
+                if (matrixOverrides[key] === true || matrixOverrides[key] === false) {
+                    continue; // Skip booleans, allow the Global Variable number to pass through
                 }
+                config[key] = isNaN(parseFloat(matrixOverrides[key])) ? matrixOverrides[key] : parseFloat(matrixOverrides[key]);
+            }
+            // Attach the JSON UI schema for the Cost Sandbox / Omni Terminal
+            config.ui_schema = productRow.ui_schema || null;
+        } else {
+            throw new Error(`Product Configuration [${productId}] not found in database.`);
+        }
+
+        // 3. Fetch Reference Tables (Colors, Fonts, etc.)
+        let tables = {};
+        for (let tableName of refTables) {
+            const tblRes = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?select=*&limit=1000`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            if (tblRes.ok) {
+                tables[tableName] = await tblRes.json();
             }
         }
-        return payload;
+
+        return { config: config, tables: tables };
     } catch(e) {
+        console.error("fetchProductData Error:", e);
         return { error: e.message };
     }
 };
