@@ -182,12 +182,12 @@ window.SignOS_UI = {
             overlay.classList.add('hidden');
         }
     },
-    
+
     // --- SCHEMA-DRIVEN UI INJECTORS ---
     injectColorModal: function() {
         if(document.getElementById('color-modal')) return; // Prevent duplicates
         const html = `
-        <div id="color-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[1] flex items-center justify-center p-4 transition-opacity cursor-pointer" onclick="if(window.closeModal) window.closeModal()">
+        <div id="color-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity cursor-pointer" onclick="if(window.closeModal) window.closeModal()">
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden border border-gray-200 cursor-auto" onclick="event.stopPropagation()">
                 <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
                     <h3 class="font-black text-gray-800 uppercase tracking-widest text-xs" id="modal-title">Select Color</h3>

@@ -220,9 +220,11 @@
     function createLayer(typeStr, roleStr) {
         let layer = { id: generateId(), role: roleStr || typeStr, type: typeStr };
         if (typeStr === '1/32') {
+            // FIXED: Added  to tactileColors fallback
             const defCol = tactileColors.find(c => c.Name && c.Name.includes('White')) || tactileColors || {Hex_Code: '#FFFFFF', Name: 'White', Code: 'N/A'};
             layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code; layer.hasBraille = true;
         } else if (typeStr === '1/16' || typeStr === '1/8') {
+            // FIXED: Added  to coreColors fallback
             const defCol = coreColors.find(c => c.Name && c.Name.includes('Black')) || coreColors || {Hex_Code: '#000000', Name: 'Black', Code: 'N/A'};
             layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code;
         } else if (typeStr === '3mm') {
