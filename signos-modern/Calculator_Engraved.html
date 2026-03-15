@@ -258,9 +258,13 @@
             renderSpatialView();
         }
 
+        // FIXED: Now checks if the base combination sequence exists ANYWHERE in the stack
         function checkComboWarning() {
             const types = buildState.layers.map(l => l.type).join('|');
-            const isStandard = (types === '1/32|1/8') || (types === '1/32|1/16|3mm') || (types === '1/32|1/16|3/16');
+            const isStandard = types.includes('1/32|1/8') || 
+                               types.includes('1/32|1/16|3mm') || 
+                               types.includes('1/32|1/16|3/16');
+                               
             const warnEl = document.getElementById('custom-combo-warn');
             if(warnEl) warnEl.classList.toggle('hidden', isStandard);
         }
@@ -336,7 +340,6 @@
             }
         }
 
-        // --- COLOR MODAL LOGIC & SMART FILTERING ---
         function openColorModal(layerId) {
             activeLayerId = layerId;
             document.getElementById('color-modal').classList.remove('hidden');
@@ -344,7 +347,9 @@
             renderColorGrid();
         }
 
-        function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
+        function closeModal() {
+            document.getElementById('color-modal').classList.add('hidden');
+        }
 
         function renderColorGrid() {
             const grid = document.getElementById('modal-grid');
@@ -390,8 +395,13 @@
 
         function selectColor(hex, name) {
             const layer = buildState.layers.find(l => l.id === activeLayerId);
-            if (layer) { layer.hex = hex; layer.colorName = name; }
-            closeModal(); renderLayerStack(); runCalc();
+            if (layer) {
+                layer.hex = hex;
+                layer.colorName = name;
+            }
+            closeModal();
+            renderLayerStack();
+            runCalc();
         }
 
         function renderLayerStack() {
@@ -420,7 +430,9 @@
                 </div>`;
             });
             list.innerHTML = html;
-            checkComboWarning(); renderSpatialView();
+            
+            checkComboWarning();
+            renderSpatialView();
         }
 
         function renderSpatialView() {
@@ -472,7 +484,6 @@
 
                     const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
 
-                    // Harvest Window Addons
                     const addonArray = [];
                     if(document.getElementById('addon-window-paper') && document.getElementById('addon-window-paper').checked) addonArray.push('window_paper');
                     if(document.getElementById('addon-window-engraved') && document.getElementById('addon-window-engraved').checked) addonArray.push('window_engraved');
@@ -546,7 +557,11 @@
                     if (res.ok) {
                         const rawRowmark = await res.json();
                         globalColors = rawRowmark.map(c => ({
-                            code: c.Item_Code, name: c.Cap_Color, hex: c.Cap_Hex, series: c.Series, thickness: c.Thickness
+                            code: c.Item_Code,
+                            name: c.Cap_Color,
+                            hex: c.Cap_Hex,
+                            series: c.Series,
+                            thickness: c.Thickness
                         }));
                     }
                 } catch(e) { 
@@ -555,7 +570,9 @@
                         { code: '311-2048', name: 'White', hex: '#FFFFFF', thickness: '1/32"', series: 'ADA Alternative' },
                         { code: '311-4018', name: 'Black', hex: '#121514', thickness: '1/32"', series: 'ADA Alternative' },
                         { code: '322-201', name: 'White', hex: '#FFFFFF', thickness: '1/16"', series: 'Ultra-Mattes Reverse' },
-                        { code: '322-401', name: 'Black', hex: '#121514', thickness: '1/16"', series: 'Ultra-Mattes Reverse' }
+                        { code: '322-401', name: 'Black', hex: '#121514', thickness: '1/16"', series: 'Ultra-Mattes Reverse' },
+                        { code: '342-201', name: 'White', hex: '#FFFFFF', thickness: '1/8"', series: 'Ultra-Mattes Reverse' },
+                        { code: '342-401', name: 'Black', hex: '#121514', thickness: '1/8"', series: 'Ultra-Mattes Reverse' }
                     ];
                 }
 
