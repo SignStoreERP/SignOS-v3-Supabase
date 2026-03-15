@@ -10,6 +10,8 @@
     <script src="signos-canvas.js"></script>
     <script src="cost_engraved.js"></script>
     <script src="signos-sandbox.js"></script>
+    <!-- NEW: Inject Universal Preview Engine -->
+    <script src="signos-view-svg.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
@@ -21,16 +23,13 @@
         .isometric-view #svg-preview-container { transform: rotateX(60deg) rotateZ(-45deg); }
         .blueprint-callout { opacity: 0; transition: opacity 0.5s ease 0.4s, transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; }
         .isometric-view .blueprint-callout { opacity: 1; }
-        .color-scroll::-webkit-scrollbar { width: 6px; }
-        .color-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px;}
-        .color-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
 
 <div id="app-wrapper" class="w-full max-w-md mx-auto mt-8 transition-all duration-500 flex justify-center items-start gap-4 px-4 sm:px-0">
 
-    <!-- LEFT: INLINE FINANCIAL LEDGER -->
+    <!-- LEFT: INLINE FINANCIAL LEDGER (Populated by Sandbox) -->
     <div id="sandbox-ledger" class="hidden w-[380px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
         <div class="p-4 bg-slate-50 border-b border-gray-200 flex flex-col shrink-0 rounded-t-xl gap-3">
             <div class="flex justify-between items-center">
@@ -112,16 +111,17 @@
                     </div>
                 </div>
 
+                <!-- 2. LAYER REORDERING STACK -->
                 <div class="bg-slate-200 p-3 rounded-xl shadow-inner border border-slate-300">
-                    <div class="mb-2 border-b border-slate-300 pb-1 px-1">
+                    <div class="mb-2 border-b border-slate-300 pb-1 px-1 flex justify-between">
                         <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sign Layers & Add-ons</label>
+                        <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Top to Bottom</span>
                     </div>
-                    <div id="base-layers" class="space-y-1.5 mb-2 pb-2 border-b border-slate-300"></div>
-                    <div id="addon-layers" class="space-y-1.5 mb-3"></div>
+                    <div id="layer-stack" class="space-y-1.5 mb-3"></div>
                     
-                    <button onclick="addAddon()" class="w-full mt-2 bg-gray-700 hover:bg-gray-800 border border-dashed border-gray-500 hover:border-gray-400 text-white font-black py-2 rounded text-[9px] uppercase tracking-widest shadow-md transition focus:outline-none flex items-center justify-center gap-1">
+                    <button onclick="addLayer()" class="w-full mt-2 bg-gray-700 hover:bg-gray-800 border border-dashed border-gray-500 hover:border-gray-400 text-white font-black py-2 rounded text-[9px] uppercase tracking-widest shadow-md transition focus:outline-none flex items-center justify-center gap-1">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        <span>Add Custom Add-on</span>
+                        <span>Add Material Layer</span>
                     </button>
                 </div>
 
@@ -131,57 +131,6 @@
                         <option value="Foam Tape" selected>Foam Tape (Standard)</option>
                         <option value="None">None (Slide-in / Bracket)</option>
                     </select>
-                </div>
-            </div>
-
-            <!-- RESTORED: DESIGN & TYPOGRAPHY ACCORDION -->
-            <div class="bg-gray-50 border-t border-b border-gray-200 relative z-10">
-                <div class="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-100 transition" onclick="toggleAcc('acc-design', 'arr-design')">
-                    <span class="text-[10px] font-black text-gray-800 uppercase tracking-widest">Design Elements</span>
-                    <svg id="arr-design" class="w-4 h-4 text-gray-400 transition-transform duration-200 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-                <div id="acc-design" class="p-5 pt-0 space-y-3">
-                    <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="flex justify-between items-center">
-                            <label class="flex items-center gap-2 text-xs font-bold text-blue-800 uppercase tracking-widest cursor-pointer">
-                                <input type="checkbox" id="toggle-picto" checked onchange="runCalc()" class="w-4 h-4 text-blue-600 rounded"> Pictogram
-                            </label>
-                            <div id="picto-size-wrap" class="flex items-center gap-2 bg-gray-50 p-1 rounded border border-gray-200 shadow-inner">
-                                <label class="text-[9px] font-bold text-gray-500 uppercase">Height:</label>
-                                <input type="number" id="picto-size" value="4" step="0.25" min="1" oninput="runCalc()" class="w-12 border p-0.5 rounded text-xs font-bold text-center outline-none">
-                            </div>
-                        </div>
-                        <div id="wrap-picto" class="mt-3 pt-3 border-t border-gray-100">
-                            <div id="icon-grid" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto color-scroll p-2 border rounded-lg bg-gray-50 shadow-inner"></div>
-                        </div>
-                    </div>
-                    <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="flex items-center gap-2 text-xs font-bold text-blue-800 uppercase tracking-widest cursor-pointer">
-                                <input type="checkbox" id="toggle-text" checked onchange="runCalc()" class="w-4 h-4 text-blue-600 rounded"> Text Copy
-                            </label>
-                        </div>
-                        <div id="wrap-text" class="grid grid-cols-2 gap-3 pt-3 mt-2 border-t border-gray-100">
-                            <div class="col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Text String</label>
-                                <input type="text" id="sign-text" value="RESTROOM" oninput="runCalc()" class="w-full border p-2 rounded text-xs font-bold uppercase text-gray-800 focus:border-blue-500 outline-none shadow-sm h-[38px]">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Font Style</label>
-                                <select id="sign-font" onchange="runCalc()" class="w-full border p-2 rounded bg-white font-bold text-xs h-[38px] focus:border-blue-500 outline-none shadow-sm"></select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 flex items-center justify-between">
-                                    Height (in)
-                                    <span class="flex items-center gap-1 cursor-pointer">
-                                        <input type="checkbox" id="auto-scale-text" checked onchange="syncAutoScale(this.id)" class="w-3 h-3 text-blue-600 rounded">
-                                        <span class="text-[8px] text-blue-600 tracking-wider">AUTO</span>
-                                    </span>
-                                </label>
-                                <input type="number" id="text-height" value="0.625" step="0.125" min="0.25" oninput="runCalc()" class="w-full border p-2 rounded text-xs font-bold text-center text-gray-800 focus:border-blue-500 outline-none shadow-sm h-[38px]">
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -263,23 +212,15 @@
 
 <script>
     let backendData = {};
-    let tactileColors = [], coreColors = [], pictograms = [], systemFonts = [];
+    let tactileColors = [], coreColors = [];
     let activeProduct = 'BasicB';
     
-    // FIXED: Unified Layer Stack for Reordering
+    // UNIFIED LAYER STACK
     let layerStack = [];
-    
     let activeColorId = null;
-    let selectedIcon = null;
     let is3D = true;
-    const GITHUB_BASE = "https://raw.githubusercontent.com/SignStoreERP/signos-app/main/fonts/";
 
     function generateId() { return Math.random().toString(36).substr(2, 9); }
-
-    function toggleAcc(contentId, arrowId) {
-        document.getElementById(contentId).classList.toggle('hidden');
-        document.getElementById(arrowId).classList.toggle('rotate-180');
-    }
 
     function toggle3D() {
         is3D = !is3D;
@@ -287,12 +228,6 @@
         document.getElementById('preview-wrapper').classList.toggle('isometric-view', is3D);
         const btn3d = document.getElementById('btn-3d');
         if (btn3d) btn3d.innerText = is3D ? "Flat 2D View" : "3D Isometric View";
-        runCalc();
-    }
-
-    function syncAutoScale(sourceId) {
-        const isChecked = document.getElementById(sourceId).checked;
-        if(document.getElementById('auto-scale-text')) document.getElementById('auto-scale-text').checked = isChecked;
         runCalc();
     }
 
@@ -310,6 +245,8 @@
             layer.colorName = 'Clear'; layer.colorHex = 'rgba(255,255,255,0.4)';
         } else if (typeStr === 'Window_Engraved') {
             layer.colorName = 'White'; layer.colorHex = '#FFFFFF'; layer.sliderH = 2;
+        } else if (typeStr === 'Window_Paper') {
+            layer.colorName = 'N/A'; layer.colorHex = '#f3f4f6'; 
         }
         return layer;
     }
@@ -351,7 +288,7 @@
         runCalc();
     }
 
-    function addAddon() {
+    function addLayer() {
         layerStack.push(createLayer('1/16', 'Extra 1/16" Core'));
         renderLayers();
         runCalc();
@@ -360,13 +297,19 @@
     function updateLayerType(id, val) {
         const idx = layerStack.findIndex(x => x.id === id);
         if (idx > -1) {
-            layerStack[idx] = createLayer(val, `Extra ${val}`);
+            let roleStr = `Extra ${val.replace('_', ' ')}`;
+            if (val === 'Window_Paper') roleStr = 'Window Pocket (Paper)';
+            if (val === 'Window_Engraved') roleStr = 'Window (Engraved Slider)';
+            if (val === '3mm') roleStr = '3mm PVC Backer';
+            if (val === '3/16') roleStr = '3/16" Clear Acrylic';
+
+            layerStack[idx] = createLayer(val, roleStr);
             layerStack[idx].id = id; 
             renderLayers(); runCalc();
         }
     }
 
-    function updateAddonSlider(id, val) {
+    function updateLayerSlider(id, val) {
         const a = layerStack.find(x => x.id === id);
         if (a) { a.sliderH = parseFloat(val) || 0.5; runCalc(); }
     }
@@ -376,6 +319,7 @@
         renderLayers(); runCalc();
     }
 
+    // Z-INDEX DRIVEN REORDERING
     function moveLayer(id, direction) {
         const idx = layerStack.findIndex(l => l.id === id);
         if (idx < 0) return;
@@ -390,7 +334,7 @@
     }
 
     function renderLayers() {
-        const container = document.getElementById('addon-layers');
+        const container = document.getElementById('layer-stack');
         
         if (container) {
             container.innerHTML = layerStack.map((a, index) => {
@@ -428,7 +372,7 @@
                     ${isEngraved ? `
                     <div class="flex items-center justify-between border-t border-gray-100 pt-1.5 mt-1 ml-1">
                         <span class="text-[9px] font-bold text-gray-500 uppercase">Slider Height (in)</span>
-                        <input type="number" value="${a.sliderH}" step="0.25" min="0.5" oninput="updateAddonSlider('${a.id}', this.value)" class="w-16 border border-gray-300 rounded p-1 text-center text-[10px] font-black text-blue-900 outline-none focus:border-blue-500 shadow-inner">
+                        <input type="number" value="${a.sliderH}" step="0.25" min="0.5" oninput="updateLayerSlider('${a.id}', this.value)" class="w-16 border border-gray-300 rounded p-1 text-center text-[10px] font-black text-blue-900 outline-none focus:border-blue-500 shadow-inner">
                     </div>` : ''}
                 </div>`;
             }).join('');
@@ -499,103 +443,53 @@
 
     function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
 
-    // --- DYNAMIC TYPOGRAPHY & VISUAL ENGINE ---
-    async function updatePreview() {
-        const container = document.getElementById('svg-preview-container');
-        if(!container) return;
-        try {
-            const w = parseFloat(document.getElementById('w').value) || 8;
-            const h = parseFloat(document.getElementById('h').value) || 8;
-            
-            const scale = Math.min(180 / w, 150 / h);
-            container.style.width = `${w * scale}px`;
-            container.style.height = `${h * scale}px`;
-            
-            // Build visual stack dynamically from the unified layerStack
-            let visualStack = [];
-            layerStack.forEach(l => {
-                let depth = 0;
-                if (l.type === '1/16') depth = 1; 
-                else if (l.type === '1/8') depth = 2; 
-                else if (l.type === '3mm' || l.type === '3/16') depth = 3;
-                visualStack.push({ role: l.role || l.type, hex: l.colorHex, depth: depth, type: l.type });
-            });
+    // --- INTEGRATING THE UNIVERSAL 3D RENDER ENGINE ---
+    function updatePreview() {
+        const w = parseFloat(document.getElementById('w').value) || 8;
+        const h = parseFloat(document.getElementById('h').value) || 8;
+        
+        let hasWindow = layerStack.some(a => ['Window_Paper', 'Window_Engraved'].includes(a.type));
+        let scale = Math.min(180 / w, 150 / h);
+        
+        const pictoPath = 'M58.29,43.92c8.57,0,15.54-6.97,15.54-15.54s-6.97-15.53-15.54-15.53-15.53,6.95-15.53,15.53,6.95,15.54,15.53,15.54ZM90.18,61.06c-1.65-4.92-7.98-13.86-18.84-13.86h-26.22c-10.95,0-17.26,8.86-18.7,13.86l-13.29,43.82c-2.77,9.43,9.3,13.04,12.16,4.24l11.98-40.35h5.18l-20.6,71.53h19.19v55.68c0,9.58,14.36,9.58,14.36,0v-56.04h5.82v56.1c0,9.48,14.29,9.52,14.29,0v-55.73h19.15l-20.77-71.53h5.44l11.98,40.2c2.86,9.18,14.85,5.29,12.17-4.12l-13.31-43.79ZM181,33.51c5.06-10.8-7.22-23.57-18.3-20.08-10.69,2.16-15.21,16.92-7.76,24.83,6.78,8.96,22.87,6.11,26.05-4.74ZM197.26,51.83c-7.51-6.34-18.07-4.97-27.19-5.13-10.59.44-21.64-1.47-31.72,2.53-6.34,2.48-9.57,9.41-9.37,15.92-.08,17.14-.14,34.29.03,51.43-.29,2.95,1.89,6.79,5.21,6.49,5.67,1.3,7.86-5.63,7.86-10.05.12-13.52-.15-27.04.09-40.56h3.83c.29,40.78-.14,81.56.21,122.32-.35,8.35,10.22,10.63,15.77,6.06,1.75-4.35,2.16-9.12,2.14-13.74-.11-21.38-.03-42.73-.05-64.09h4c.12,24.48-.21,49.01.13,73.5.82,10.08,17.96,7.86,16.91-1.91.26-40.75-.04-81.53.17-122.29,1.19-.03,3.58-.06,4.78-.08.03,14.2-.06,28.42.02,42.66-.17,4.2,3.04,9.37,7.85,8.2,4.07.15,5.41-4.9,5.27-8.2.14-14.66-.04-29.3.06-43.95-.09-6.68-.31-14.59-6.03-19.1ZM113.42,203.15h6.16V12.85h-6.16v190.3Z';
 
-            // Ensure physical stacking (Backers at 0, Tactile at max)
-            visualStack.sort((a, b) => b.depth - a.depth);
-            
-            const fontSelect = document.getElementById('sign-font');
-            const fontFileName = fontSelect ? (fontSelect.options[fontSelect.selectedIndex]?.dataset.filename || 'Arimo-Regular.ttf') : 'Arimo-Regular.ttf';
-            
-            const buildInputs = {
-                w: w, h: h, align: 'center',
-                textVal: document.getElementById('sign-text') ? document.getElementById('sign-text').value.toUpperCase() : 'RESTROOM',
-                hasPicto: document.getElementById('toggle-picto') ? document.getElementById('toggle-picto').checked : true,
-                hasText: document.getElementById('toggle-text') ? document.getElementById('toggle-text').checked : true,
-                hasBraille: true,
-                isAutoScale: document.getElementById('auto-scale-text') ? document.getElementById('auto-scale-text').checked : true,
-                selectedIcon: selectedIcon,
-                fontFileName: fontFileName,
-                pictoSize: parseFloat(document.getElementById('picto-size') ? document.getElementById('picto-size').value : 4),
-                fontSize: parseFloat(document.getElementById('text-height') ? document.getElementById('text-height').value : 0.625)
-            };
+        let manifest = {
+            w: w, h: h,
+            is3D: is3D,
+            layers: []
+        };
 
-            const layout = typeof SignOS_Builder !== 'undefined' ? await SignOS_Builder.buildADA(buildInputs, GITHUB_BASE) : { svgContent: '' };
-            
-            if(document.getElementById('picto-size')) {
-                document.getElementById('picto-size').value = layout.pictoSize || 4;
-                document.getElementById('picto-size').disabled = buildInputs.isAutoScale;
-                document.getElementById('picto-size').parentElement.classList.toggle('opacity-50', buildInputs.isAutoScale);
-            }
-            if(document.getElementById('text-height')) {
-                document.getElementById('text-height').value = layout.fontSize || 0.625;
-                document.getElementById('text-height').disabled = buildInputs.isAutoScale;
-                document.getElementById('text-height').parentElement.classList.toggle('opacity-50', buildInputs.isAutoScale);
-            }
+        // UI Layer Stack now dictates physical Z-Index (Backers are at the bottom of the list)
+        layerStack.forEach((l, index) => {
+            // Index 0 (top of UI list) = highest Z. Last index (bottom) = 0 Z.
+            let zPos = layerStack.length - 1 - index;
+            let isTactile = l.type === '1/32' || l.type === 'Window_Engraved';
+            let isBottomLayer = index === layerStack.length - 1;
 
-            let html = '';
-            let currentZ = 0; 
+            let layerContent = '';
             
-            let hasWindow = layerStack.some(a => ['Window_Paper', 'Window_Engraved'].includes(a.type));
-            
-            visualStack.forEach((l, i) => {
-                const isTactile = l.type === '1/32';
-                const bgHex = isTactile ? 'transparent' : l.hex;
-                const shadow = isTactile ? 'none' : `-${l.depth+1}px ${l.depth+1}px 4px rgba(0,0,0,0.3)`;
-                const borderClass = isTactile ? '' : 'border border-black/20';
-                
-                let content = '';
-                
-                // RESTORED: Window Pocket View
-                if(hasWindow && !isTactile && i === visualStack.length - 1) {
-                    content = `<div class="absolute bottom-[10%] left-[5%] right-[5%] h-[20%] border border-dashed border-black/40 bg-black/10 flex items-center justify-center text-[6px] font-black text-black/50 tracking-widest" style="box-shadow: inset 1px -1px 3px rgba(0,0,0,0.2);">ROUTED POCKET</div>`;
-                }
-
-                if (isTactile) {
-                    content = `<div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none" style="filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.5)); color: ${l.hex};">
-                        <svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" fill="currentColor" style="overflow: visible;">${layout.svgContent}</svg>
+            if (isTactile) {
+                layerContent = `
+                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-2" style="filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.5)); color: ${l.colorHex};">
+                        <svg viewBox="0 0 216 216" class="w-8 h-8 mb-1" fill="currentColor"><path d="${pictoPath}"></path></svg>
+                        <span class="font-black tracking-widest leading-none truncate" style="font-size: ${h * scale * 0.15}px; font-family: sans-serif;">RESTROOM</span>
+                        <span class="font-mono tracking-[0.2em] mt-1 opacity-50 leading-none" style="font-size: 10px;">. .. . . ..</span>
                     </div>`;
-                }
-                
-                let cascadeY = is3D ? ((visualStack.length - 1 - i) * 15) : 0;
-                
-                html += `
-                <div class="absolute inset-0 ${borderClass} rounded flex transition-all duration-700 ease-in-out pointer-events-none"
-                     style="background-color: ${bgHex}; box-shadow: ${shadow}; transform: translateZ(${currentZ}px);">
-                    ${content}
-                    ${is3D ? `
-                    <div class="blueprint-callout absolute right-[100%] top-1/2 flex items-center z-50 mr-3 pointer-events-none" style="transform: translateY(calc(-50% + ${cascadeY}px));">
-                        <span class="text-[6px] font-black text-blue-700 uppercase tracking-widest bg-white/90 backdrop-blur px-1.5 py-0.5 rounded border border-blue-200 shadow-sm whitespace-nowrap">${l.role}</span>
-                        <div class="w-6 border-b-[1.5px] border-blue-500 shadow-sm"></div>
-                    </div>` : ''}
-                </div>`;
-                currentZ += 30;
+            }
+
+            manifest.layers.push({
+                id: l.id,
+                role: l.role || l.type,
+                hex: l.colorHex,
+                z: zPos,
+                isTactile: isTactile,
+                isWindow: hasWindow && isBottomLayer, // Render the window dashed line on the bottom-most backer
+                content: layerContent
             });
-            container.innerHTML = html;
-        } catch(e) {
-            console.error("Preview Render Error:", e);
-            container.innerHTML = `<div class="absolute inset-0 flex items-center justify-center font-bold text-red-400 text-xs uppercase text-center tracking-widest">Preview Error</div>`;
-        }
+        });
+        
+        // Pass manifest to Universal View Engine
+        if (typeof SignOS_View !== 'undefined') SignOS_View.render('svg-preview-container', manifest);
     }
 
     async function runCalc() {
@@ -616,6 +510,7 @@
         };
 
         try {
+            // UNIVERSAL SANDBOX LINK
             const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
 
             const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
@@ -696,7 +591,8 @@
         const statusDot = document.getElementById("status-dot");
 
         try {
-            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark', 'REF_Pictograms', 'REF_Fonts']);
+            // FIXED: Removed heavy typography tables to drastically speed up loading!
+            const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark']);
             backendData = payload.config;
 
             if (typeof SignOS_Sandbox !== 'undefined' && window.ENGRAVED_CONFIG) {
@@ -704,13 +600,6 @@
             }
 
             const rawRowmark = payload.tables['REF_Colors_Rowmark'] || [];
-            pictograms = payload.tables['REF_Pictograms'] || [];
-            systemFonts = payload.tables['REF_Fonts'] || [];
-
-            const fontSelect = document.getElementById('sign-font');
-            let fontHtml = '';
-            systemFonts.forEach(f => { if(String(f.Is_Active).toUpperCase() === 'TRUE') fontHtml += `<option value="${f.CSS_Family}" data-filename="${f.File_Name}">${f.Font_Name}</option>`; });
-            if(fontSelect) fontSelect.innerHTML = fontHtml;
 
             coreColors = rawRowmark.filter(r => r.Series && (r.Series.includes('Ultra-Mattes') || r.Series.includes('Mattes'))).map(c => ({
                 Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex
@@ -720,12 +609,6 @@
             tactileColors = rawRowmark.filter(r => r.Series && r.Series.includes('ADA Alternative')).map(c => ({
                 Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: c.Cap_Hex
             }));
-
-            const activeIcons = pictograms.filter(p => String(p.Is_Active).toUpperCase() === 'TRUE');
-            if (activeIcons.length > 0) {
-                selectedIcon = activeIcons.find(p => p.Name.toLowerCase().includes('unisex') || p.Name.toLowerCase().includes('family')) || activeIcons;
-            }
-            if (SignOS_UI.buildIconGrid) SignOS_UI.buildIconGrid({ containerId: 'icon-grid', data: activeIcons, activeRingClass: 'ring-blue-500', onSelect: (item) => { selectedIcon = item; runCalc(); } });
 
             if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
 
