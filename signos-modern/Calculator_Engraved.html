@@ -227,7 +227,7 @@
             // FIXED: coreColors successfully pulls the first color object instead of the array
             const defCol = coreColors.find(c => c.Name && c.Name.includes('Black')) || coreColors || {Hex_Code: '#000000', Name: 'Black', Code: 'N/A'};
             layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code;
-        } else if (typeStr === '3mm') {
+        } else if (typeStr === '3mm' || typeStr === '6mm') {
             layer.colorName = 'Black'; layer.colorHex = '#111827';
         } else if (typeStr === '3/16') {
             layer.colorName = 'Clear'; layer.colorHex = 'rgba(255,255,255,0.4)';
@@ -289,6 +289,7 @@
             if (val === 'Window_Paper') roleStr = 'Window Pocket (Paper)';
             if (val === 'Window_Engraved') roleStr = 'Window (Engraved Slider)';
             if (val === '3mm') roleStr = '3mm PVC Backer';
+            if (val === '6mm') roleStr = '6mm PVC Backer';
             if (val === '3/16') roleStr = '3/16" Clear Acrylic';
 
             layerStack[idx] = createLayer(val, roleStr);
@@ -325,7 +326,7 @@
         
         if (container) {
             container.innerHTML = layerStack.map((a, index) => {
-                const isMat = ['1/32', '1/16', '1/8', '3mm', '3/16'].includes(a.type);
+                const isMat = ['1/32', '1/16', '1/8', '3mm', '6mm', '3/16'].includes(a.type);
                 const isEngraved = a.type === 'Window_Engraved';
                 const hasColor = isMat && a.type !== '3/16';
                 
@@ -346,6 +347,7 @@
                                 <option value="1/16" ${a.type==='1/16'?'selected':''}>1/16" Layer</option>
                                 <option value="1/8" ${a.type==='1/8'?'selected':''}>1/8" Layer</option>
                                 <option value="3mm" ${a.type==='3mm'?'selected':''}>3mm PVC Backer</option>
+                                <option value="6mm" ${a.type==='6mm'?'selected':''}>6mm PVC Backer</option>
                                 <option value="3/16" ${a.type==='3/16'?'selected':''}>3/16" Clear Acrylic</option>
                             </optgroup>
                         </select>
@@ -392,7 +394,7 @@
             let targetThick = layer.type === '1/16' ? '1/16"' : '1/8"';
             data = coreColors.filter(c => c.Thickness === targetThick || c.Name === 'Clear');
         }
-        else if (layer.type === '3mm') {
+        else if (layer.type === '3mm' || layer.type === '6mm') {
             data = [ {Name:'Black', Hex_Code:'#000000', Code:'PVC-BLK'}, {Name:'White', Hex_Code:'#ffffff', Code:'PVC-WHT'} ];
         }
 
@@ -514,6 +516,7 @@
                 if (l.type === '1/32') return `1/32" Rowmark [${code}] ${l.colorName} Tactile w/ Braille`;
                 if (l.type.includes('Core')) return `${l.type.replace(' Core', '')} Rowmark [${code}] ${l.colorName} Core`;
                 if (l.type === '3mm') return `3mm [${code}] ${l.colorName} PVC Backer`;
+                if (l.type === '6mm') return `6mm [${code}] ${l.colorName} PVC Backer`;
                 if (l.type === '3/16') return `3/16" Clear Acrylic Backer`;
                 if (l.type === 'Window_Paper') return `Routed Window Pocket (For Paper Insert)`;
                 if (l.type === 'Window_Engraved') return `Routed Window Pocket (For ${l.sliderH || 2}" Slider)`;

@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
       '1/16': { cost: parseFloat(config.Cost_Sub_ADA_Core_116 || "50"), yield: sheet1152, name: '1/16" Core', costKey: 'Cost_Sub_ADA_Core_116' },
       '1/8': { cost: parseFloat(config.Cost_Sub_ADA_Core_18 || "70"), yield: sheet1152, name: '1/8" Core', costKey: 'Cost_Sub_ADA_Core_18' },
       '3mm': { cost: parseFloat(config.Cost_Sub_PVC || "29.09"), yield: sheet4608, name: '3mm PVC Backer', costKey: 'Cost_Sub_PVC' },
+      '6mm': { cost: parseFloat(config.Cost_Stock_6mm_4x8 || "58.37"), yield: sheet4608, name: '6mm PVC Backer', costKey: 'Cost_Stock_6mm_4x8' },
       '3/16': { cost: parseFloat(config.Cost_Sub_Acrylic || "91.65"), yield: sheet4608, name: '3/16" Clear Acrylic', costKey: 'Cost_Sub_Acrylic' },
       '1/32_CLR': { cost: parseFloat(config.ADA_APP_132_CLR || "58.12"), yield: sheet1152, name: '1/32" Clear Lens', costKey: 'ADA_APP_132_CLR' }
     };
@@ -122,7 +123,7 @@ Deno.serve(async (req) => {
 
     let forcedBacker = false;
     if (hasPaperWindow || hasEngravedWindow) {
-      let hasBacker = safeLayers.some((l: any) => l.type === '3mm' || l.type === '3/16');
+      let hasBacker = safeLayers.some((l: any) => l.type === '3mm' || l.type === '6mm' || l.type === '3/16');
       if (!hasBacker) forcedBacker = true;
       R(`Routed Window Pocket`, totalSqin * 0.40, `Total SqIn * $0.40`);
     }
