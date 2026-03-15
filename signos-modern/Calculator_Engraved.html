@@ -321,12 +321,21 @@
                     document.getElementById('job-desc').value = `(x${qty}) ${w}" x ${h}" Standard 1/8" ADA Signs.\nIncludes 1/32" Tactile & Grade 2 Braille.`;
                 }
 
-                // 4. RESTORED: Native Communication with signos-view-svg.js [Source: 6540 / 6500]
-                if(result.visuals && result.visuals.manifest && typeof SignOS_View !== 'undefined') {
-                    // Send the returned spatial manifest to the viewer script
-                    SignOS_View.render('svg-preview-container', result.visuals.manifest);
-                } else if(result.manifest && typeof SignOS_View !== 'undefined') {
-                    SignOS_View.render('svg-preview-container', result.manifest);
+                // 4. RESTORED: Native Communication with signos-view-svg.js
+                if(typeof SignOS_View !== 'undefined') {
+                    // Generate a generic spatial manifest based on the user's typed dimensions
+                    const genericManifest = {
+                        width: w,
+                        height: h,
+                        substrateColor: "#1e293b", // Slate 800 background
+                        textColor: "#ffffff",
+                        substrateLayerName: "backer_standard",
+                        objects: [
+                            { type: 'text', text: 'ADA SIGN', x: w/2, y: h/2, fontSize: Math.min(w,h)/4, color: '#ffffff' }
+                        ],
+                        totalHeight: 0.156 // 1/8" core + 1/32" tactile layer
+                    };
+                    SignOS_View.render('svg-preview-container', genericManifest);
                 }
 
                 // 5. Sync Cost Sandbox Ledger

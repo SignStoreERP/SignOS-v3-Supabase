@@ -450,7 +450,7 @@
         }
         try {
             // Using Yard Signs config logic matrix for standard rates
-            const payload = await SignOS.fetchProductData('PROD_Yard_Signs');
+            const payload = await SignOS.fetchProductData('PROD_Post_Panel');
             backendData = payload.config;
             backendData.ui_schema = POSTPANEL_UI_SCHEMA; // Inject Schema natively
             toggleInsetUI();
