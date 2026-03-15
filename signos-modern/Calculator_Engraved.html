@@ -6,11 +6,14 @@
     <title>ADA Quoter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
+    <script src="signos-ui.js"></script>
     <script src="signos-sandbox.js"></script>
     <script src="signos-view-svg.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        #preview-wrapper { perspective: 1200px; }
+        /* 3D Viewfinder Base with Pan/Zoom Grab hooks */
+        #preview-wrapper { perspective: 1200px; cursor: grab; }
+        #preview-wrapper:active { cursor: grabbing; }
         #svg-preview-container { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
         .isometric-view #svg-preview-container { transform: rotateX(60deg) rotateZ(-45deg); }
         .custom-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f8fafc; }
@@ -56,19 +59,65 @@
 
                 <!-- 3D VIEWER -->
                 <div class="bg-blue-50 p-4 shadow-inner flex flex-col items-center justify-center relative border-b border-blue-200 overflow-hidden">
+                    <div class="absolute top-3 left-3 z-30 flex gap-1.5 pointer-events-auto">
+                        <button onclick="toggle3D()" id="btn-3d" class="bg-white/90 hover:bg-gray-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Flat 2D View</button>
+                        <button onclick="SignOS_UI.Camera3D.reset()" class="bg-white/80 hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Reset Camera</button>
+                    </div>
                     <span class="absolute top-3 right-3 text-[8px] font-black text-blue-400 uppercase tracking-widest z-10">Spatial Preview</span>
-                    <div id="preview-wrapper" class="isometric-view w-full flex justify-center items-center mt-3 mb-2 relative h-48">
+                    
+                    <!-- RESTORED: Pan & Zoom Event Listeners -->
+                    <div id="preview-wrapper" class="isometric-view w-full flex justify-center items-center mt-3 mb-2 relative h-48" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
                         <div id="svg-preview-container" class="relative"></div>
                     </div>
                 </div>
 
                 <!-- INPUTS -->
-                <div class="p-6 space-y-4">
-                    <div class="grid grid-cols-3 gap-3">
+                <div class="p-6 space-y-5">
+                    <div class="grid grid-cols-3 gap-3 border-b border-gray-100 pb-4">
                         <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
                         <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width (in)</label><input type="number" id="w" value="8" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
                         <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height (in)</label><input type="number" id="h" value="8" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none" oninput="runCalc()"></div>
                     </div>
+
+                    <!-- PRESETS -->
+                    <div>
+                        <label class="block text-[10px] font-bold text-blue-800 uppercase tracking-widest mb-2">1. Base Configurations</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="applyPreset('A')" class="p-2 border border-gray-200 rounded shadow-sm bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition focus:outline-none">
+                                <span class="block text-[10px] font-black text-blue-800 uppercase">Combo A</span>
+                                <span class="block text-[8px] text-gray-500 mt-0.5">1/32" on 1/8"</span>
+                            </button>
+                            <button onclick="applyPreset('B')" class="p-2 border border-gray-200 rounded shadow-sm bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition focus:outline-none">
+                                <span class="block text-[10px] font-black text-blue-800 uppercase">Combo B</span>
+                                <span class="block text-[8px] text-gray-500 mt-0.5">1/32" on 1/16" on PVC</span>
+                            </button>
+                            <button onclick="applyPreset('C')" class="p-2 border border-gray-200 rounded shadow-sm bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition focus:outline-none">
+                                <span class="block text-[10px] font-black text-blue-800 uppercase">Combo C</span>
+                                <span class="block text-[8px] text-gray-500 mt-0.5">1/32" on 1/16" on Acr</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- DYNAMIC LAYER BUILDER -->
+                    <div class="bg-slate-200 p-3 rounded-xl shadow-inner border border-slate-300">
+                        <div class="mb-2 border-b border-slate-300 pb-1 px-1">
+                            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">2. Sign Layers (Base + Add-ons)</label>
+                        </div>
+                        <div id="layer-list" class="flex flex-col gap-2 mt-2 max-h-64 overflow-y-auto custom-scroll pr-1 mb-3"></div>
+                        <div class="flex gap-2">
+                            <select id="new-layer-type" class="flex-1 border border-gray-300 p-1.5 rounded text-xs font-bold text-gray-700 outline-none">
+                                <option value="1/32">1/32" Tactile Applique</option>
+                                <option value="1/16">1/16" ADA Core</option>
+                                <option value="1/8">1/8" ADA Core</option>
+                                <option value="3mm">3mm PVC Backer</option>
+                                <option value="6mm">6mm PVC Backer</option>
+                                <option value="3/16">3/16" Clear Acrylic</option>
+                                <option value="1/32_CLR">1/32" Clear Lens</option>
+                            </select>
+                            <button onclick="addLayer()" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-3 py-1.5 rounded text-[9px] uppercase tracking-widest shadow-sm transition focus:outline-none">+ Add</button>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- RESULTS -->
@@ -88,11 +137,6 @@
                         <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
                     </div>
                     <button id="btn-sandbox" onclick="SignOS_Sandbox.toggle()" class="hidden w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black py-2.5 rounded shadow-md uppercase tracking-widest transition">Launch Cost Sandbox</button>
-                </div>
-
-                <div class="bg-gray-50 p-4 border-t border-gray-200">
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
-                    <textarea id="job-desc" class="w-full text-xs p-2 border rounded bg-white h-20 text-gray-600 font-mono outline-none custom-scroll resize-none" readonly></textarea>
                 </div>
             </div>
         </div>
@@ -123,7 +167,6 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     <script>
@@ -131,11 +174,10 @@
             retails: [
                 { key: 'Retail_Price_ADA_Basic_AB', label: 'Base SqIn ($)' },
                 { key: 'Retail_Price_ADA_Basic_Clear', label: 'Clear Base SqIn ($)' },
-                { key: 'Retail_Min_Order', label: 'Shop Min ($)' },
-                { key: 'Tier_1_Qty', label: 'Discount Qty' },
-                { key: 'Tier_1_Disc', label: 'Discount % (Dec)' }
+                { key: 'Retail_Min_Order', label: 'Shop Min ($)' }
             ],
             costs: [
+                { key: 'Cost_Sub_Tactile', label: '1/32" Tactile ($/Sht)' },
                 { key: 'Cost_Sub_ADA_Core_116', label: '1/16" Core ($/Sht)' },
                 { key: 'Cost_Sub_ADA_Core_18', label: '1/8" Core ($/Sht)' },
                 { key: 'Cost_Sub_PVC', label: '3mm PVC ($/Sht)' },
@@ -145,7 +187,9 @@
                 { key: 'Rate_Machine_Engraver', label: 'Engraver ($/Hr)' },
                 { key: 'Rate_Machine_CNC', label: 'CNC ($/Hr)' },
                 { key: 'Rate_Shop_Labor', label: 'Assembly ($/Hr)' },
+                { key: 'Time_Preflight_Job', label: 'Prepress (Mins)' },
                 { key: 'Time_Engrave_SqIn', label: 'Engrave (Min/SqIn)' },
+                { key: 'Time_CNC_Easy_SqFt', label: 'CNC (Min/SqFt)' },
                 { key: 'Waste_Factor', label: 'Waste Multiplier' },
                 { key: 'Factor_Risk', label: 'Risk Multiplier' }
             ]
@@ -153,6 +197,104 @@
 
         let backendData = {};
         let calcTimeout = null;
+        let is3D = true;
+
+        let buildState = {
+            qty: 1, w: 8, h: 8, product: 'BasicA',
+            layers: [
+                { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true },
+                { id: Date.now()+1, type: '1/8', role: '1/8" ADA Core', isBase: true }
+            ]
+        };
+
+        function toggle3D() {
+            is3D = !is3D;
+            if(window.SignOS_UI && SignOS_UI.Camera3D) SignOS_UI.Camera3D.toggle(is3D);
+            document.getElementById('preview-wrapper').classList.toggle('isometric-view', is3D);
+            document.getElementById('btn-3d').innerText = is3D ? "Flat 2D View" : "3D Isometric View";
+            renderSpatialView();
+        }
+
+        function applyPreset(preset) {
+            if (preset === 'A') {
+                buildState.product = 'BasicA';
+                buildState.layers = [
+                    { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true },
+                    { id: Date.now()+1, type: '1/8', role: '1/8" ADA Core', isBase: true }
+                ];
+            } else if (preset === 'B') {
+                buildState.product = 'BasicB';
+                buildState.layers = [
+                    { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true },
+                    { id: Date.now()+1, type: '1/16', role: '1/16" ADA Core', isBase: true },
+                    { id: Date.now()+2, type: '3mm', role: '3mm PVC Backer', isBase: true }
+                ];
+            } else if (preset === 'C') {
+                buildState.product = 'BasicClear';
+                buildState.layers = [
+                    { id: Date.now(), type: '1/32', role: '1/32" Tactile Applique', isBase: true },
+                    { id: Date.now()+1, type: '1/16', role: '1/16" ADA Core', isBase: true },
+                    { id: Date.now()+2, type: '3/16', role: '3/16" Clear Acrylic', isBase: true }
+                ];
+            }
+            renderLayerStack();
+            runCalc();
+        }
+
+        function addLayer() {
+            const sel = document.getElementById('new-layer-type');
+            buildState.layers.push({
+                id: Date.now(),
+                type: sel.value,
+                role: sel.options[sel.selectedIndex].text,
+                isBase: false // Flagged as an Add-on for 300% retail markup
+            });
+            renderLayerStack();
+            runCalc();
+        }
+
+        function removeLayer(id) {
+            buildState.layers = buildState.layers.filter(l => l.id !== id);
+            renderLayerStack();
+            runCalc();
+        }
+
+        function renderLayerStack() {
+            const list = document.getElementById('layer-list');
+            let html = '';
+            buildState.layers.forEach((l, idx) => {
+                const tagColor = l.isBase ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-purple-100 text-purple-700 border-purple-200';
+                const tagText = l.isBase ? 'BASE' : 'ADD-ON';
+                html += `
+                <div class="bg-white border border-slate-200 p-2 rounded shadow-sm flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] font-black uppercase tracking-widest ${tagColor} px-1.5 rounded border">${tagText}</span>
+                        <span class="text-[10px] font-bold text-slate-700">${l.role}</span>
+                    </div>
+                    <button onclick="removeLayer(${l.id})" class="text-red-400 hover:text-red-600 font-black px-2 hover:bg-red-50 rounded transition">✕</button>
+                </div>`;
+            });
+            list.innerHTML = html;
+            renderSpatialView();
+        }
+
+        function renderSpatialView() {
+            if (typeof SignOS_View !== 'undefined' && SignOS_View.render) {
+                const w = parseFloat(document.getElementById('w').value) || 8;
+                const h = parseFloat(document.getElementById('h').value) || 8;
+                const manifest = {
+                    w: w, h: h, is3D: is3D,
+                    layers: buildState.layers.map((l, i) => ({
+                        z: i,
+                        hex: i === 0 ? '#1e293b' : (i === buildState.layers.length - 1 ? '#ffffff' : '#94a3b8'),
+                        isTactile: l.type === '1/32' || l.type === '1/32_CLR',
+                        // FIXED: Renders the actual layer role into the visual container to prevent "undefined"
+                        content: `<div class="w-full h-full flex items-center justify-center text-[10px] font-bold ${l.type === '1/32' ? 'text-slate-800' : 'text-white/80 drop-shadow-md'} p-1 text-center leading-tight uppercase tracking-widest">${l.role}</div>`
+                    }))
+                };
+                SignOS_View.render('svg-preview-container', manifest);
+            }
+        }
 
         async function runCalc() {
             if(!backendData || (!backendData.Retail_Min_Order && !backendData.Retail_Min_Order_Etch)) return;
@@ -167,11 +309,8 @@
                     const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
 
                     const payloadInputs = {
-                        qty: qty, w: w, h: h, product: 'BasicA',
-                        layers: [
-                            { type: '1/32', role: '1/32" Tactile Applique' },
-                            { type: '1/8', role: '1/8" ADA Core' }
-                        ],
+                        qty: qty, w: w, h: h, product: buildState.product,
+                        layers: buildState.layers,
                         addons: [], mounting: 'Foam Tape', brailleLines: 1
                     };
 
@@ -203,22 +342,8 @@
                         }
                     });
                     document.getElementById('ui-line-items').innerHTML = sublineHtml;
-
-                    document.getElementById('job-desc').value = `(x${qty}) ${w}" x ${h}" Standard 1/8" ADA Signs.\nIncludes 1/32" Tactile & Grade 2 Braille.`;
-
-                    // FIXED: Properly constructs the v4.0 spatial manifest array to prevent the TypeError crash
-                    if (typeof SignOS_View !== 'undefined' && SignOS_View.render) {
-                        const manifest = {
-                            w: w,
-                            h: h,
-                            is3D: true,
-                            layers: [
-                                { z: 0, hex: '#1e293b', isTactile: false },
-                                { z: 1, hex: '#ffffff', isTactile: true }
-                            ]
-                        };
-                        SignOS_View.render('svg-preview-container', manifest);
-                    }
+                    
+                    renderSpatialView();
 
                     if (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.renderLedger) {
                         SignOS_Sandbox.renderLedger(result);
@@ -230,14 +355,15 @@
 
         window.addEventListener('load', async () => {
             if (typeof injectHeader === 'function') injectHeader("ADA Quoter");
+            if(window.SignOS_UI && SignOS_UI.Camera3D) {
+                SignOS_UI.Camera3D.init('zoom-stage');
+                SignOS_UI.Camera3D.toggle(true);
+            }
 
             const btnSandbox = document.getElementById('btn-sandbox');
             if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
                 btnSandbox.classList.remove('hidden');
             }
-
-            const statusText = document.getElementById("status-text");
-            const statusDot = document.getElementById("status-dot");
 
             try {
                 const payload = await SignOS.fetchProductData('PROD_ADA_Signs');
@@ -246,24 +372,10 @@
 
                 if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
-                if(statusText) {
-                    statusText.innerText = "ONLINE";
-                    statusText.className = "font-bold text-green-500";
-                    if(statusDot) {
-                        statusDot.className = "w-2 h-2 rounded-full bg-green-500";
-                        statusDot.classList.remove("animate-pulse");
-                    }
-                }
-
+                renderLayerStack();
                 runCalc();
 
-            } catch(e) {
-                console.error("API Error:", e);
-                if(statusText) {
-                    statusText.innerText = "OFFLINE";
-                    statusText.className = "font-bold text-red-500";
-                }
-            }
+            } catch(e) { console.error("API Error:", e); }
         });
     </script>
 </body>
