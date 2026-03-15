@@ -223,7 +223,7 @@
 </div>
 
 <script>
-    // --- 1. HARDCODED UI SCHEMA FOR INLINE SANDBOX ---
+    // --- HARDCODED UI SCHEMA FOR INLINE SANDBOX ---
     const ADA_UI_SCHEMA = {
         retails: [
             { key: 'Retail_Price_ADA_Basic_AB', label: 'Base SqIn ($)' },
@@ -248,380 +248,140 @@
         ]
     };
 
-    let backendData = {}, coreColors = [], systemFonts = [];
-
-    // FIXED: Correct initialization for the Architectural Builder
-    let buildState = {
-        qty: 1, w: 8, h: 8, purpose: 'Restroom / Room ID', chassis: 'Flush',
-        product: 'BasicA', 
-        baseColor: null, addons: { window: false, slider: false, magnetic: false, accent: false },
-        typography: { text: 'ROOM 101', font: 'sans-serif', hasBraille: true }
-    };
-
-    let is3D = true;
-    let customSimData = null;
-    let lastSimResult = null;
-
-    function toggle3D() {
-        is3D = !is3D;
-        if(typeof SignOS_UI !== 'undefined' && SignOS_UI.Camera3D) SignOS_UI.Camera3D.toggle(is3D);
-        const wrapper = document.getElementById('preview-wrapper');
-        if(wrapper) wrapper.classList.toggle('isometric-view', is3D);
-        const btn3d = document.getElementById('btn-3d');
-        if (btn3d) btn3d.innerText = is3D ? "Flat 2D View" : "3D Isometric View";
-        runCalc();
-    }
-
-    function toggleStep(stepNum) {
-        const steps = document.querySelectorAll('.wizard-step');
-        steps.forEach(step => {
-            const num = parseInt(step.getAttribute('data-step'));
-            const content = step.querySelector('.step-content');
-            const chevron = step.querySelector('.chevron');
-            const header = step.querySelector('.p-3');
-            const badge = step.querySelector('.num-badge');
-            const title = step.querySelector('.title-text');
-
-            if (num === stepNum) {
-                if(content) { content.style.maxHeight = '500px'; content.classList.add('p-4'); content.classList.remove('p-0'); }
-                step.classList.remove('opacity-50');
-                if(header) { header.classList.remove('bg-slate-50', 'border-gray-100'); header.classList.add('bg-blue-50', 'border-blue-100'); }
-                if(badge) badge.className = "w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black num-badge";
-                if(title) title.className = "text-xs font-black text-blue-900 uppercase tracking-widest title-text";
-                if(chevron) { chevron.classList.remove('-rotate-90'); chevron.classList.add('text-blue-500'); }
-            } else {
-                if(content) { content.style.maxHeight = '0px'; content.classList.remove('p-4'); content.classList.add('p-0'); }
-                step.classList.add('opacity-50');
-                if(header) { header.classList.remove('bg-blue-50', 'border-blue-100'); header.classList.add('bg-slate-50', 'border-gray-100'); }
-                if(badge) badge.className = "w-6 h-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-xs font-black num-badge";
-                if(title) title.className = "text-xs font-black text-gray-600 uppercase tracking-widest title-text";
-                if(chevron) { chevron.classList.add('-rotate-90'); chevron.classList.remove('text-blue-500'); }
-            }
-        });
-    }
-
-    function setProduct(prod) {
-        buildState.product = prod;
-        document.querySelectorAll('#product-btns button').forEach(btn => {
-            if (btn.getAttribute('data-prod') === prod) {
-                btn.classList.add('border-2', 'border-slate-900', 'bg-slate-800');
-                btn.classList.remove('border-gray-300', 'bg-gray-100', 'hover:bg-gray-200', 'hover:border-gray-400');
-                if(btn.querySelector('span:first-child')) btn.querySelector('span:first-child').classList.add('text-white');
-                if(btn.querySelector('span:first-child')) btn.querySelector('span:first-child').classList.remove('text-gray-700');
-                if(btn.querySelector('span:last-child')) btn.querySelector('span:last-child').classList.add('text-slate-300');
-                if(btn.querySelector('span:last-child')) btn.querySelector('span:last-child').classList.remove('text-gray-500');
-            } else {
-                btn.classList.remove('border-2', 'border-slate-900', 'bg-slate-800');
-                btn.classList.add('border-gray-300', 'bg-gray-100', 'hover:bg-gray-200', 'hover:border-gray-400');
-                if(btn.querySelector('span:first-child')) btn.querySelector('span:first-child').classList.remove('text-white');
-                if(btn.querySelector('span:first-child')) btn.querySelector('span:first-child').classList.add('text-gray-700');
-                if(btn.querySelector('span:last-child')) btn.querySelector('span:last-child').classList.remove('text-slate-300');
-                if(btn.querySelector('span:last-child')) btn.querySelector('span:last-child').classList.add('text-gray-500');
-            }
-        });
-        runCalc();
-    }
-
-    function setAddon(type, isChecked) {
-        buildState.addons[type] = isChecked;
-        runCalc();
-    }
-
-    function updateText() {
-        const textEl = document.getElementById('sign-text');
-        const fontEl = document.getElementById('sign-font');
-        const brailleEl = document.getElementById('has-braille');
-        if(textEl) buildState.typography.text = textEl.value;
-        if(fontEl) buildState.typography.font = fontEl.value;
-        if(brailleEl) buildState.typography.hasBraille = brailleEl.checked;
-        runCalc();
-    }
-
-    function updateText() {
-        const textEl = document.getElementById('sign-text');
-        const fontEl = document.getElementById('sign-font');
-        const brailleEl = document.getElementById('has-braille');
-        if(textEl) buildState.typography.text = textEl.value;
-        if(fontEl) buildState.typography.font = fontEl.value;
-        if(brailleEl) buildState.typography.hasBraille = brailleEl.checked;
-        runCalc();
-    }
-
-    // --- NEW: DYNAMIC LAYER RENDERING ---
-    function renderLayerStack() {
-        const stack = document.getElementById('layer-stack') || document.getElementById('layer-list');
-        if(!stack) return;
-
-        let html = '';
-        let simulatedLayers = [{ type: '1/32', role: '1/32" Tactile Applique' }];
-
-        if (buildState.product === 'BasicA') {
-            simulatedLayers.push({ type: '1/8', role: '1/8" ADA Core' });
-        } else if (buildState.product === 'BasicB') {
-            simulatedLayers.push({ type: '1/16', role: '1/16" ADA Core' });
-            simulatedLayers.push({ type: '3mm', role: '3mm PVC Backer' });
-        } else if (buildState.product === 'BasicClear') {
-            simulatedLayers.push({ type: '1/16', role: '1/16" ADA Core' });
-            simulatedLayers.push({ type: '3/16', role: '3/16" Clear Acrylic' });
-        }
-
-        if(buildState.addons.window) simulatedLayers.push({ type: 'Window_Paper', role: 'Routed Window' });
-        if(buildState.addons.slider) simulatedLayers.push({ type: 'Window_Engraved', role: 'Slider Tab' });
-
-        simulatedLayers.forEach((l, idx) => {
-            html += `<div class="bg-white border border-slate-200 p-2 rounded shadow-sm flex justify-between items-center"><span class="text-[10px] font-bold text-slate-700">${l.role}</span><span class="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-1.5 rounded border border-slate-200">Layer ${idx+1}</span></div>`;
-        });
-
-        stack.innerHTML = html;
-    }
-
-    function addLayer() {
-        alert("Custom manual layers are locked in Standard Architectural mode to ensure ADA compliance. Please use the Prebuilt Starters above to change the chassis.");
-    }
+    let backendData = {};
+    let calcTimeout = null;
 
     async function runCalc() {
-        // FIXED: Wait until baseColor is populated before calculating to avoid silent errors
-        if(!backendData || !buildState.baseColor) return;
-        
-        const wEl = document.getElementById('w');
-        const hEl = document.getElementById('h');
-        if(wEl) { buildState.w = parseFloat(wEl.value) || 8; const lblW = document.getElementById('lbl-w'); if(lblW) lblW.innerText = buildState.w; }
-        if(hEl) { buildState.h = parseFloat(hEl.value) || 8; const lblH = document.getElementById('lbl-h'); if(lblH) lblH.innerText = buildState.h; }
-        
-        try {
-            const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
+        if(!backendData || (!backendData.Retail_Min_Order && !backendData.Retail_Min_Order_Etch)) return;
 
-            // Build the layers array dynamically based on the prebuilt starters
-            let simulatedLayers = [];
-            simulatedLayers.push({ type: '1/32', role: '1/32" Tactile Applique' });
+        clearTimeout(calcTimeout);
+        calcTimeout = setTimeout(async () => {
+            try {
+                // 1. Harvest Standard Quoter Inputs
+                const wEl = document.getElementById('w');
+                const hEl = document.getElementById('h');
+                const qtyEl = document.getElementById('qty');
 
-            if (buildState.product === 'BasicA') {
-                simulatedLayers.push({ type: '1/8', role: '1/8" ADA Core' });
-            } else if (buildState.product === 'BasicB') {
-                simulatedLayers.push({ type: '1/16', role: '1/16" ADA Core' });
-                simulatedLayers.push({ type: '3mm', role: '3mm PVC Backer' });
-            } else if (buildState.product === 'BasicClear') {
-                simulatedLayers.push({ type: '1/16', role: '1/16" ADA Core' });
-                simulatedLayers.push({ type: '3/16', role: '3/16" Clear Acrylic' });
-            }
-            
-            // Push any routed window addons as pseudo-layers
-            if(buildState.addons.window) simulatedLayers.push({ type: 'Window_Paper' });
-            if(buildState.addons.slider) simulatedLayers.push({ type: 'Window_Engraved', sliderH: 2 });
+                const w = parseFloat(wEl ? wEl.value : 8) || 8;
+                const h = parseFloat(hEl ? hEl.value : 8) || 8;
+                const qty = parseFloat(qtyEl ? qtyEl.value : 1) || 1;
 
-            const payloadInputs = {
-                qty: parseFloat(document.getElementById('qty')?.value) || 1,
-                w: buildState.w,
-                h: buildState.h,
-                product: buildState.product,
-                layers: simulatedLayers,
-                addons: Object.entries(buildState.addons).filter(entry => entry.at(1)).map(entry => ({type: 'Window_' + (entry.at(0) === 'window' ? 'Paper' : 'Engraved')})),
-                mounting: 'Foam Tape',
-                brailleLines: 1
-            };
+                // 2. Update UI Labels (if they exist in your clean layout)
+                if(document.getElementById('lbl-w')) document.getElementById('lbl-w').innerText = w;
+                if(document.getElementById('lbl-h')) document.getElementById('lbl-h').innerText = h;
+                if(document.getElementById('lbl-sqin')) document.getElementById('lbl-sqin').innerText = (w * h * qty).toFixed(1);
 
-            const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
-            const response = await fetch(fnUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                body: JSON.stringify({ inputs: payloadInputs, config: dataToUse })
-            });
+                const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
 
-            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-            const result = await response.json();
-            if (!result || !result.retail) return;
-
-            const ret = result.retail;
-            const fmt = (n) => "$" + (n || 0).toFixed(2);
-
-            const unitEl = document.getElementById('ui-unit');
-            const totalEl = document.getElementById('ui-total');
-            if(unitEl) unitEl.innerText = fmt(ret.unitPrice);
-            if(totalEl) totalEl.innerText = fmt(ret.grandTotal);
-
-            const minOrder = parseFloat(dataToUse.Retail_Min_Order || dataToUse.Retail_Min_Order_Etch || 50);
-            const minEl = document.getElementById('ui-min-text');
-            const minBadge = document.getElementById('min-badge');
-            if(minEl) minEl.innerText = `Shop Minimum: $${minOrder}`;
-            if(minBadge) minBadge.classList.toggle('hidden', !ret.isMinApplied);
-
-            let sublineHtml = '';
-            ret.breakdown.forEach(item => {
-                if (item.label !== 'Shop Minimum Surcharge') {
-                    sublineHtml += `<span class="block text-[9px] font-bold text-blue-500 truncate">+ ${item.label} ($${(item.unit||0).toFixed(2)})</span>`;
-                }
-            });
-            const sublineEl = document.getElementById('ui-subline');
-            if(sublineEl) sublineEl.innerHTML = sublineHtml;
-
-            let activeAddons = Object.entries(buildState.addons).filter(entry => entry.at(1)).map(entry => entry.at(0)).join(', ');
-            const descEl = document.getElementById('job-desc');
-            if(descEl) descEl.value = `(x${payloadInputs.qty}) ${payloadInputs.w}" x ${payloadInputs.h}" ADA Sign.\nProduct: ${buildState.product}\nIncludes: ${activeAddons || 'Standard Layout'}`;
-
-            // PHYSICS-FIRST BRIDGE & 3D RENDER
-            if(typeof SignOS_Builder !== 'undefined') {
-                const cont = document.getElementById('svg-preview-container');
-                const githubBase = "https://raw.githubusercontent.com/SignStoreERP/signos-app/main/fonts/";
-                const fontSelect = document.getElementById('sign-font');
-                const fontFileName = fontSelect ? (fontSelect.options[fontSelect.selectedIndex]?.dataset.filename || 'Arimo-Regular.ttf') : 'Arimo-Regular.ttf';
-
-                const buildInputs = {
-                    w: buildState.w, h: buildState.h, align: 'center',
-                    textVal: buildState.typography.text, hasPicto: false, hasText: !!buildState.typography.text,
-                    hasBraille: buildState.typography.hasBraille, isAutoScale: true, fontFileName: fontFileName
+                const payloadInputs = {
+                    qty: qty,
+                    w: w,
+                    h: h,
+                    product: 'BasicA', // Defaults to standard 1/8" ADA logic for the rapid quoter
+                    layers: [
+                        { type: '1/32', role: '1/32" Tactile Applique' },
+                        { type: '1/8', role: '1/8" ADA Core' }
+                    ],
+                    addons: [],
+                    mounting: 'Foam Tape',
+                    brailleLines: 1
                 };
-                
-                const layout = await SignOS_Builder.buildADA(buildInputs, githubBase);
-                
-                let bgHex = buildState.baseColor ? buildState.baseColor.Hex_Code : '#e5e7eb';
-                let fgHex = buildState.baseColor ? buildState.baseColor.Core_Hex : '#000000';
 
-                if(cont) {
-                    cont.className = "w-full h-full flex items-center justify-center p-4 pointer-events-none";
-                    cont.style.backgroundColor = 'transparent';
-                    cont.style.border = 'none';
+                const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
+                const response = await fetch(fnUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                    body: JSON.stringify({ inputs: payloadInputs, config: dataToUse })
+                });
 
-                    let windowSVG = '';
-                    if (buildState.addons.window) {
-                        windowSVG = `<rect x="0.5" y="${buildInputs.h - 2.5}" width="${buildInputs.w - 1}" height="2" fill="#000000" fill-opacity="0.1" stroke="#000000" stroke-width="0.05" stroke-dasharray="0.1,0.1" /><text x="${buildInputs.w/2}" y="${buildInputs.h - 1.4}" font-family="sans-serif" font-size="0.25" fill="#000" text-anchor="middle" opacity="0.5">ROUTED WINDOW SLOT</text>`;
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+                const result = await response.json();
+                if (!result || !result.retail) return;
+
+                const ret = result.retail;
+                const fmt = (n) => "$" + (n || 0).toFixed(2);
+
+                // 3. Render Prices
+                if(document.getElementById('ui-unit')) document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+                if(document.getElementById('ui-total')) document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+
+                const minOrder = parseFloat(dataToUse.Retail_Min_Order || 50);
+                if(document.getElementById('ui-min-text')) document.getElementById('ui-min-text').innerText = `Shop Minimum: $${minOrder}`;
+                if(document.getElementById('min-badge')) document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+
+                let sublineHtml = '';
+                ret.breakdown.forEach(item => {
+                    if (item.label !== 'Shop Minimum Surcharge') {
+                        sublineHtml += `<div class="flex justify-between"><span>${item.label}:</span><span class="font-bold">${fmt(item.unit || item.total)}</span></div>`;
                     }
+                });
+                if(document.getElementById('ui-line-items')) document.getElementById('ui-line-items').innerHTML = sublineHtml;
 
-                    // FIXED: Uses layout.svgContent to seamlessly render text and braille together
-                    cont.innerHTML = `<svg id="live-production-preview" width="100%" height="100%" viewBox="0 0 ${buildInputs.w} ${buildInputs.h}" data-width-in="${buildInputs.w}" data-height-in="${buildInputs.h}" class="overflow-visible shadow-2xl rounded drop-shadow-xl" style="background-color: ${bgHex}; transform: translateZ(10px);"><g id="scale-group" transform="translate(0, 0)">${windowSVG}<g fill="${fgHex}">${layout.svgContent}</g></g></svg>`;
+                if(document.getElementById('job-desc')) {
+                    document.getElementById('job-desc').value = `(x${qty}) ${w}" x ${h}" Standard 1/8" ADA Signs.\nIncludes 1/32" Tactile & Grade 2 Braille.`;
                 }
+
+                // 4. RESTORED: Native Communication with signos-view-svg.js [Source: 6540 / 6500]
+                if(result.visuals && result.visuals.manifest && typeof SignOS_View !== 'undefined') {
+                    // Send the returned spatial manifest to the viewer script
+                    SignOS_View.render('svg-preview-container', result.visuals.manifest);
+                } else if(result.manifest && typeof SignOS_View !== 'undefined') {
+                    SignOS_View.render('svg-preview-container', result.manifest);
+                }
+
+                // 5. Sync Cost Sandbox Ledger
+                if (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.renderLedger) {
+                    SignOS_Sandbox.renderLedger(result);
+                }
+
+            } catch(e) {
+                console.error("Calculation Error:", e);
             }
-
-            // FIXED: Triggers the Layer Stack UI update on every calculation
-            renderLayerStack();
-
-            if (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.renderLedger) {
-                SignOS_Sandbox.renderLedger(result);
-            }
-
-        } catch(e) { console.error("Physics Engine Error:", e); }
+        }, 200);
     }
 
     // --- INITIALIZATION ---
     window.addEventListener('load', async () => {
-        if (typeof injectHeader === 'function') injectHeader("Architectural Sign Builder");
-        if(window.SignOS_UI && SignOS_UI.Camera3D) {
-            SignOS_UI.Camera3D.init('zoom-stage');
-            SignOS_UI.Camera3D.toggle(true);
-        }
+        if (typeof injectHeader === 'function') injectHeader("ADA Quoter");
 
-        // FIXED: Restore Sandbox toggle button visibility securely
         const btnSandbox = document.getElementById('btn-sandbox');
         if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
             btnSandbox.classList.remove('hidden');
         }
-
-        const addonWin = document.getElementById('addon-window');
-        const addonSli = document.getElementById('addon-slider');
-        const addonMag = document.getElementById('addon-magnetic');
-        const addonAcc = document.getElementById('addon-accent');
-        
-        if(addonWin) addonWin.onchange = (e) => setAddon('window', e.target.checked);
-        if(addonSli) addonSli.onchange = (e) => setAddon('slider', e.target.checked);
-        if(addonMag) addonMag.onchange = (e) => setAddon('magnetic', e.target.checked);
-        if(addonAcc) addonAcc.onchange = (e) => setAddon('accent', e.target.checked);
 
         if(typeof SignOS_UI !== 'undefined') SignOS_UI.showLoader('loader-wrapper', 'Connecting to Matrices...');
         const statusText = document.getElementById("status-text");
         const statusDot = document.getElementById("status-dot");
 
         try {
-            // FIXED: Fetch strictly lowercase tables to prevent 404s
-            const payload = await SignOS.fetchProductData('PROD_Nameplates', ['ref_colors_rowmark', 'ref_fonts']);
+            // Uses PROD_ADA_Signs as injected into the database in our earlier migration
+            const payload = await SignOS.fetchProductData('PROD_ADA_Signs');
             backendData = payload.config || {};
-            backendData.ui_schema = ADA_UI_SCHEMA; 
+            backendData.ui_schema = ADA_UI_SCHEMA;
 
+            // Fire up the universal sandbox
             if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
-            let rawRowmark = payload.tables['ref_colors_rowmark'] || [];
-            let rawFonts = payload.tables['ref_fonts'] || [];
-            
-            // SAFEGUARD 1: Fallback Data if Supabase RLS or 404 blocks the table
-            if (rawRowmark.length === 0) {
-                console.warn("Rowmark table empty or blocked. Injecting fallback colors.");
-                rawRowmark = [
-                    { item_code: '322-401', series: 'Mattes', cap_color: 'Black', core_color: 'White', cap_hex: '#121514', core_hex: '#ffffff' },
-                    { item_code: '322-201', series: 'Mattes', cap_color: 'White', core_color: 'Black', cap_hex: '#ffffff', core_hex: '#000000' },
-                    { item_code: '322-801', series: 'Mattes', cap_color: 'Taupe', core_color: 'White', cap_hex: '#968A85', core_hex: '#ffffff' },
-                    { item_code: '322-512', series: 'Mattes', cap_color: 'Blue', core_color: 'White', cap_hex: '#004B87', core_hex: '#ffffff' }
-                ];
-            }
-
-            if (rawFonts.length === 0) {
-                rawFonts = [{ font_name: 'System Default', css_family: 'sans-serif', file_name: '', is_active: 'TRUE' }];
-            }
-
-            // SAFEGUARD 2: Strict case-insensitive parsing
-            systemFonts = rawFonts.filter(f => String(f.Is_Active || f.is_active).toUpperCase() === 'TRUE');
-            if (window.SignOS_Canvas && systemFonts.length > 0 && (systemFonts.at(0).File_Name || systemFonts.at(0).file_name)) {
-                SignOS_Canvas.loadFonts(systemFonts);
-            }
-
-            coreColors = rawRowmark.filter(r => {
-                const series = String(r.Series || r.series || '').toLowerCase();
-                return series.includes('mattes') || series.includes('ultra-mattes');
-            }).map(c => ({
-                Code: c.Item_Code || c.item_code || 'UNK',
-                Name: c.Cap_Color || c.cap_color || 'Unknown',
-                Hex_Code: (c.Cap_Hex === 'Transparent' || c.cap_hex === 'Transparent' || String(c.Cap_Color || c.cap_color || '').includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex),
-                Core_Hex: c.Core_Hex || c.core_hex || '#000000'
-            }));
-
-            // If the filter somehow excluded everything, force the first item through
-            if (coreColors.length === 0 && rawRowmark.length > 0) {
-                const c = rawRowmark.at(0);
-                coreColors.push({
-                    Code: c.Item_Code || c.item_code || 'UNK',
-                    Name: c.Cap_Color || c.cap_color || 'Fallback Color',
-                    Hex_Code: c.Cap_Hex || c.cap_hex || '#e5e7eb',
-                    Core_Hex: c.Core_Hex || c.core_hex || '#000000'
-                });
-            }
-
-            if(typeof SignOS_UI !== 'undefined') {
-                SignOS_UI.buildLabeledColorGrid({
-                    containerId: 'rowmark-grid', data: coreColors, type: 'rowmark',
-                    onSelect: (item) => {
-                        buildState.baseColor = item;
-                        const label = document.getElementById('selected-color-label');
-                        if(label) label.innerText = item.Name || item.Cap_Color;
-                        runCalc();
-                    }
-                });
-            }
-
-            const fontSelect = document.getElementById('sign-font');
-            if(fontSelect) {
-                systemFonts.forEach(f => { 
-                    const fam = f.CSS_Family || f.css_family;
-                    const file = f.File_Name || f.file_name || '';
-                    const name = f.Font_Name || f.font_name;
-                    fontSelect.innerHTML += `<option value="${fam}" data-filename="${file}">${name}</option>`; 
-                });
-            }
-
-            if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
-            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('loader-wrapper');
-            
-            // SAFEGUARD 3: Force selection & calculation even if DOM is slow
-            setTimeout(() => { 
-                const firstBtn = document.querySelector('#rowmark-grid button'); 
-                if(firstBtn) {
-                    firstBtn.click(); 
-                } else {
-                    buildState.baseColor = coreColors.at(0);
-                    runCalc();
+            if(statusText) {
+                statusText.innerText = "ONLINE";
+                statusText.className = "font-bold text-green-500";
+                if(statusDot) {
+                    statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                    statusDot.classList.remove("animate-pulse");
                 }
-                toggleStep(1); 
-            }, 100);
+            }
+
+            if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('loader-wrapper');
+
+            // Trigger initial calculation and render
+            runCalc();
 
         } catch(e) {
             console.error("API Error:", e);
-            if(statusText) { statusText.innerText = "OFFLINE"; statusText.className = "font-bold text-red-500"; }
+            if(statusText) {
+                statusText.innerText = "OFFLINE";
+                statusText.className = "font-bold text-red-500";
+            }
             if(typeof SignOS_UI !== 'undefined') SignOS_UI.hideLoader('loader-wrapper', true);
         }
     });
