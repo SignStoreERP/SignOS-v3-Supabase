@@ -70,7 +70,14 @@
                         <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
                         <span id="ws-unit" class="text-2xl font-black text-blue-900 tracking-tight leading-none">$0.00</span>
                     </div>
+                    
                     <div class="border-t border-blue-200/50 my-3"></div>
+                    
+                    <!-- NEW: DYNAMIC LINE ITEMS -->
+                    <div id="ws-line-items" class="space-y-3 text-xs text-blue-900/90 pt-1 pb-2"></div>
+                    
+                    <div class="border-t border-blue-200/50 my-3"></div>
+
                     <div class="flex justify-between items-end pt-1">
                         <div>
                             <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
@@ -251,6 +258,22 @@
                     document.getElementById('ws-total').innerText = fmt(result.retail.grandTotal);
                     document.getElementById('ws-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 50)}`;
                     document.getElementById('min-badge').classList.toggle('hidden', !result.retail.isMinApplied);
+
+                    // NEW: Loop through the breakdown array and display items and math
+                    let lineHtml = '';
+                    result.retail.breakdown.forEach(item => {
+                        if (item.label !== 'Shop Minimum Surcharge' && item.label !== 'Shop Minimum') {
+                            lineHtml += `
+                            <div class="flex justify-between items-start group hover:bg-blue-100/50 p-1 rounded transition">
+                                <div class="flex flex-col">
+                                    <span class="font-bold">${item.label}</span>
+                                    <span class="text-[9px] text-blue-500 italic mt-0.5">${item.formula || 'Included'}</span>
+                                </div>
+                                <span class="font-black">${fmt(item.total)}</span>
+                            </div>`;
+                        }
+                    });
+                    document.getElementById('ws-line-items').innerHTML = lineHtml;
 
                     if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.renderLedger(result);
 
