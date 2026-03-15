@@ -149,28 +149,36 @@ window.SignOS = window.SignOS || {};
 
 SignOS.fetchProductData = async function(productId, refTables = []) {
     try {
+        // 1. Fetch the product bundle
         const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_product_bundle`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify({
-                p_product_id: productId,
-                p_tables: refTables
-            })
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({ p_product_id: productId, p_ref_tables: refTables })
         });
+        if (!response.ok) throw new Error("Failed to fetch product bundle");
+        let payload = await response.json();
 
-        if (!response.ok) {
-            throw new Error(`Database Error: ${response.statusText}`);
+        // 2. FIX: Resolve 'true' booleans to actual numeric values from the Master Data Engine
+        const gvRes = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?select=id,default_value,override_value`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        
+        if (gvRes.ok && payload && payload.config) {
+            const gvData = await gvRes.json();
+            const gvMap = {};
+            gvData.forEach(item => {
+                gvMap[item.id] = item.override_value !== null ? item.override_value : item.default_value;
+            });
+
+            // Swap out any boolean 'true' for the actual numeric value so Edge math doesn't crash with NaN
+            for (let key in payload.config) {
+                if (payload.config[key] === true && gvMap[key] !== undefined) {
+                    payload.config[key] = gvMap[key];
+                }
+            }
         }
-
-        const json = await response.json();
-        return json;
-
-    } catch (error) {
-        console.error("SignOS Backend Connection Failed:", error);
-        return { error: error.message };
+        return payload;
+    } catch(e) {
+        return { error: e.message };
     }
 };
