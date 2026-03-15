@@ -212,15 +212,7 @@
         let calcTimeout = null;
         let is3D = true;
 
-        // Fallback array if DB fetch fails
-        let globalColors = [
-            { code: 'WHT', name: 'White', hex: '#FFFFFF' },
-            { code: 'BLK', name: 'Black', hex: '#121514' },
-            { code: 'BLU', name: 'Blue', hex: '#004B87' },
-            { code: 'RED', name: 'Red', hex: '#C4252A' },
-            { code: 'SLV', name: 'Silver', hex: '#B6B5B4' },
-            { code: 'CLR', name: 'Clear', hex: '#e5e7eb' }
-        ];
+        let globalColors = [];
         let activeLayerId = null;
 
         let buildState = {
@@ -271,7 +263,7 @@
                 id: Date.now(),
                 type: sel.value,
                 role: sel.options[sel.selectedIndex].text,
-                isBase: false, // Flagged as an Add-on for 300% retail markup
+                isBase: false, 
                 hex: '#94a3b8'
             });
             renderLayerStack();
@@ -284,7 +276,7 @@
             runCalc();
         }
 
-        // --- COLOR MODAL LOGIC ---
+        // --- COLOR MODAL LOGIC & SMART FILTERING ---
         function openColorModal(layerId) {
             activeLayerId = layerId;
             document.getElementById('color-modal').classList.remove('hidden');
@@ -300,8 +292,30 @@
             const grid = document.getElementById('modal-grid');
             const search = document.getElementById('color-search').value.toLowerCase();
             let html = '';
-            globalColors.forEach(c => {
-                if (search && !c.name.toLowerCase().includes(search) && !c.code.toLowerCase().includes(search)) return;
+
+            const activeLayer = buildState.layers.find(l => l.id === activeLayerId);
+            let pool = globalColors;
+
+            // FIXED: Apply strict physical material constraints to the color options
+            if (activeLayer) {
+                if (activeLayer.type === '1/32' || activeLayer.type === '1/32_CLR') {
+                    pool = globalColors.filter(c => c.thickness === '1/32"');
+                } else if (activeLayer.type === '1/16') {
+                    pool = globalColors.filter(c => c.thickness === '1/16"' && c.series && c.series.includes('Reverse'));
+                } else if (activeLayer.type === '1/8') {
+                    pool = globalColors.filter(c => c.thickness === '1/8"' && c.series && c.series.includes('Reverse'));
+                } else if (activeLayer.type === '3mm' || activeLayer.type === '6mm') {
+                    pool = [
+                        { code: 'WHT', name: 'White', hex: '#FFFFFF' },
+                        { code: 'BLK', name: 'Black', hex: '#121514' }
+                    ];
+                } else if (activeLayer.type === '3/16') {
+                    pool = [{ code: 'CLR', name: 'Clear', hex: '#e5e7eb' }];
+                }
+            }
+
+            pool.forEach(c => {
+                if (search && !c.name.toLowerCase().includes(search) && !(c.code && c.code.toLowerCase().includes(search))) return;
                 let hex = (c.hex === 'Transparent' || c.name.toLowerCase().includes('clear')) ? '#e5e7eb' : c.hex;
                 html += `
                 <button onclick="selectColor('${hex}', '${c.name}')" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] focus:outline-none border border-transparent hover:border-gray-300">
@@ -309,6 +323,11 @@
                     <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">${c.name}</span>
                 </button>`;
             });
+
+            if(html === '') {
+                html = `<div class="w-full p-4 text-center text-xs font-bold text-gray-400 italic">No colors match this material requirement.</div>`;
+            }
+
             grid.innerHTML = html;
         }
 
@@ -359,7 +378,6 @@
                         const isTactile = l.type === '1/32' || l.type === '1/32_CLR';
                         let layerContent = '';
                         
-                        // NEW: Injects SVG Placeholder strictly on the Tactile Applique layer!
                         if (isTactile) {
                             layerContent = `
                             <div class="w-full h-full flex flex-col items-center justify-center p-2 relative pointer-events-none" style="color: ${l.hex || '#ffffff'}; filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.4));">
@@ -374,7 +392,6 @@
                         }
 
                         return {
-                            // FIXED: Inverts the Z-Order so the top list item renders highest in 3D Space!
                             z: buildState.layers.length - 1 - i,
                             hex: l.hex,
                             isTactile: isTactile,
@@ -456,13 +473,13 @@
             }
 
             try {
-                // Fetch product configs and immediately grab the global color databases
                 const payload = await SignOS.fetchProductData('PROD_ADA_Signs');
                 backendData = payload.config || {};
                 backendData.ui_schema = ADA_UI_SCHEMA;
                 
                 try {
-                    const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Cap_Color,Cap_Hex&limit=500`, {
+                    // FIXED: Expanded the query to select Series and Thickness for constraint mapping
+                    const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Series,Thickness,Cap_Color,Cap_Hex&limit=500`, {
                         headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
                     });
                     if (res.ok) {
@@ -470,10 +487,23 @@
                         globalColors = rawRowmark.map(c => ({
                             code: c.Item_Code,
                             name: c.Cap_Color,
-                            hex: c.Cap_Hex
+                            hex: c.Cap_Hex,
+                            series: c.Series,
+                            thickness: c.Thickness
                         }));
                     }
-                } catch(e) { console.warn("Color DB Fetch Failed. Utilizing Fallback Array."); }
+                } catch(e) { 
+                    console.warn("Color DB Fetch Failed. Utilizing Fallback Array."); 
+                    // Fail-safe mock data mapping to ensure UI constraints still pass
+                    globalColors = [
+                        { code: '311-2048', name: 'White', hex: '#FFFFFF', thickness: '1/32"', series: 'ADA Alternative' },
+                        { code: '311-4018', name: 'Black', hex: '#121514', thickness: '1/32"', series: 'ADA Alternative' },
+                        { code: '322-201', name: 'White', hex: '#FFFFFF', thickness: '1/16"', series: 'Ultra-Mattes Reverse' },
+                        { code: '322-401', name: 'Black', hex: '#121514', thickness: '1/16"', series: 'Ultra-Mattes Reverse' },
+                        { code: '342-201', name: 'White', hex: '#FFFFFF', thickness: '1/8"', series: 'Ultra-Mattes Reverse' },
+                        { code: '342-401', name: 'Black', hex: '#121514', thickness: '1/8"', series: 'Ultra-Mattes Reverse' }
+                    ];
+                }
 
                 if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
