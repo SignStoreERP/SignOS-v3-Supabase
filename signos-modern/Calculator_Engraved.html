@@ -265,8 +265,11 @@
     let backendData = {};
     let tactileColors = [], coreColors = [], pictograms = [], systemFonts = [];
     let activeProduct = 'BasicB';
-    let baseLayers = [], addonLayers = [];
-    let activeColorId = null, isActiveBase = false;
+    
+    // FIXED: Unified Layer Stack for Reordering
+    let layerStack = [];
+    
+    let activeColorId = null;
     let selectedIcon = null;
     let is3D = true;
     const GITHUB_BASE = "https://raw.githubusercontent.com/SignStoreERP/signos-app/main/fonts/";
@@ -293,6 +296,24 @@
         runCalc();
     }
 
+    function createLayer(typeStr, roleStr) {
+        let layer = { id: generateId(), role: roleStr || typeStr, type: typeStr };
+        if (typeStr === '1/32') {
+            const defCol = tactileColors.find(c => c.Name.includes('White')) || tactileColors || {Hex_Code: '#FFFFFF', Name: 'White', Code: 'N/A'};
+            layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code; layer.hasBraille = true;
+        } else if (typeStr === '1/16' || typeStr === '1/8') {
+            const defCol = coreColors.find(c => c.Name.includes('Black')) || coreColors || {Hex_Code: '#000000', Name: 'Black', Code: 'N/A'};
+            layer.colorHex = defCol.Hex_Code; layer.colorName = defCol.Name; layer.colorCode = defCol.Code;
+        } else if (typeStr === '3mm') {
+            layer.colorName = 'Black'; layer.colorHex = '#111827';
+        } else if (typeStr === '3/16') {
+            layer.colorName = 'Clear'; layer.colorHex = 'rgba(255,255,255,0.4)';
+        } else if (typeStr === 'Window_Engraved') {
+            layer.colorName = 'White'; layer.colorHex = '#FFFFFF'; layer.sliderH = 2;
+        }
+        return layer;
+    }
+
     function setProduct(prod) {
         activeProduct = prod;
         document.querySelectorAll('#product-btns button').forEach(btn => {
@@ -313,18 +334,17 @@
             }
         });
 
-        baseLayers = [];
-        addonLayers = [];
-        baseLayers.push({ id: generateId(), role: '1/32" Tactile Applique', colorHex: '#FFFFFF', colorName: 'White', colorCode: '311-2048', type: '1/32', hasBraille: true });
-
+        layerStack = [];
+        layerStack.push(createLayer('1/32', '1/32" Tactile Applique'));
+        
         if (prod === 'BasicA') {
-            baseLayers.push({ id: generateId(), role: '1/8" ADA Core', colorHex: '#000000', colorName: 'Black', colorCode: '342-401', type: '1/8' });
+            layerStack.push(createLayer('1/8', '1/8" ADA Core'));
         } else if (prod === 'BasicB') {
-            baseLayers.push({ id: generateId(), role: '1/16" ADA Core', colorHex: '#000000', colorName: 'Black', colorCode: '322-401', type: '1/16' });
-            baseLayers.push({ id: generateId(), role: '3mm PVC Backer', colorHex: '#000000', colorName: 'Black', colorCode: 'PVC-BLK', type: '3mm' });
+            layerStack.push(createLayer('1/16', '1/16" ADA Core'));
+            layerStack.push(createLayer('3mm', '3mm PVC Backer'));
         } else if (prod === 'BasicClear') {
-            baseLayers.push({ id: generateId(), role: '1/16" ADA Core', colorHex: '#000000', colorName: 'Black', colorCode: '322-401', type: '1/16' });
-            baseLayers.push({ id: generateId(), role: '3/16" Clear Acrylic', colorHex: 'rgba(255,255,255,0.4)', colorName: 'Clear', colorCode: 'ACR-CLR', type: '3/16' });
+            layerStack.push(createLayer('1/16', '1/16" ADA Core'));
+            layerStack.push(createLayer('3/16', '3/16" Clear Acrylic'));
         }
 
         renderLayers();
@@ -332,67 +352,60 @@
     }
 
     function addAddon() {
-        addonLayers.push({ id: generateId(), type: '', colorHex: '#FFFFFF', colorName: 'White', colorCode: '', sliderH: 2 });
-        renderLayers();
-    }
-
-    function updateAddonType(id, val) {
-        const a = addonLayers.find(x => x.id === id);
-        if (a) {
-            a.type = val;
-            if (val === '1/32' || val === 'Window_Engraved') { a.colorHex = '#FFFFFF'; a.colorName = 'White'; a.colorCode = '311-2048'; }
-            else if (val === '1/16' || val === '1/8') { a.colorHex = '#000000'; a.colorName = 'Black'; a.colorCode = val === '1/16' ? '322-401' : '342-401'; }
-            else if (val === '3mm') { a.colorHex = '#000000'; a.colorName = 'Black'; a.colorCode = 'PVC-BLK'; }
-            else if (val === '3/16') { a.colorHex = 'rgba(255,255,255,0.4)'; a.colorName = 'Clear'; a.colorCode = 'ACR-CLR'; }
-            renderLayers();
-            runCalc();
-        }
-    }
-
-    function updateAddonSlider(id, val) {
-        const a = addonLayers.find(x => x.id === id);
-        if (a) { a.sliderH = parseFloat(val) || 0.5; runCalc(); }
-    }
-
-    function removeAddon(id) {
-        addonLayers = addonLayers.filter(x => x.id !== id);
+        layerStack.push(createLayer('1/16', 'Extra 1/16" Core'));
         renderLayers();
         runCalc();
     }
 
-    function renderLayers() {
-        const baseContainer = document.getElementById('base-layers');
-        const addonContainer = document.getElementById('addon-layers');
-        
-        if (baseContainer) {
-            baseContainer.innerHTML = baseLayers.map(l => {
-                const hasColor = !l.type.includes('Clear');
-                return `
-                <div class="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-200 shadow-sm">
-                    <div class="flex items-center gap-2 overflow-hidden pr-2">
-                        <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                        <span class="text-[10px] font-black text-gray-700 uppercase truncate">${l.role}</span>
-                    </div>
-                    ${hasColor ? `
-                    <div class="cursor-pointer flex items-center gap-1.5 bg-white border border-gray-300 p-1 rounded hover:border-blue-500 transition" onclick="openColorModal('${l.id}', true)">
-                        <div class="w-3.5 h-3.5 rounded-full border border-gray-400 shrink-0" style="background-color: ${l.colorHex}"></div>
-                        <span class="text-[9px] font-bold text-gray-600 w-12 truncate">${l.colorName}</span>
-                    </div>` : '<span class="text-[8px] font-bold text-gray-400 px-1">STATIC</span>'}
-                </div>`;
-            }).join('');
+    function updateLayerType(id, val) {
+        const idx = layerStack.findIndex(x => x.id === id);
+        if (idx > -1) {
+            layerStack[idx] = createLayer(val, `Extra ${val}`);
+            layerStack[idx].id = id; 
+            renderLayers(); runCalc();
         }
+    }
 
-        if (addonContainer) {
-            addonContainer.innerHTML = addonLayers.map(a => {
+    function updateAddonSlider(id, val) {
+        const a = layerStack.find(x => x.id === id);
+        if (a) { a.sliderH = parseFloat(val) || 0.5; runCalc(); }
+    }
+
+    function removeLayer(id) {
+        layerStack = layerStack.filter(x => x.id !== id);
+        renderLayers(); runCalc();
+    }
+
+    function moveLayer(id, direction) {
+        const idx = layerStack.findIndex(l => l.id === id);
+        if (idx < 0) return;
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= layerStack.length) return;
+        
+        const temp = layerStack[idx];
+        layerStack[idx] = layerStack[newIdx];
+        layerStack[newIdx] = temp;
+        
+        renderLayers(); runCalc();
+    }
+
+    function renderLayers() {
+        const container = document.getElementById('addon-layers');
+        
+        if (container) {
+            container.innerHTML = layerStack.map((a, index) => {
                 const isMat = ['1/32', '1/16', '1/8', '3mm', '3/16'].includes(a.type);
                 const isEngraved = a.type === 'Window_Engraved';
                 const hasColor = isMat && a.type !== '3/16';
                 
                 return `
-                <div class="flex flex-col gap-2 bg-white p-2 rounded border border-blue-200 shadow-sm mb-2">
+                <div class="flex flex-col gap-2 bg-white p-2 rounded border border-gray-200 shadow-sm mb-2 transition">
                     <div class="flex items-center gap-2">
-                        <select onchange="updateAddonType('${a.id}', this.value)" class="flex-1 border border-gray-200 p-1 rounded text-[9px] font-bold text-gray-700 bg-gray-50 outline-none focus:border-blue-500">
-                            <option value="">Select Add-on Type...</option>
+                        <div class="flex flex-col items-center justify-center pr-2 border-r border-gray-100 shrink-0">
+                            <button onclick="moveLayer('${a.id}', -1)" class="text-gray-300 hover:text-blue-500 transition focus:outline-none leading-none ${index===0?'opacity-30 cursor-not-allowed':''}" ${index===0?'disabled':''}>▲</button>
+                            <button onclick="moveLayer('${a.id}', 1)" class="text-gray-300 hover:text-blue-500 transition focus:outline-none leading-none ${index===layerStack.length-1?'opacity-30 cursor-not-allowed':''}" ${index===layerStack.length-1?'disabled':''}>▼</button>
+                        </div>
+                        <select onchange="updateLayerType('${a.id}', this.value)" class="flex-1 border border-gray-200 p-1 rounded text-[9px] font-bold text-gray-700 bg-gray-50 outline-none focus:border-blue-500">
                             <optgroup label="Window Routing">
                                 <option value="Window_Paper" ${a.type==='Window_Paper'?'selected':''}>Window Pocket (Paper Insert)</option>
                                 <option value="Window_Engraved" ${a.type==='Window_Engraved'?'selected':''}>Window w/ Engraved Slider</option>
@@ -406,11 +419,11 @@
                             </optgroup>
                         </select>
                         ${hasColor ? `
-                        <div class="cursor-pointer flex items-center gap-1.5 bg-gray-50 border border-gray-300 p-1 rounded hover:border-blue-500 transition" onclick="openColorModal('${a.id}', false)">
+                        <div class="cursor-pointer flex items-center gap-1.5 bg-gray-50 border border-gray-300 p-1 rounded hover:border-blue-500 transition" onclick="openColorModal('${a.id}')">
                             <div class="w-3.5 h-3.5 rounded-full border border-gray-400 shrink-0" style="background-color: ${a.colorHex}"></div>
                             <span class="text-[9px] font-bold text-gray-600 w-12 truncate">${a.colorName}</span>
                         </div>` : ''}
-                        <button onclick="removeAddon('${a.id}')" class="text-gray-300 hover:text-red-500 transition font-black focus:outline-none px-1 shrink-0">✕</button>
+                        <button onclick="removeLayer('${a.id}')" class="text-gray-300 hover:text-red-500 transition font-black focus:outline-none px-1 shrink-0">✕</button>
                     </div>
                     ${isEngraved ? `
                     <div class="flex items-center justify-between border-t border-gray-100 pt-1.5 mt-1 ml-1">
@@ -422,9 +435,8 @@
         }
     }
 
-    function openColorModal(id, isBase) {
+    function openColorModal(id) {
         activeColorId = id;
-        isActiveBase = isBase;
         const colorSearch = document.getElementById('color-search');
         if(colorSearch) colorSearch.value = '';
         document.getElementById('color-modal').classList.remove('hidden');
@@ -436,7 +448,7 @@
         const searchInput = document.getElementById('color-search');
         const search = searchInput ? searchInput.value.toLowerCase() : '';
         
-        let layer = isActiveBase ? baseLayers.find(l => l.id === activeColorId) : addonLayers.find(l => l.id === activeColorId);
+        let layer = layerStack.find(l => l.id === activeColorId);
         if (!layer) return;
 
         let data = [];
@@ -466,7 +478,7 @@
     }
 
     function selectColor(codeOrName) {
-        let layer = isActiveBase ? baseLayers.find(l => l.id === activeColorId) : addonLayers.find(l => l.id === activeColorId);
+        let layer = layerStack.find(l => l.id === activeColorId);
         if (!layer) return;
 
         let data = [];
@@ -487,7 +499,7 @@
 
     function closeModal() { document.getElementById('color-modal').classList.add('hidden'); }
 
-    // --- RESTORED DYNAMIC TYPOGRAPHY ENGINE ---
+    // --- DYNAMIC TYPOGRAPHY & VISUAL ENGINE ---
     async function updatePreview() {
         const container = document.getElementById('svg-preview-container');
         if(!container) return;
@@ -499,18 +511,19 @@
             container.style.width = `${w * scale}px`;
             container.style.height = `${h * scale}px`;
             
-            // Build visual stack exactly like before
+            // Build visual stack dynamically from the unified layerStack
             let visualStack = [];
-            baseLayers.filter(l => ['3mm', '3/16'].includes(l.type)).forEach(l => visualStack.push({ role: l.role, hex: l.colorHex, depth: l.type==='3mm'?4:3, type: l.type }));
-            addonLayers.filter(a => ['3mm', '3/16'].includes(a.type)).forEach(a => visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: a.type==='3mm'?4:3, type: a.type }));
+            layerStack.forEach(l => {
+                let depth = 0;
+                if (l.type === '1/16') depth = 1; 
+                else if (l.type === '1/8') depth = 2; 
+                else if (l.type === '3mm' || l.type === '3/16') depth = 3;
+                visualStack.push({ role: l.role || l.type, hex: l.colorHex, depth: depth, type: l.type });
+            });
+
+            // Ensure physical stacking (Backers at 0, Tactile at max)
+            visualStack.sort((a, b) => b.depth - a.depth);
             
-            baseLayers.filter(l => ['1/8', '1/16'].includes(l.type)).forEach(l => visualStack.push({ role: l.role, hex: l.colorHex, depth: l.type==='1/8'?2:1, type: l.type }));
-            addonLayers.filter(a => ['1/8', '1/16'].includes(a.type)).forEach(a => visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: a.type==='1/8'?2:1, type: a.type }));
-            
-            baseLayers.filter(l => l.type === '1/32').forEach(l => visualStack.push({ role: l.role, hex: l.colorHex, depth: 0, type: l.type }));
-            addonLayers.filter(a => a.type === '1/32').forEach(a => visualStack.push({ role: `Extra ${a.type}`, hex: a.colorHex, depth: 0, type: a.type }));
-            
-            // Prepare inputs for SignOS_Builder layout generator
             const fontSelect = document.getElementById('sign-font');
             const fontFileName = fontSelect ? (fontSelect.options[fontSelect.selectedIndex]?.dataset.filename || 'Arimo-Regular.ttf') : 'Arimo-Regular.ttf';
             
@@ -527,7 +540,6 @@
                 fontSize: parseFloat(document.getElementById('text-height') ? document.getElementById('text-height').value : 0.625)
             };
 
-            // Call the universal typography math engine
             const layout = typeof SignOS_Builder !== 'undefined' ? await SignOS_Builder.buildADA(buildInputs, GITHUB_BASE) : { svgContent: '' };
             
             if(document.getElementById('picto-size')) {
@@ -544,6 +556,8 @@
             let html = '';
             let currentZ = 0; 
             
+            let hasWindow = layerStack.some(a => ['Window_Paper', 'Window_Engraved'].includes(a.type));
+            
             visualStack.forEach((l, i) => {
                 const isTactile = l.type === '1/32';
                 const bgHex = isTactile ? 'transparent' : l.hex;
@@ -552,6 +566,11 @@
                 
                 let content = '';
                 
+                // RESTORED: Window Pocket View
+                if(hasWindow && !isTactile && i === visualStack.length - 1) {
+                    content = `<div class="absolute bottom-[10%] left-[5%] right-[5%] h-[20%] border border-dashed border-black/40 bg-black/10 flex items-center justify-center text-[6px] font-black text-black/50 tracking-widest" style="box-shadow: inset 1px -1px 3px rgba(0,0,0,0.2);">ROUTED POCKET</div>`;
+                }
+
                 if (isTactile) {
                     content = `<div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none" style="filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.5)); color: ${l.hex};">
                         <svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" fill="currentColor" style="overflow: visible;">${layout.svgContent}</svg>
@@ -590,14 +609,13 @@
             w: parseFloat(document.getElementById('w').value) || 8,
             h: parseFloat(document.getElementById('h').value) || 8,
             product: activeProduct,
-            layers: [...baseLayers, ...addonLayers.filter(a => a.type !== '')],
-            addons: addonLayers.filter(a => a.type !== ''),
+            layers: layerStack,
+            addons: layerStack.filter(a => ['Window_Paper', 'Window_Engraved'].includes(a.type)),
             mounting: mountingEl ? mountingEl.value : 'Foam Tape',
             brailleLines: 1
         };
 
         try {
-            // UNIVERSAL SANDBOX LINK
             const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
 
             const fnUrl = `${EDGE_URL}/functions/v1/calculate-ada`;
@@ -620,24 +638,15 @@
             document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || dataToUse.Retail_Min_Order_Etch || 50)}`;
             document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
 
-            let layerStrs = baseLayers.map(l => {
+            let layerStrs = layerStack.map(l => {
                 let code = l.colorCode ? l.colorCode : 'TBD';
                 if (l.type === '1/32') return `1/32" Rowmark [${code}] ${l.colorName} Tactile w/ Braille`;
                 if (l.type.includes('Core')) return `${l.type.replace(' Core', '')} Rowmark [${code}] ${l.colorName} Core`;
                 if (l.type === '3mm') return `3mm [${code}] ${l.colorName} PVC Backer`;
                 if (l.type === '3/16') return `3/16" Clear Acrylic Backer`;
+                if (l.type === 'Window_Paper') return `Routed Window Pocket (For Paper Insert)`;
+                if (l.type === 'Window_Engraved') return `Routed Window Pocket (For ${l.sliderH || 2}" Slider)`;
                 return l.type;
-            });
-            addonLayers.forEach(a => {
-                if (a.type === 'Window_Paper') layerStrs.push(`Routed Window Pocket (For Paper Insert)`);
-                else if (a.type === 'Window_Engraved') layerStrs.push(`Routed Window Pocket (For ${a.sliderH}" Slider)`);
-                else {
-                    let code = a.colorCode ? a.colorCode : 'TBD';
-                    if (a.type === '1/32') layerStrs.push(`Extra 1/32" Rowmark [${code}] ${a.colorName}`);
-                    else if (a.type.includes('Core')) layerStrs.push(`Extra ${a.type.replace(' Core', '')} Rowmark [${code}] ${a.colorName}`);
-                    else if (a.type === '3mm') layerStrs.push(`Extra 3mm [${code}] ${a.colorName} PVC Backer`);
-                    else if (a.type === '3/16') layerStrs.push(`Extra 3/16" Clear Acrylic Backer`);
-                }
             });
 
             let layerDesc = layerStrs.length > 0 ? layerStrs.join("\n   - ") : "(No Layers Selected)";
@@ -663,7 +672,6 @@
             const backerWarn = document.getElementById('backer-warn');
             if(backerWarn) backerWarn.classList.toggle('hidden', !ret.forcedBacker);
 
-            // SEND TO UNIVERSAL SANDBOX
             if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.renderLedger(result);
 
             updatePreview();
@@ -691,7 +699,6 @@
             const payload = await SignOS.fetchProductData('PROD_ADA_Signs', ['REF_Colors_Rowmark', 'REF_Pictograms', 'REF_Fonts']);
             backendData = payload.config;
 
-            // INITIALIZE THE UNIVERSAL SANDBOX
             if (typeof SignOS_Sandbox !== 'undefined' && window.ENGRAVED_CONFIG) {
                 SignOS_Sandbox.init(window.ENGRAVED_CONFIG, backendData, runCalc);
             }
@@ -722,7 +729,6 @@
 
             if(statusText) { statusText.innerText = "ONLINE"; statusText.className = "font-bold text-green-500"; if(statusDot) { statusDot.className = "w-2 h-2 rounded-full bg-green-500"; statusDot.classList.remove("animate-pulse"); } }
 
-            // Trigger Default Layout safely
             setProduct('BasicB');
 
         } catch(e) {
