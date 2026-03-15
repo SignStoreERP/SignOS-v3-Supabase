@@ -103,6 +103,12 @@
                             <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">2. Sign Layers (Base + Add-ons)</label>
                         </div>
                         <div id="layer-list" class="flex flex-col gap-2 mt-2 max-h-64 overflow-y-auto custom-scroll pr-1 mb-3"></div>
+                        
+                        <!-- NEW: NON-STANDARD COMBINATION WARNING -->
+                        <div id="custom-combo-warn" class="hidden mb-3 bg-orange-100 text-orange-800 border border-orange-300 p-2 rounded shadow-sm text-[9px] font-bold uppercase tracking-widest flex items-center gap-2">
+                            <span class="text-sm">⚠️</span> NON-STANDARD COMBO: CONFIRM PRICING.
+                        </div>
+
                         <div class="flex gap-2">
                             <select id="new-layer-type" class="flex-1 border border-gray-300 p-1.5 rounded text-xs font-bold text-gray-700 outline-none bg-white">
                                 <option value="" disabled selected>Select Layer Material...</option>
@@ -196,7 +202,7 @@
                 { key: 'Cost_Sub_ADA_Core_116', label: '1/16" Core ($/Sht)' },
                 { key: 'Cost_Sub_ADA_Core_18', label: '1/8" Core ($/Sht)' },
                 { key: 'Cost_Sub_PVC', label: '3mm PVC ($/Sht)' },
-                { key: 'Cost_Stock_6mm_4x8', label: '6mm PVC ($/Sht)' },
+                { key: 'Cost_Stock_6mm_4x8', label: '6mm PVC ($/Sht)' }, // NEWLY ADDED 6mm PVC COST
                 { key: 'Cost_Sub_Acrylic', label: '3/16" Acr ($/Sht)' },
                 { key: 'Cost_Hem_Tape', label: 'Mounting Tape ($/LF)' },
                 { key: 'Cost_Raster_Bead', label: 'Raster Bead ($/Ea)' },
@@ -236,6 +242,14 @@
             renderSpatialView();
         }
 
+        // NEW: Enforces the warning when the user strays from standard Combos A, B, or C
+        function checkComboWarning() {
+            const types = buildState.layers.map(l => l.type).join('|');
+            const isStandard = (types === '1/32|1/8') || (types === '1/32|1/16|3mm') || (types === '1/32|1/16|3/16');
+            const warnEl = document.getElementById('custom-combo-warn');
+            if(warnEl) warnEl.classList.toggle('hidden', isStandard);
+        }
+
         function applyPreset(preset) {
             if (preset === 'A') {
                 buildState.product = 'BasicA';
@@ -264,7 +278,7 @@
 
         function addLayer() {
             const sel = document.getElementById('new-layer-type');
-            if(!sel.value) return; // Prevent adding if "Select Material" is active
+            if(!sel.value) return; 
             
             buildState.layers.push({
                 id: Date.now(),
@@ -274,7 +288,7 @@
                 hex: '#94a3b8'
             });
             
-            sel.value = ""; // Reset the dropdown
+            sel.value = ""; 
             renderLayerStack();
             runCalc();
         }
@@ -307,7 +321,6 @@
             }
         }
 
-        // --- COLOR MODAL LOGIC & SMART FILTERING ---
         function openColorModal(layerId) {
             activeLayerId = layerId;
             document.getElementById('color-modal').classList.remove('hidden');
@@ -398,6 +411,8 @@
                 </div>`;
             });
             list.innerHTML = html;
+            
+            checkComboWarning(); // NEW: Triggers the UI Warning Box Check
             renderSpatialView();
         }
 
@@ -539,7 +554,6 @@
 
                 if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
-                // FIXED: Explicitly clear the connecting status loader logic
                 const statusText = document.getElementById("status-text");
                 const statusDot = document.getElementById("status-dot");
                 if(statusText) {
