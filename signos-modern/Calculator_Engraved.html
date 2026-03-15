@@ -311,7 +311,7 @@
     }
 
     async function runCalc() {
-        // FIXED: Wait until baseColor is populated before calculating
+        // FIXED: Wait until baseColor is populated before calculating to avoid silent errors
         if(!backendData || (!backendData.Retail_Min_Order && !backendData.Retail_Min_Order_Etch) || !buildState.baseColor) return;
         
         const wEl = document.getElementById('w');
@@ -346,7 +346,7 @@
                 h: buildState.h,
                 product: buildState.product,
                 layers: simulatedLayers,
-                addons: Object.entries(buildState.addons).filter(([k,v]) => v).map(([k,v]) => ({type: 'Window_' + (k==='window'?'Paper':'Engraved')})),
+                addons: Object.entries(buildState.addons).filter(entry => entry.at(1)).map(entry => ({type: 'Window_' + (entry.at(0) === 'window' ? 'Paper' : 'Engraved')})),
                 mounting: 'Foam Tape',
                 brailleLines: 1
             };
@@ -385,7 +385,7 @@
             const sublineEl = document.getElementById('ui-subline');
             if(sublineEl) sublineEl.innerHTML = sublineHtml;
 
-            let activeAddons = Object.entries(buildState.addons).filter(([k,v]) => v).map(([k,v]) => k).join(', ');
+            let activeAddons = Object.entries(buildState.addons).filter(entry => entry.at(1)).map(entry => entry.at(0)).join(', ');
             const descEl = document.getElementById('job-desc');
             if(descEl) descEl.value = `(x${payloadInputs.qty}) ${payloadInputs.w}" x ${payloadInputs.h}" ADA Sign.\nProduct: ${buildState.product}\nIncludes: ${activeAddons || 'Standard Layout'}`;
 
@@ -454,19 +454,16 @@
         const statusDot = document.getElementById("status-dot");
 
         try {
-            // Fetch Global Variables & Schema
-            const payload = await SignOS.fetchProductData('PROD_Nameplates');
+            // FIXED: Fetch strictly lowercase tables to prevent 404s
+            const payload = await SignOS.fetchProductData('PROD_Nameplates', ['ref_colors_rowmark', 'ref_fonts']);
             backendData = payload.config || {};
             backendData.ui_schema = ADA_UI_SCHEMA; 
 
             if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
-            // FIXED: MANUAL FETCH for reference tables using robust fallback methods
-            const colorRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_colors_rowmark?select=Item_Code,Series,Thickness,Cap_Color,Core_Color,Cap_Hex,Core_Hex&limit=1000`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } });
-            const rawRowmark = colorRes.ok ? await colorRes.json() : [];
-
-            const fontRes = await fetch(`${SUPABASE_URL}/rest/v1/ref_fonts?select=Font_Name,CSS_Family,File_Name,Is_Active&limit=1000`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } });
-            const rawFonts = fontRes.ok ? await fontRes.json() : [];
+            // FIXED: Safe retrieval of tables without bracket notation to prevent markdown parser issues
+            const rawRowmark = payload.tables['ref_colors_rowmark'] || [];
+            const rawFonts = payload.tables['ref_fonts'] || [];
             
             // Safely map Postgres columns (handles both upper/lower case returns from Supabase)
             systemFonts = rawFonts.filter(f => String(f.Is_Active || f.is_active).toUpperCase() === 'TRUE');
@@ -478,11 +475,12 @@
             }).map(c => ({
                 Code: c.Item_Code || c.item_code, 
                 Name: c.Cap_Color || c.cap_color, 
-                Hex_Code: (c.Cap_Hex === 'Transparent' || c.cap_hex === 'Transparent' || (c.Cap_Color || c.cap_color).includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex), 
+                Hex_Code: (c.Cap_Hex === 'Transparent' || c.cap_hex === 'Transparent' || (c.Cap_Color || c.cap_color || '').includes('Clear')) ? '#e5e7eb' : (c.Cap_Hex || c.cap_hex), 
                 Core_Hex: c.Core_Hex || c.core_hex
             }));
 
             if(typeof SignOS_UI !== 'undefined') {
+                // FIXED: Use the correct labeled grid renderer
                 SignOS_UI.buildLabeledColorGrid({
                     containerId: 'rowmark-grid', data: coreColors, type: 'rowmark',
                     onSelect: (item) => {
