@@ -599,7 +599,7 @@
                 SignOS_Sandbox.init(window.ENGRAVED_CONFIG, backendData, runCalc);
             }
 
-            const rawRowmark = payload.tables['REF_Colors_Rowmark'] || [];
+            const rawRowmark = payload.tables['ref_colors_rowmark'] || payload.tables['REF_Colors_Rowmark'] || [];
 
             coreColors = rawRowmark.filter(r => r.Series && (r.Series.includes('Ultra-Mattes') || r.Series.includes('Mattes'))).map(c => ({
                 Code: c.Item_Code, Name: c.Cap_Color, Hex_Code: (c.Cap_Hex === 'Transparent' || c.Cap_Color.includes('Clear')) ? '#e5e7eb' : c.Cap_Hex
