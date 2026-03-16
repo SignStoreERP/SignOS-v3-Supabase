@@ -128,11 +128,13 @@
                                     <option value="AlumAngle_2_1/8">2" Aluminum Angle</option>
                                     <option value="AlumAngle_3_1/8">3" Aluminum Angle</option>
                                     <option value="AlumAngle_4_1/8">4" Aluminum Angle</option>
+                                    
                                     <option value="AlumTube_1.5_1/8">1.5" Aluminum Square Tube</option>
                                     <option value="AlumTube_2_1/8" selected>2" Aluminum Square Tube</option>
                                     <option value="AlumTube_3_1/8">3" Aluminum Square Tube</option>
                                     <option value="AlumTube_4_1/8">4" Aluminum Square Tube</option>
                                     <option value="AlumTube_6_1/4">6" Aluminum Square Tube</option>
+                                    
                                     <option value="SteelAngle_1.5_1/8">1.5" Steel Angle</option>
                                     <option value="SteelAngle_2_1/8">2" Steel Angle</option>
                                     <option value="SteelTube_1.5_1/8">1.5" Steel Tube</option>
@@ -356,7 +358,6 @@
             if(p) { p[field] = parseFloat(val) || 0; runCalc(); }
         }
         function addPanel() {
-            // New panel copies primary panel width by default
             const defW = panels.length > 0 ? panels.w : 36;
             panels.push({ id: Date.now(), w: defW, h: 12, mountStyle: 'Between', faceMat: '063 Alum', sides: 2, gap: 2 });
             renderPanels();
@@ -387,7 +388,7 @@
             let didClamp = false;
             let msg = "";
 
-            if (panels && panels && panels.mountStyle === 'Flush' && offset > 0) {
+            if (panels && panels.length > 0 && panels.mountStyle === 'Flush' && offset > 0) {
                 offset = 0; offsetEl.value = 0;
                 didClamp = true; msg = "Top Offset must be 0 when Primary Panel is Flush Mount.";
             }
@@ -420,94 +421,103 @@
             }
         }
 
-        // --- PURE HTML 3D CSS RENDER ENGINE ---
+        // --- PURE HTML 3D CSS RENDER ENGINE (FACE-ANCHORED) ---
         function renderIsometric(geom) {
             const cont = document.getElementById('svg-preview-container');
             if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
 
             // X is Left/Right. Y is Depth (Front/Back). Z is Elevation (Up/Down).
-            // A scale limit to ensure large signs fit the preview box visually.
-            const scale = Math.min(2.5, 300 / geom.overallW); 
+            const p1 = geom.panels; 
+            const scale = Math.min(2.5, 300 / Math.max(...geom.panels.map(p => p.w))); 
             let html = '';
             
-            const pSize = geom.post * scale;
-            const oaw = geom.overallW * scale;
-            const thag = geom.above * scale;
-            const under = geom.under * scale;
+            const sPw1 = p1.w * scale;
+            const sPostD = geom.post * scale;
+            const sUnder = geom.under * scale;
+            const faceD = 2; // Fixed visual thickness of the faces
+            const explodeY = isExploded ? 40 : 0;
             
-            // Adjust X/Y to center the structural group within the viewport's axis center
-            const cx = -oaw/2;
-            const cy = -pSize/2;
-            
-            // Materials 
             const isAlum = document.getElementById('postType').value === 'Aluminum';
             const postColor = isAlum ? '#cbd5e1' : '#94a3b8'; 
             const frameColor = '#64748b';
             const faceColor = '#3b82f6';
             
+            // --- THE REFERENCE POINT: FRONT FACE OF PANEL 1 ---
+            const faceX = -sPw1 / 2; // Center the face on the X axis
+            const faceY = 0;         // Set the front depth of the face to Y=0
+            
+            // 1. Position Posts Based on Primary Panel Mount Type
+            let p1X, p2X, postY;
+            if (p1.mountStyle === 'Between') {
+                p1X = faceX - sPostD;
+                p2X = faceX + sPw1;
+                // Center posts behind the face depth
+                postY = faceY + (faceD / 2) - (sPostD / 2);
+            } else {
+                // Flush: Posts sit inside the outer boundaries of the face
+                p1X = faceX;
+                p2X = faceX + sPw1 - sPostD;
+                // Posts sit directly behind the flush face
+                postY = faceY + faceD;
+            }
+
+            // 2. Lock Top Elevation to the Top of the Face
+            let startZ = geom.above * scale;
+            let postHeight = startZ + sUnder;
+
             // Draw Ground Plane (Z=0 is ground level)
             html += `<div style="position:absolute; left:0; top:0; width:2000px; height:2000px; background:rgba(34,197,94,0.1); border: 1px dashed rgba(22,163,74,0.3); transform: translate3d(-1000px, -1000px, 0);"></div>`;
             
-            // Posts (Extending from -under up to thag)
-            html += draw3DBox(cx, cy, -under, pSize, pSize, thag+under, postColor); // Left Post
-            html += draw3DBox(cx + oaw - pSize, cy, -under, pSize, pSize, thag+under, postColor); // Right Post
+            // Draw Posts (Extending from -under up to startZ)
+            html += draw3DBox(p1X, postY, -sUnder, sPostD, sPostD, postHeight, postColor); // Left Post
+            html += draw3DBox(p2X, postY, -sUnder, sPostD, sPostD, postHeight, postColor); // Right Post
             
-            // Panels
-            let currentZ = thag - (geom.topOffset * scale); // Top starts at thag - offset
+            // Draw Panels and Frames
+            let currentZ = startZ - (geom.topOffset * scale); 
+            const ft = geom.frameThick * scale;
+
             geom.panels.forEach((p, idx) => {
-                let sGap = (parseFloat(p.gap) || 0) * scale;
-                if (idx > 0) currentZ -= sGap;
+                let sPh = p.h * scale;
+                let sPw = p.w * scale;
                 
-                const isBetween = p.mountStyle === 'Between';
-                const pw = p.w * scale;
-                const ph = p.h * scale;
+                if (idx > 0) currentZ -= (p.gap * scale);
                 
-                // Advance Z downwards to the bottom of the current panel
-                currentZ -= ph; 
-                const pz = currentZ; 
+                let panelTopZ = currentZ;
+                let panelBotZ = currentZ - sPh;
+                currentZ = panelBotZ; 
                 
-                const pd = geom.frameThick * scale;
-                const frameY = cy + (pSize - pd) / 2; 
+                let isBetween = p.mountStyle === 'Between';
                 
-                const faceD = 2; // 2px visual thickness
-                const explodeY = isExploded ? 40 : 0;
+                // Align subsequent faces dynamically to the left post
+                let curFaceX = isBetween ? (p1X + sPostD) : p1X;
                 
-                let px, frontFaceY, backFaceY, crossbarW, crossbarX;
+                // Exploded Views pull the faces out, but leave the frames locked in the center
+                let frontFaceY = faceY - explodeY;
+                let backFaceY = (isBetween ? postY + sPostD - faceD : postY + sPostD) + explodeY;
+                
+                // Frame Y is universally centered within the depth of the post
+                let frameY = postY + (sPostD / 2) - (ft / 2);
+                
+                // Frame Horizontals connect the inner edges of the left and right posts
+                let crossbarX = p1X + sPostD;
+                let crossbarW = p2X - (p1X + sPostD);
+                let shareTop = (idx > 0 && p.gap === 0 && p.mountStyle === geom.panels[idx-1].mountStyle);
 
-                if (isBetween) {
-                    px = cx + pSize; // Inside left post
-                    frontFaceY = frameY + pd; 
-                    backFaceY = frameY - faceD;
-                    crossbarW = pw;
-                    crossbarX = px;
-                } else {
-                    // Flush mount goes on the outside front of the posts
-                    px = cx + (oaw - pw)/2; // Centered
-                    frontFaceY = cy + pSize; 
-                    backFaceY = cy - faceD; 
-                    crossbarW = oaw - (pSize*2); // Frame is still between the posts
-                    crossbarX = cx + pSize;
+                if (!shareTop) {
+                    html += draw3DBox(crossbarX, frameY, panelTopZ - ft, crossbarW, ft, ft, frameColor); // Top Frame
                 }
-
-                // Frames
-                let shareTop = (idx > 0 && sGap === 0 && p.mountStyle === geom.panels[idx-1].mountStyle);
-
-                if (!shareTop) html += draw3DBox(crossbarX, frameY, pz + ph - pd, crossbarW, pd, pd, frameColor); // Top Frame
-                html += draw3DBox(crossbarX, frameY, pz, crossbarW, pd, pd, frameColor); // Bottom Frame
+                html += draw3DBox(crossbarX, frameY, panelBotZ, crossbarW, ft, ft, frameColor); // Bottom Frame
                 
-                if (isBetween) {
-                    html += draw3DBox(px, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); // Left Vertical
-                    html += draw3DBox(px + pw - pd, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); // Right Vertical
-                } else {
-                    // Flush vertical frame pieces hug the posts
-                    html += draw3DBox(cx, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); 
-                    html += draw3DBox(cx + oaw - pd, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor);
-                }
+                // Frame Verticals run between the horizontal crossbars, hugging the posts
+                let vHeight = sPh - (shareTop ? ft : ft*2);
+                let vZ = panelBotZ + ft;
+                html += draw3DBox(crossbarX, frameY, vZ, ft, ft, vHeight, frameColor); // Left Inside
+                html += draw3DBox(crossbarX + crossbarW - ft, frameY, vZ, ft, ft, vHeight, frameColor); // Right Inside
                 
                 // Faces
-                html += draw3DBox(px, frontFaceY + explodeY, pz, pw, faceD, ph, faceColor, 1, true, "LOGO"); // Front Face
+                html += draw3DBox(curFaceX, frontFaceY, panelBotZ, sPw, faceD, sPh, faceColor, 1, true, "LOGO"); // Front Face
                 if (p.sides === 2) {
-                    html += draw3DBox(px, backFaceY - explodeY, pz, pw, faceD, ph, faceColor, 1, false, ""); // Back Face
+                    html += draw3DBox(curFaceX, backFaceY, panelBotZ, sPw, faceD, sPh, faceColor, 1, false, ""); // Back Face
                 }
             });
             
