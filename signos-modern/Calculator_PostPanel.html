@@ -7,458 +7,419 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <script src="signos-ui.js"></script>
+    <script src="signos-sandbox.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .custom-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f8fafc; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px;}
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px;}
-        .blueprint-bg { background-color: #f8fafc; background-image: linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px); background-size: 20px 20px;}
+        .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        .blueprint-bg {
+            background-color: #0f172a;
+            background-image: linear-gradient(rgba(59, 130, 246, 0.2) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(59, 130, 246, 0.2) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .highlight-var {
+            background-color: #fef08a !important; color: #854d0e !important;
+            border-color: #eab308 !important; border-style: solid !important;
+            border-width: 1px !important; border-radius: 4px; padding: 0 4px;
+            box-shadow: 0 0 8px rgba(234, 179, 8, 0.5); text-decoration: none !important;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
-
-<div id="app-wrapper" class="w-full max-w-lg mx-auto mt-8 transition-all duration-500 flex justify-center items-start gap-4 px-4 sm:px-0">
-
-    <!-- LEFT: FULL MATH LEDGER (SANDBOX) -->
-    <div id="sandbox-ledger" class="hidden w-[380px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
-        <div class="p-4 bg-slate-50 border-b border-gray-200 flex flex-col shrink-0 rounded-t-xl gap-3">
-            <div class="flex justify-between items-center">
+    <div id="app-wrapper" class="w-full max-w-lg mx-auto mt-8 transition-all duration-500 flex justify-center items-start gap-4 px-4 sm:px-0">
+        
+        <!-- LEFT: FULL MATH LEDGER (SANDBOX) -->
+        <div id="sandbox-ledger" class="hidden w-[380px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
+            <div class="p-4 bg-slate-50 border-b border-gray-200 flex flex-col shrink-0 rounded-t-xl gap-3">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Financial Ledger</h2>
+                        <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Market vs. Physics Breakdown</span>
+                    </div>
+                    <button onclick="SignOS_Sandbox.toggle()" class="text-gray-400 hover:text-red-500 transition font-bold text-lg focus:outline-none">✕</button>
+                </div>
+                <div id="ledger-interactive-header" class="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                    <!-- Interactive Margin HTML Injected Here -->
+                </div>
+            </div>
+            <div class="p-5 space-y-6">
                 <div>
-                    <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Financial Ledger</h2>
-                    <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Market vs. Physics Breakdown</span>
+                    <h3 class="text-[11px] font-black text-blue-700 uppercase tracking-widest border-b-2 border-blue-100 pb-2 mb-3">Market Logic (Retail)</h3>
+                    <div id="sbx-retail-breakdown" class="space-y-3 mb-4"></div>
                 </div>
-                <button onclick="toggleSandbox()" class="text-gray-400 hover:text-red-500 transition font-bold text-lg focus:outline-none">✕</button>
-            </div>
-            <div class="flex justify-between items-center bg-white p-3 rounded border border-gray-200 shadow-sm">
-                <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Simulated Margin:</span>
-                <span id="sbx-margin" class="text-2xl font-black text-green-600 tracking-tight leading-none">--</span>
-            </div>
-        </div>
-        <div class="p-5 space-y-6">
-            <div>
-                <h3 class="text-[11px] font-black text-blue-700 uppercase tracking-widest border-b-2 border-blue-100 pb-2 mb-3">Market Logic (Retail)</h3>
-                <div id="sbx-retail-breakdown" class="space-y-3 mb-4"></div>
-            </div>
-            <div>
-                <h3 class="text-[11px] font-black text-red-700 uppercase tracking-widest border-b-2 border-red-100 pb-2 mb-3">Physics Engine (Hard Cost)</h3>
-                <div id="sbx-cost-breakdown" class="space-y-3"></div>
+                <div>
+                    <h3 class="text-[11px] font-black text-red-700 uppercase tracking-widest border-b-2 border-red-100 pb-2 mb-3">Physics Engine (Hard Cost)</h3>
+                    <div id="sbx-cost-breakdown" class="space-y-3"></div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- CENTER: MAIN CALCULATOR ISLAND -->
-    <div class="flex flex-col gap-4 w-full max-w-lg shrink-0 z-20">
-        <div id="main-card" class="w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200 transition-all duration-300 relative">
-            <div id="sim-badge" class="hidden bg-yellow-400 text-yellow-900 text-[10px] font-black text-center py-1 uppercase tracking-widest animate-pulse">Simulation Active</div>
-            
-            <!-- 2D ARCHITECTURAL SHOP DRAWINGS -->
-            <div class="w-full h-56 bg-slate-800 border-b border-gray-200 flex flex-col relative">
-                <span class="absolute top-2 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10">Live Shop Drawings</span>
+        <!-- CENTER: MAIN CALCULATOR ISLAND -->
+        <div class="flex flex-col gap-4 w-full max-w-lg shrink-0 z-20">
+            <div id="main-card" class="w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200 transition-all duration-300 relative">
+                <div id="sim-badge" class="hidden bg-yellow-400 text-yellow-900 text-[10px] font-black text-center py-1 uppercase tracking-widest animate-pulse">Simulation Active</div>
                 
-                <div class="flex flex-1 w-full h-full p-4 gap-4">
-                    <!-- Front Elevation -->
-                    <div class="flex-1 flex flex-col h-full">
-                        <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 text-center">Front Elevation</span>
-                        <div class="flex-1 blueprint-bg border border-slate-600 rounded bg-slate-900 overflow-hidden flex items-center justify-center p-2" id="svg-front-container"></div>
-                    </div>
-                    <!-- Side Elevation -->
-                    <div class="w-32 flex flex-col h-full shrink-0">
-                        <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 text-center">Side View</span>
-                        <div class="flex-1 blueprint-bg border border-slate-600 rounded bg-slate-900 overflow-hidden flex items-center justify-center p-2" id="svg-side-container"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="p-6 space-y-5">
-                <!-- Dimensions -->
-                <div class="grid grid-cols-4 gap-3">
-                    <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
-                    <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel W (in)</label><input type="number" id="w" value="48" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
-                    <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel H (in)</label><input type="number" id="h" value="48" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
-                    <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Clearance (in)</label><input type="number" id="clearance" value="36" min="0" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner bg-blue-50 text-blue-800" oninput="runCalc()" title="Distance from ground to bottom of panel"></div>
-                </div>
-
-                <!-- Structural Mount Style -->
-                <div class="border-t border-gray-100 pt-3">
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Panel Mounting Style</label>
-                    <div class="flex gap-4">
-                        <label class="flex-1 flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer bg-gray-50 p-2 rounded border border-gray-200 hover:border-blue-400 transition">
-                            <input type="radio" name="mountStyle" value="Between" onchange="toggleInsetUI(); runCalc()" class="w-4 h-4 text-blue-600"> Between Posts
-                        </label>
-                        <label class="flex-1 flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer bg-gray-50 p-2 rounded border border-gray-200 hover:border-blue-400 transition">
-                            <input type="radio" name="mountStyle" value="Flush" checked onchange="toggleInsetUI(); runCalc()" class="w-4 h-4 text-blue-600"> Flush Mount
-                        </label>
+                <!-- 2D ARCHITECTURAL SHOP DRAWINGS -->
+                <div class="w-full h-56 bg-slate-800 border-b border-gray-200 flex flex-col relative">
+                    <span class="absolute top-2 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10">Live Shop Drawings</span>
+                    <div class="flex flex-1 w-full h-full p-4 gap-4">
+                        <!-- Front Elevation -->
+                        <div class="flex-1 flex flex-col h-full">
+                            <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 text-center">Front Elevation</span>
+                            <div class="flex-1 blueprint-bg border border-slate-600 rounded bg-slate-900 overflow-hidden flex items-center justify-center p-2" id="svg-front-container"></div>
+                        </div>
+                        <!-- Side Elevation -->
+                        <div class="w-32 flex flex-col h-full shrink-0">
+                            <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 text-center">Side View</span>
+                            <div class="flex-1 blueprint-bg border border-slate-600 rounded bg-slate-900 overflow-hidden flex items-center justify-center p-2" id="svg-side-container"></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Posts & Skeleton -->
-                <div class="border-t border-gray-100 pt-3 space-y-3">
-                    <div class="grid grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Material</label>
-                            <select id="postType" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
-                                <option value="Aluminum">Aluminum</option>
-                                <option value="Steel">Steel Tube</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Size</label>
-                            <select id="postSize" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
-                                <option value="3">3" Square</option>
-                                <option value="4" selected>4" Square</option>
-                                <option value="6">6" Square</option>
-                            </select>
-                        </div>
-                        <div id="wrap-inset" class="transition-opacity duration-300">
-                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Inset (in)</label>
-                            <input type="number" id="postInset" value="0" min="0" step="0.5" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-center focus:border-blue-500 outline-none shadow-sm h-[38px]" oninput="runCalc()">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Internal Frame Skeleton</label>
-                        <select id="frameMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
-                            <option value="Angle15">1.5" Steel Angle Iron</option>
-                            <option value="Angle20" selected>2" Steel Angle Iron</option>
-                            <option value="Tube10">1" Steel Square Tube</option>
-                            <option value="Tube20">2" Steel Square Tube</option>
-                        </select>
-                    </div>
+                <!-- PHYSICS COLLISION GUARD ALERT -->
+                <div id="physics-warn" class="hidden bg-red-100 text-red-800 text-[10px] font-bold px-4 py-2 border-b border-red-300 flex items-center gap-2 transition-opacity">
+                    <span class="text-sm">⚠️</span> <span id="physics-warn-msg">Physics limit reached.</span>
                 </div>
 
-                <!-- Substrate & Print -->
-                <div class="border-t border-gray-100 pt-3">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Face Substrate</label>
-                            <select id="faceMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
-                                <option value="063 Alum">.063 Aluminum</option>
-                                <option value="080 Alum">.080 Aluminum</option>
-                                <option value="3mm ACM" selected>3mm ACM</option>
-                                <option value="6mm ACM">6mm ACM</option>
-                            </select>
+                <div class="p-6 space-y-5">
+                    <!-- Dimensions -->
+                    <div class="grid grid-cols-4 gap-3">
+                        <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                        <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel W (in)</label><input type="number" id="w" value="48" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                        <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel H (in)</label><input type="number" id="h" value="48" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                        <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Clearance (in)</label><input type="number" id="clearance" value="36" min="0" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner bg-blue-50 text-blue-800" oninput="runCalc()" title="Distance from ground to bottom of panel"></div>
+                    </div>
+
+                    <!-- Structural Mount Style -->
+                    <div class="border-t border-gray-100 pt-3">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Panel Mounting Style</label>
+                        <div class="flex gap-4">
+                            <label class="flex-1 flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer bg-gray-50 p-2 rounded border border-gray-200 hover:border-blue-400 transition">
+                                <input type="radio" name="mountStyle" value="Between" onchange="toggleInsetUI(); runCalc()" class="w-4 h-4 text-blue-600"> Between Posts
+                            </label>
+                            <label class="flex-1 flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer bg-gray-50 p-2 rounded border border-gray-200 hover:border-blue-400 transition">
+                                <input type="radio" name="mountStyle" value="Flush" checked onchange="toggleInsetUI(); runCalc()" class="w-4 h-4 text-blue-600"> Flush Mount
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Posts & Skeleton -->
+                    <div class="border-t border-gray-100 pt-3 space-y-3">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Material</label>
+                                <select id="postType" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                    <option value="Aluminum">Aluminum</option>
+                                    <option value="Steel">Steel Tube</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Size</label>
+                                <select id="postSize" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                    <option value="3">3" Square</option>
+                                    <option value="4" selected>4" Square</option>
+                                    <option value="6">6" Square</option>
+                                </select>
+                            </div>
+                            <div id="wrap-inset" class="transition-opacity duration-300">
+                                <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Inset (in)</label>
+                                <input type="number" id="postInset" value="0" min="0" step="0.5" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-center focus:border-blue-500 outline-none shadow-sm h-[38px]" oninput="runCalc()">
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Printed Sides</label>
-                            <select id="sides" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
-                                <option value="1">Single Sided</option>
-                                <option value="2" selected>Double Sided</option>
+                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Internal Frame Skeleton</label>
+                            <select id="frameMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                <option value="Angle15">1.5" Steel Angle Iron</option>
+                                <option value="Angle20" selected>2" Steel Angle Iron</option>
+                                <option value="Tube10">1" Steel Square Tube</option>
+                                <option value="Tube20">2" Steel Square Tube</option>
                             </select>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- RESULTS -->
-            <div class="bg-blue-50 p-6 border-t border-blue-200 shadow-inner relative z-0">
-                <div class="flex justify-between items-end mb-2">
-                    <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
-                    <span id="ui-unit" class="text-3xl font-black text-blue-900 tracking-tight leading-none">$0.00</span>
-                </div>
-                <div class="border-t border-blue-200/50 my-3"></div>
-                <div class="flex justify-between items-end pt-1">
-                    <div>
-                        <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
-                        <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $150</span>
-                        <div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div>
+                    <!-- Substrate & Print -->
+                    <div class="border-t border-gray-100 pt-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Face Substrate</label>
+                                <select id="faceMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                    <option value="063 Alum">.063 Aluminum</option>
+                                    <option value="080 Alum">.080 Aluminum</option>
+                                    <option value="3mm ACM" selected>3mm ACM</option>
+                                    <option value="6mm ACM">6mm ACM</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Printed Sides</label>
+                                <select id="sides" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                    <option value="1">Single Sided</option>
+                                    <option value="2" selected>Double Sided</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                    <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
                 </div>
 
-                <button id="btn-sandbox" onclick="toggleSandbox()" class="hidden w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black py-2.5 rounded shadow-md uppercase tracking-widest transition">
-                    Launch Cost Sandbox
-                </button>
-            </div>
-
-            <div class="bg-gray-50 p-4 border-t border-gray-200">
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
-                <textarea id="job-desc" class="w-full text-xs p-3 border border-gray-300 rounded bg-white h-24 text-gray-700 font-mono outline-none leading-snug shadow-inner custom-scroll" readonly></textarea>
+                <!-- RESULTS -->
+                <div class="bg-blue-50 p-6 border-t border-blue-200 shadow-inner relative z-0">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
+                        <span id="ui-unit" class="text-3xl font-black text-blue-900 tracking-tight leading-none">$0.00</span>
+                    </div>
+                    <div class="border-t border-blue-200/50 my-3"></div>
+                    <div class="flex justify-between items-end pt-1">
+                        <div>
+                            <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
+                            <span class="text-[9px] font-bold text-blue-600 uppercase block mt-1" id="ui-min-text">Shop Minimum: $150</span>
+                            <div id="min-badge" class="hidden bg-red-100 text-red-600 border border-red-200 text-[9px] font-bold px-1 rounded inline-block mt-1">MINIMUM APPLIED</div>
+                        </div>
+                        <span class="text-3xl font-black text-blue-700" id="ui-total">---</span>
+                    </div>
+                    <button id="btn-sandbox" onclick="SignOS_Sandbox.toggle()" class="hidden w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black py-2.5 rounded shadow-md uppercase tracking-widest transition">
+                        Launch Cost Sandbox
+                    </button>
+                </div>
+                
+                <div class="bg-gray-50 p-4 border-t border-gray-200">
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
+                    <textarea id="job-desc" class="w-full text-xs p-3 border border-gray-300 rounded bg-white h-24 text-gray-700 font-mono outline-none leading-snug shadow-inner custom-scroll" readonly></textarea>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- RIGHT: SANDBOX VARIABLES -->
-    <div id="sandbox-vars" class="hidden w-[300px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
-        <div class="p-4 bg-slate-50 border-b border-gray-200 flex justify-between items-center shrink-0 rounded-t-xl">
-            <div>
-                <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Sandbox Variables</h2>
-                <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Modify System Inputs</span>
-            </div>
-        </div>
-        <div class="p-5 space-y-6">
-            <div>
-                <div class="flex justify-between items-center mb-3">
-                    <span class="text-[10px] font-black text-blue-700 uppercase tracking-widest border-b border-blue-200 pb-1">Market Overrides</span>
+        <!-- RIGHT: SANDBOX VARIABLES -->
+        <div id="sandbox-vars" class="hidden w-[300px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
+            <div class="p-4 bg-slate-50 border-b border-gray-200 flex justify-between items-center shrink-0 rounded-t-xl">
+                <div>
+                    <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Sandbox Variables</h2>
+                    <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Modify System Inputs</span>
                 </div>
-                <div id="sbx-retail-inputs" class="space-y-2"></div>
             </div>
-            <div>
-                <span class="text-[10px] font-black text-red-700 uppercase tracking-widest border-b border-red-200 pb-1 mb-3 block">Physics Overrides</span>
+            <div class="p-5 space-y-6 overflow-y-auto custom-scroll max-h-[60vh]">
+                <div id="sbx-retail-inputs" class="space-y-2 mb-6"></div>
                 <div id="sbx-cost-inputs" class="space-y-2"></div>
             </div>
-        </div>
-        <div class="p-4 bg-slate-50 border-t border-gray-200 shrink-0 space-y-2 rounded-b-xl z-20">
-            <button onclick="applySandbox()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded shadow text-xs uppercase tracking-widest transition">Run Simulation</button>
-            <div class="flex gap-2">
-                <button onclick="resetSandbox()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-100 text-gray-600 font-bold py-2 rounded text-[10px] uppercase tracking-widest transition shadow-sm">Reset</button>
+            <div class="p-4 bg-slate-50 border-t border-gray-200 shrink-0 space-y-2 rounded-b-xl z-20">
+                <button onclick="SignOS_Sandbox.apply()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded shadow text-xs uppercase tracking-widest transition">Apply & Simulate</button>
+                <div class="flex gap-2">
+                    <button onclick="SignOS_Sandbox.reset()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-100 text-gray-600 font-bold py-2 rounded text-[10px] uppercase tracking-widest transition shadow-sm">Reset</button>
+                    <button onclick="SignOS_Sandbox.exportTXT()" class="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded text-[10px] uppercase tracking-widest transition shadow-sm">Export TXT</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    // --- 1. HARDCODED UI SCHEMA FOR INLINE SANDBOX ---
-    const POSTPANEL_UI_SCHEMA = {
-        retails: [
-            { key: 'Target_Margin_Pct', label: 'Target Margin (%)' },
-            { key: 'Override_Retail_Total', label: 'Override Price ($)' }
-        ],
-        costs: [
-            { key: 'Cost_Post_Aluminum_3_1/8', label: '3" Alum Post ($/LF)' },
-            { key: 'Cost_Post_Aluminum_4_1/8', label: '4" Alum Post ($/LF)' },
-            { key: 'Cost_Frame_Angle15', label: '1.5" Angle ($/LF)' },
-            { key: 'Cost_Frame_Angle20', label: '2.0" Angle ($/LF)' },
-            { key: 'Cost_Stock_063_4x8', label: '.063 Alum Sht ($)' },
-            { key: 'Cost_Stock_3mm_4x8', label: '3mm ACM Sht ($)' },
-            { key: 'Cost_Vin_Cast', label: 'Cast Vinyl ($/SF)' },
-            { key: 'Cost_Lam_Cast', label: 'Cast Lam ($/SF)' },
-            { key: 'Cost_Paint_SqFt', label: 'Paint Cost ($/SF)' },
-            { key: 'Rate_Shop_Labor', label: 'Shop Rate ($/Hr)' },
-            { key: 'Rate_Paint_Labor', label: 'Paint Rate ($/Hr)' },
-            { key: 'Rate_Operator', label: 'Operator ($/Hr)' },
-            { key: 'Waste_Factor', label: 'Waste Multiplier' }
-        ]
-    };
-
-    let backendData = {}, customSimData = null;
-    let lastSimResult = null;
-
-    if(document.getElementById('loader')) document.getElementById('loader').classList.add('hidden');
-    if(document.getElementById('status-text')) document.getElementById('status-text').innerText = "System Active";
-    if (typeof SignOS_UI !== 'undefined' && SignOS_UI.hideLoader) SignOS_UI.hideLoader();
-
-    // --- PRESERVED HTML RENDER LOGIC ---
-    function toggleInsetUI() {
-        const style = document.querySelector('input[name="mountStyle"]:checked').value;
-        const insetWrap = document.getElementById('wrap-inset');
-        if (style === 'Flush') {
-            insetWrap.classList.remove('opacity-50', 'pointer-events-none');
-        } else {
-            insetWrap.classList.add('opacity-50', 'pointer-events-none');
-            document.getElementById('postInset').value = 0;
-        }
-    }
-
-    function drawShopDrawings(geom) {
-        const frontCont = document.getElementById('svg-front-container');
-        const sideCont = document.getElementById('svg-side-container');
-        if (!frontCont || !sideCont || !geom) return;
-
-        const maxH = 150; const maxW = 350;
-        const th = geom.above + geom.under;
-        const ow = geom.overallW;
-        const scale = Math.min(maxW / ow, maxH / th);
-        const padX = 25; const padY = 15;
-        const sOw = ow * scale;
-        const sTh = th * scale;
-
-        const p1_x = 0;
-        const p2_x = sOw - (geom.post * scale);
-        const pnl_y = sTh - (geom.under * scale) - (geom.clearance * scale) - (geom.h * scale);
-        const pnl_x = geom.mount === 'Between' ? geom.post * scale : 0;
-
-        const drawHDim = (x1, x2, y, txt) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#64748b" stroke-width="1"/><line x1="${x1}" y1="${y-3}" x2="${x1}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><line x1="${x2}" y1="${y-3}" x2="${x2}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-3}" font-family="sans-serif" font-size="8" fill="#94a3b8" text-anchor="middle">${txt}</text>`;
-        const drawVDim = (x, y1, y2, txt, align="start") => `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y1}" x2="${x+3}" y1="${y1}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y2}" x2="${x+3}" y1="${y2}" stroke="#64748b" stroke-width="1"/><text x="${align === 'start' ? x+4 : x-4}" y="${(y1+y2)/2}" font-family="sans-serif" font-size="8" fill="#94a3b8" dominant-baseline="middle" text-anchor="${align}">${txt}</text>`;
-
-        frontCont.innerHTML = `<svg viewBox="${-padX} ${-padY} ${sOw + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sOw + padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sOw + (padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="${p1_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${p2_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${pnl_x}" y="${pnl_y}" width="${geom.w * scale}" height="${geom.h * scale}" fill="#f1f5f9" stroke="#3b82f6" stroke-width="1" /><text x="${pnl_x + (geom.w * scale / 2)}" y="${pnl_y + (geom.h * scale / 2)}" font-family="sans-serif" font-weight="900" font-size="${geom.h * scale / 4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>${drawHDim(0, sOw, -8, geom.overallW + '" O.A.W')}${drawVDim(-8, 0, sTh - (geom.under * scale), geom.above + '" A.G.', "end")}</svg>`;
-
-        const sideW = geom.post + 8;
-        const pnlThick = 2;
-        let sidePnl_x = geom.mount === 'Between' ? (geom.post - pnlThick) / 2 : geom.post;
-
-        sideCont.innerHTML = `<svg viewBox="${-padX} ${-padY} ${sideW + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sideW+padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sideW+(padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="0" y="0" width="${geom.post * scale}" height="${sTh}" fill="#64748b" /><rect x="${sidePnl_x * scale}" y="${pnl_y}" width="${pnlThick * scale}" height="${geom.h * scale}" fill="#3b82f6" />${drawVDim(sideW * scale + 8, pnl_y, pnl_y + (geom.h * scale), geom.h + '"', "start")}</svg>`;
-    }
-
-    // --- NEW SANDBOX LOGIC (Replaces window.POSTPANEL_CONFIG) ---
-    function toggleSandbox() {
-        const wrap = document.getElementById('app-wrapper');
-        const left = document.getElementById('sandbox-ledger');
-        const right = document.getElementById('sandbox-vars');
-        
-        if (left.classList.contains('hidden')) {
-            wrap.classList.remove('max-w-lg'); wrap.classList.add('max-w-[1250px]');
-            left.classList.remove('hidden'); left.classList.add('flex');
-            right.classList.remove('hidden'); right.classList.add('flex');
-            if(!customSimData) { customSimData = { ...backendData }; buildSandboxInputs(); }
-            applySandbox();
-        } else {
-            wrap.classList.add('max-w-lg'); wrap.classList.remove('max-w-[1250px]');
-            left.classList.add('hidden'); left.classList.remove('flex');
-            right.classList.add('hidden'); right.classList.remove('flex');
-        }
-    }
-
-    function buildSandboxInputs() {
-        const buildSection = (arr, containerId) => {
-            let html = '';
-            arr.forEach(i => {
-                let v = customSimData[i.key] !== undefined ? customSimData[i.key] : '';
-                if (v !== '' && !isNaN(v) && (i.label.includes('$') || i.key.includes('Rate') || i.key.includes('Cost'))) v = parseFloat(v).toFixed(2);
-                let desc = backendData['META_NOTE_' + i.key] || "";
-                html += `<div id="wrap_sbx_${i.key}" class="flex justify-between items-center gap-2 transition-opacity duration-300 py-0.5"><label class="text-[10px] font-bold text-gray-600 truncate flex-1 hover-var cursor-help transition-all" data-var="${i.key}" title="${desc}">${i.label}</label><input type="text" id="sbx_${i.key}" value="${v}" class="w-16 bg-gray-50 border border-gray-300 text-gray-800 text-[10px] font-bold text-center rounded outline-none focus:border-blue-400 focus:bg-white shadow-inner py-1"></div>`;
-            });
-            document.getElementById(containerId).innerHTML = html;
+    <script>
+        const POSTPANEL_UI_SCHEMA = {
+            retails: [
+                { key: 'Target_Margin_Pct', label: 'Target Margin (%)' },
+                { key: 'Override_Retail_Total', label: 'Override Price ($)' }
+            ],
+            costs: [
+                { key: 'Cost_Post_Aluminum_3_1/8', label: '3" Alum Post ($/LF)' },
+                { key: 'Cost_Post_Aluminum_4_1/8', label: '4" Alum Post ($/LF)' },
+                { key: 'Cost_Frame_Angle15', label: '1.5" Angle ($/LF)' },
+                { key: 'Cost_Frame_Angle20', label: '2.0" Angle ($/LF)' },
+                { key: 'Cost_Stock_063_4x8', label: '.063 Alum Sht ($)' },
+                { key: 'Cost_Stock_3mm_4x8', label: '3mm ACM Sht ($)' },
+                { key: 'Cost_Vin_Cast', label: 'Cast Vinyl ($/SF)' },
+                { key: 'Cost_Lam_Cast', label: 'Cast Lam ($/SF)' },
+                { key: 'Cost_Paint_SqFt', label: 'Paint Cost ($/SF)' },
+                { key: 'Rate_Shop_Labor', label: 'Shop Rate ($/Hr)' },
+                { key: 'Rate_Paint_Labor', label: 'Paint Rate ($/Hr)' },
+                { key: 'Rate_Operator', label: 'Operator ($/Hr)' },
+                { key: 'Waste_Factor', label: 'Waste Multiplier' }
+            ]
         };
-        buildSection(backendData.ui_schema.retails, 'sbx-retail-inputs');
-        buildSection(backendData.ui_schema.costs, 'sbx-cost-inputs');
-    }
 
-    function applySandbox() {
-        if(!customSimData) customSimData = { ...backendData };
-        const harvest = (arr) => { arr.forEach(i => { let el = document.getElementById(`sbx_${i.key}`); if(el && el.value !== "") customSimData[i.key] = parseFloat(el.value) || el.value; else customSimData[i.key] = ""; }); };
-        harvest(backendData.ui_schema.retails);
-        harvest(backendData.ui_schema.costs);
-        document.getElementById('sim-badge').classList.remove('hidden');
-        document.getElementById('main-card').classList.add('border-yellow-400');
-        runCalc();
-    }
+        let backendData = {};
 
-    function resetSandbox() {
-        customSimData = { ...backendData };
-        document.getElementById('sim-badge').classList.add('hidden');
-        document.getElementById('main-card').classList.remove('border-yellow-400');
-        buildSandboxInputs();
-        runCalc();
-    }
+        function toggleInsetUI() {
+            const style = document.querySelector('input[name="mountStyle"]:checked').value;
+            const insetWrap = document.getElementById('wrap-inset');
+            if (style === 'Flush') {
+                insetWrap.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                insetWrap.classList.add('opacity-50', 'pointer-events-none');
+                document.getElementById('postInset').value = 0;
+            }
+        }
+        
+        // --- PHYSICS ENFORCEMENT ENGINE ---
+        function enforcePhysics() {
+            let wEl = document.getElementById('w');
+            let hEl = document.getElementById('h');
+            let clrEl = document.getElementById('clearance');
+            let insetEl = document.getElementById('postInset');
+            let pSize = parseFloat(document.getElementById('postSize').value) || 4;
+            let pType = document.getElementById('postType').value;
+            let warnEl = document.getElementById('physics-warn');
+            let warnMsg = document.getElementById('physics-warn-msg');
 
-    function dimInactiveSandboxVars() {
-        const activeVars = new Set();
-        document.querySelectorAll('#sandbox-ledger .hover-var').forEach(el => activeVars.add(el.getAttribute('data-var')));
-        let allVars = [...backendData.ui_schema.retails, ...backendData.ui_schema.costs];
-        allVars.forEach(item => {
-            const wrapEl = document.getElementById(`wrap_sbx_${item.key}`);
-            const inputEl = document.getElementById(`sbx_${item.key}`);
-            if (wrapEl && inputEl) {
-                const labelEl = wrapEl.querySelector('label');
-                if (activeVars.has(item.key)) {
-                    wrapEl.classList.remove('opacity-40'); wrapEl.classList.add('opacity-100');
-                    if (labelEl) { labelEl.classList.add('text-black', 'font-black'); labelEl.classList.remove('text-gray-600', 'font-bold'); }
-                    inputEl.classList.add('bg-white', 'text-blue-900', 'border-blue-400', 'font-bold');
-                    inputEl.classList.remove('bg-gray-50', 'text-gray-800', 'border-gray-300');
+            let w = parseFloat(wEl.value) || 12;
+            let h = parseFloat(hEl.value) || 12;
+            let clr = parseFloat(clrEl.value) || 0;
+            let inset = parseFloat(insetEl.value) || 0;
+            
+            let didClamp = false;
+            let msg = "";
+
+            // 1. Collision Guard: Prevent posts from colliding in the center of the sign
+            let maxInset = (w / 2) - pSize;
+            if (inset > maxInset && document.querySelector('input[name="mountStyle"]:checked').value === 'Flush') {
+                inset = Math.max(0, maxInset);
+                insetEl.value = inset;
+                didClamp = true;
+                msg = "Inset constrained to prevent structural posts from colliding.";
+            }
+
+            // 2. Maximum Stick Yield Rule
+            // Steel typically maxes at 20' (240"), Aluminum at 24' (288")
+            let maxStockInches = (pType === 'Steel') ? 240 : 288;
+            let currentPostInches = h + clr + 36; // 36 is default underground
+            if (currentPostInches > maxStockInches) {
+                let overage = currentPostInches - maxStockInches;
+                if (clr >= overage) {
+                    clr -= overage;
+                    clrEl.value = clr;
                 } else {
-                    wrapEl.classList.remove('opacity-100'); wrapEl.classList.add('opacity-40');
-                    if (labelEl) { labelEl.classList.remove('text-black', 'font-black'); labelEl.classList.add('text-gray-600', 'font-bold'); }
-                    inputEl.classList.remove('bg-white', 'text-blue-900', 'border-blue-400', 'font-bold');
-                    inputEl.classList.add('bg-gray-50', 'text-gray-800', 'border-gray-300');
+                    h -= (overage - clr);
+                    clr = 0;
+                    clrEl.value = clr;
+                    hEl.value = h;
                 }
+                didClamp = true;
+                msg = `Max material stock length (${maxStockInches / 12}') reached. Ground clearance reduced.`;
+            }
+
+            if (didClamp) {
+                warnEl.classList.remove('hidden');
+                warnMsg.innerText = msg;
+                clearTimeout(warnEl.timeoutId);
+                warnEl.timeoutId = setTimeout(() => warnEl.classList.add('hidden'), 4500);
+            }
+        }
+
+        function drawShopDrawings(geom) {
+            const frontCont = document.getElementById('svg-front-container');
+            const sideCont = document.getElementById('svg-side-container');
+            if (!frontCont || !sideCont || !geom) return;
+
+            const maxH = 150; const maxW = 350;
+            const th = geom.above + geom.under;
+            const ow = geom.overallW;
+            const scale = Math.min(maxW / ow, maxH / th);
+            const padX = 25; const padY = 15;
+
+            const sOw = ow * scale;
+            const sTh = th * scale;
+            const p1_x = 0;
+            const p2_x = sOw - (geom.post * scale);
+            const pnl_y = sTh - (geom.under * scale) - (geom.clearance * scale) - (geom.h * scale);
+            const pnl_x = geom.mount === 'Between' ? geom.post * scale : 0;
+
+            const drawHDim = (x1, x2, y, txt) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#64748b" stroke-width="1"/><line x1="${x1}" y1="${y-3}" x2="${x1}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><line x1="${x2}" y1="${y-3}" x2="${x2}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-3}" font-family="sans-serif" font-size="8" fill="#94a3b8" text-anchor="middle">${txt}</text>`;
+            const drawVDim = (x, y1, y2, txt, align="start") => `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y1}" x2="${x+3}" y1="${y1}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y2}" x2="${x+3}" y1="${y2}" stroke="#64748b" stroke-width="1"/><text x="${align === 'start' ? x+4 : x-4}" y="${(y1+y2)/2}" font-family="sans-serif" font-size="8" fill="#94a3b8" dominant-baseline="middle" text-anchor="${align}">${txt}</text>`;
+
+            frontCont.innerHTML = `<svg viewBox="${-padX} ${-padY} ${sOw + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sOw + padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sOw + (padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="${p1_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${p2_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${pnl_x}" y="${pnl_y}" width="${geom.w * scale}" height="${geom.h * scale}" fill="#f1f5f9" stroke="#3b82f6" stroke-width="1" /><text x="${pnl_x + (geom.w * scale / 2)}" y="${pnl_y + (geom.h * scale / 2)}" font-family="sans-serif" font-weight="900" font-size="${geom.h * scale / 4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>${drawHDim(0, sOw, -8, geom.overallW + '" O.A.W')}${drawVDim(-8, 0, sTh - (geom.under * scale), geom.above + '" A.G.', "end")}</svg>`;
+
+            const sideW = geom.post + 8;
+            const pnlThick = 2;
+            let sidePnl_x = geom.mount === 'Between' ? (geom.post - pnlThick) / 2 : geom.post;
+
+            sideCont.innerHTML = `<svg viewBox="${-padX} ${-padY} ${sideW + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sideW+padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sideW+(padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="0" y="0" width="${geom.post * scale}" height="${sTh}" fill="#64748b" /><rect x="${sidePnl_x * scale}" y="${pnl_y}" width="${pnlThick * scale}" height="${geom.h * scale}" fill="#3b82f6" />${drawVDim(sideW * scale + 8, pnl_y, pnl_y + (geom.h * scale), geom.h + '"', "start")}</svg>`;
+        }
+
+        async function runCalc() {
+            if(!backendData.Retail_Min_Order) return;
+            enforcePhysics(); // Validates the user inputs structurally
+            
+            const panelArray = [{
+                w: parseFloat(document.getElementById('w').value) || 48,
+                h: parseFloat(document.getElementById('h').value) || 48,
+                sides: parseInt(document.getElementById('sides').value) || 2,
+                faceMat: document.getElementById('faceMat').value,
+                mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
+                gap: 0, isCNC: false, graphicMethod: 'Printed'
+            }];
+
+            const inputs = {
+                qty: parseInt(document.getElementById('qty').value) || 1,
+                w: parseFloat(document.getElementById('w').value) || 48,
+                h: parseFloat(document.getElementById('h').value) || 48,
+                clearance: parseFloat(document.getElementById('clearance').value) || 36,
+                mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
+                postType: document.getElementById('postType').value,
+                postSize: document.getElementById('postSize').value,
+                postInset: parseFloat(document.getElementById('postInset').value) || 0,
+                frameMat: document.getElementById('frameMat').value,
+                faceMat: document.getElementById('faceMat').value,
+                sides: parseInt(document.getElementById('sides').value) || 2,
+                panels: panelArray,
+                aboveGrade: (parseFloat(document.getElementById('h').value) || 48) + (parseFloat(document.getElementById('clearance').value) || 36),
+                belowGrade: 36, hasConcrete: true, finishType: 'Printed', isCutVinyl: false,
+                postSpacing: (parseFloat(document.getElementById('w').value) || 48) - (parseFloat(document.getElementById('postInset').value) || 0) * 2
+            };
+
+            try {
+                const dataToUse = (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.simData) ? SignOS_Sandbox.simData : backendData;
+                const fnUrl = `${EDGE_URL}/functions/v1/calculate-post-panel`;
+                const response = await fetch(fnUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                    body: JSON.stringify({ inputs: inputs, config: dataToUse })
+                });
+
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+                const result = await response.json();
+                if (!result || !result.retail) return;
+
+                const ret = result.retail;
+                const fmt = (n) => "$" + (n || 0).toFixed(2);
+
+                document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
+                document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
+                document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 150)}`;
+                document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
+
+                const sideTxt = inputs.sides === 2 ? "Double Sided" : "Single Sided";
+                const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount (${inputs.postInset}" Inset)`;
+                const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
+                document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" x ${inputs.h}" Post & Panel Sign.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})`;
+
+                if(result.geom) drawShopDrawings(result.geom);
+
+                if (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.renderLedger) {
+                    SignOS_Sandbox.renderLedger(result);
+                }
+            } catch(e) { console.error("Cloud Physics Error:", e); }
+        }
+
+        window.addEventListener('load', async () => {
+            if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
+
+            const btnSandbox = document.getElementById('btn-sandbox');
+            if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
+                btnSandbox.classList.remove('hidden');
+            }
+
+            try {
+                const payload = await SignOS.fetchProductData('PROD_Post_Panel');
+                backendData = payload.config || {};
+                backendData.ui_schema = POSTPANEL_UI_SCHEMA; 
+                
+                if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
+
+                toggleInsetUI();
+                runCalc();
+            } catch(e) {
+                console.error("API Error:", e);
             }
         });
-    }
-
-    function renderLedgerUI(res) {
-        const fmt = (n) => "$" + (n||0).toFixed(2);
-        if (!res || !res.cost || !res.cost.breakdown) return;
-        const theCost = res.cost.total;
-        const theSales = res.retail.grandTotal;
-        const theProfit = theSales - theCost;
-        const theMarginPct = theSales > 0 ? (theProfit / theSales) * 100 : 0;
-
-        let retHtml = res.retail.breakdown.map(i => `<div class="mb-2 border-b border-gray-100 pb-1.5"><div class="flex justify-between text-[11px] text-blue-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div><div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${i.formula || ''}</div></div>`).join('');
-        retHtml += `<div class="flex justify-between text-[12px] font-black text-blue-700 mt-2 pt-2 border-t-2 border-blue-200"><span>Gross Retail:</span><span>${fmt(res.retail.grandTotal)}</span></div>`;
-        document.getElementById('sbx-retail-breakdown').innerHTML = retHtml;
-
-        let cstHtml = res.cost.breakdown.map(i => `<div class="mb-1.5 hover:bg-gray-50 transition cursor-help group"><div class="flex justify-between text-[11px] text-red-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div><div class="flex justify-between items-start text-[9px] text-gray-500 font-mono italic mt-0.5 leading-snug"><span class="pr-2 block flex-1">Math: <span class="text-indigo-600">${i.formula || ''}</span></span></div></div>`).join('');
-        cstHtml += `<div class="flex justify-between text-[12px] font-black text-red-700 mt-3 pt-2 border-t-2 border-red-200"><span>Total Hard Cost:</span><span>${fmt(res.cost.total)}</span></div>`;
-        document.getElementById('sbx-cost-breakdown').innerHTML = cstHtml;
-
-        const mEl = document.getElementById('sbx-margin');
-        mEl.innerText = theMarginPct.toFixed(1) + '%';
-        mEl.className = theMarginPct >= 50 ? 'text-2xl font-black text-green-600 tracking-tight leading-none' : (theMarginPct > 0 ? 'text-2xl font-black text-yellow-600 tracking-tight leading-none' : 'text-2xl font-black text-red-600 tracking-tight leading-none');
-    }
-
-    // --- MAIN MATH ENGINE ---
-    async function runCalc() {
-        if(!backendData.Retail_Min_Order) return;
-        
-        const panelArray = [{
-            w: parseFloat(document.getElementById('w').value) || 48,
-            h: parseFloat(document.getElementById('h').value) || 48,
-            sides: parseInt(document.getElementById('sides').value) || 2,
-            faceMat: document.getElementById('faceMat').value,
-            mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
-            gap: 0, isCNC: false, graphicMethod: 'Printed'
-        }];
-
-        const inputs = {
-            qty: parseInt(document.getElementById('qty').value) || 1,
-            w: parseFloat(document.getElementById('w').value) || 48,
-            h: parseFloat(document.getElementById('h').value) || 48,
-            clearance: parseFloat(document.getElementById('clearance').value) || 36,
-            mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
-            postType: document.getElementById('postType').value,
-            postSize: document.getElementById('postSize').value,
-            postInset: parseFloat(document.getElementById('postInset').value) || 0,
-            frameMat: document.getElementById('frameMat').value,
-            faceMat: document.getElementById('faceMat').value,
-            sides: parseInt(document.getElementById('sides').value) || 2,
-            panels: panelArray,
-            aboveGrade: (parseFloat(document.getElementById('h').value) || 48) + (parseFloat(document.getElementById('clearance').value) || 36),
-            belowGrade: 36, hasConcrete: true, finishType: 'Printed', isCutVinyl: false,
-            postSpacing: (parseFloat(document.getElementById('w').value) || 48) - (parseFloat(document.getElementById('postInset').value) || 0) * 2
-        };
-
-        try {
-            const dataToUse = customSimData || backendData;
-            const fnUrl = `${EDGE_URL}/functions/v1/calculate-post-panel`;
-            const response = await fetch(fnUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                body: JSON.stringify({ inputs: inputs, config: dataToUse })
-            });
-
-            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-            const result = await response.json();
-            if (!result || !result.retail) return;
-
-            lastSimResult = result;
-            const ret = result.retail;
-            const fmt = (n) => "$" + (n || 0).toFixed(2);
-
-            document.getElementById('ui-unit').innerText = fmt(ret.unitPrice);
-            document.getElementById('ui-total').innerText = fmt(ret.grandTotal);
-            document.getElementById('ui-min-text').innerText = `Shop Minimum: $${parseFloat(dataToUse.Retail_Min_Order || 150)}`;
-            document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
-
-            const sideTxt = inputs.sides === 2 ? "Double Sided" : "Single Sided";
-            const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount (${inputs.postInset}" Inset)`;
-            const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
-            document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" x ${inputs.h}" Post & Panel Sign.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})`;
-
-            if(result.geom) drawShopDrawings(result.geom);
-
-            if (customSimData) {
-                renderLedgerUI(result);
-                dimInactiveSandboxVars();
-            }
-        } catch(e) { console.error("Cloud Physics Error:", e); }
-    }
-
-    window.addEventListener('load', async () => {
-        if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
-        const btnSandbox = document.getElementById('btn-sandbox');
-        if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
-            btnSandbox.classList.remove('hidden');
-        }
-        try {
-            // Using Yard Signs config logic matrix for standard rates
-            const payload = await SignOS.fetchProductData('PROD_Post_Panel');
-            backendData = payload.config;
-            backendData.ui_schema = POSTPANEL_UI_SCHEMA; // Inject Schema natively
-            toggleInsetUI();
-            runCalc();
-        } catch(e) {
-            console.error("API Error:", e);
-        }
-    });
-</script>
+    </script>
 </body>
 </html>
