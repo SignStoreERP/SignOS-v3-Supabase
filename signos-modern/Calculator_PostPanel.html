@@ -104,13 +104,11 @@
                                     <option value="AlumAngle_2_1/8">2" Aluminum Angle</option>
                                     <option value="AlumAngle_3_1/8">3" Aluminum Angle</option>
                                     <option value="AlumAngle_4_1/8">4" Aluminum Angle</option>
-                                    
                                     <option value="AlumTube_1.5_1/8">1.5" Aluminum Square Tube</option>
                                     <option value="AlumTube_2_1/8" selected>2" Aluminum Square Tube</option>
                                     <option value="AlumTube_3_1/8">3" Aluminum Square Tube</option>
                                     <option value="AlumTube_4_1/8">4" Aluminum Square Tube</option>
                                     <option value="AlumTube_6_1/4">6" Aluminum Square Tube</option>
-                                    
                                     <option value="SteelAngle_1.5_1/8">1.5" Steel Angle</option>
                                     <option value="SteelAngle_2_1/8">2" Steel Angle</option>
                                     <option value="SteelTube_1.5_1/8">1.5" Steel Tube</option>
@@ -368,14 +366,13 @@
             }
         }
 
-        // --- PURE 2D SVG DRAFTING ENGINE ---
+        // --- PURE 2D SVG DRAFTING ENGINE (FIXED ALIGNMENT) ---
         function renderViews(geom) {
             const cont = document.getElementById('svg-preview-container');
             if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
 
-            // Derived directly from sandbox_postpanel.js printSandbox generator [1-18]
-            const padX = 25;
-            const padY = 15;
+            const padX = 35;
+            const padY = 25;
             const th = geom.above + geom.under;
             const ow = geom.overallW;
             const maxH = 280; 
@@ -393,85 +390,93 @@
             let p2X = p1X + sPostD + (geom.postSpacing * scale);
 
             const dimColor = "#64748b"; // Slate-500
-            const fSize = 7;
+            const fSize = 8;
             const drawHDim = (x1, x2, y, label) => { return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${dimColor}" stroke-width="1"/><line x1="${x1}" y1="${y-2}" x2="${x1}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x2}" y1="${y-2}" x2="${x2}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="middle" font-weight="bold">${label}</text>`; };
-            const drawVDim = (x, y1, y2, label, align="end") => { let textX = align === "end" ? x - 4 : x + 4; return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y1}" x2="${x+2}" y2="${y1}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y2}" x2="${x+2}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><text x="${textX}" y="${(y1+y2)/2 + 2}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="${align}" font-weight="bold">${label}</text>`; };
+            const drawVDim = (x, y1, y2, label, align="end") => { let textX = align === "end" ? x - 4 : x + 4; return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y1}" x2="${x+2}" y2="${y1}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y2}" x2="${x+2}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><text x="${textX}" y="${(y1+y2)/2 + 3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="${align}" font-weight="bold">${label}</text>`; };
 
             // Ground & Footings
-            let bgLayer = `<rect x="0" y="${sTh - sUnder}" width="${sOw}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
-            bgLayer += `<line x1="-15" y1="${sTh - sUnder}" x2="${sOw + 15}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
+            let bgLayer = `<rect x="-100" y="${sTh - sUnder}" width="${sOw + 200}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
+            bgLayer += `<line x1="-100" y1="${sTh - sUnder}" x2="${sOw + 100}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
 
             const footerH = sUnder * 0.66;
             const footerY = sTh - footerH;
             bgLayer += `<rect x="${p1X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
             bgLayer += `<rect x="${p2X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
 
-            const postCutThick = geom.frameThick * scale;
-            const postDrawH = sTh - postCutThick;
-            bgLayer += `<rect x="${p1X}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
-            bgLayer += `<rect x="${p2X}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
+            // POSTS: Starting at 0 (Top of the Above Grade height)
+            const postDrawH = sTh;
+            bgLayer += `<rect x="${p1X}" y="0" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
+            bgLayer += `<rect x="${p2X}" y="0" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
 
             // FRONT ELEVATION
             let svgFrontSolid = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sOw + padX*2} ${sTh + padY*2}" style="overflow: visible;">` + bgLayer;
 
-            let currY = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            // Panels start exactly at the topOffset (Which defaults to 0, matching the top of the posts)
+            let currY = geom.topOffset * scale;
+            
             geom.panels.forEach((p, i) => {
-                let pW_real = p.mountStyle === 'Between' ? geom.postSpacing : p.w;
-                let sPw = pW_real * scale;
+                let sPw = p.w * scale;
                 let sPh = p.h * scale;
-                let panelX = p.mountStyle === 'Between' ? p1X + sPostD : (sOw - sPw) / 2;
+                let panelX = (sOw - sPw) / 2; // Horizontally centered over the structure
 
                 if (i > 0) currY += (p.gap * scale);
 
-                let frameW_real = Math.max(pW_real, geom.postSpacing);
-                let sFw = frameW_real * scale;
-                let fX = (sOw - sFw) / 2;
                 const ft = geom.frameThick * scale;
                 let shareTop = (i > 0 && p.gap === 0 && p.mountStyle === geom.panels[i-1].mountStyle);
 
+                let isFlush = p.mountStyle === 'Flush';
+                
+                // Frame dynamically sizes between the posts (if flush) or spans the panel (if between)
+                let frameW_real = isFlush ? geom.postSpacing : p.w;
+                let sFw = frameW_real * scale;
+                let fX = isFlush ? p1X + sPostD : (sOw - sFw) / 2;
+
+                // Frame Horizontals
                 svgFrontSolid += `<rect x="${fX}" y="${currY + sPh - ft}" width="${sFw}" height="${ft}" fill="#64748b"/>`;
                 if (!shareTop) svgFrontSolid += `<rect x="${fX}" y="${currY}" width="${sFw}" height="${ft}" fill="#64748b"/>`;
 
-                let isFlushSealed = p.mountStyle === 'Flush' && Math.abs(p.w - (geom.postSpacing + geom.post*2)) < 0.01;
+                // Frame Verticals
                 let vHeight = sPh - (shareTop ? ft : ft*2);
                 let vY = currY + (shareTop ? 0 : ft);
+                let vLeftX = isFlush ? p1X + sPostD : fX;
+                let vRightX = isFlush ? p2X - ft : fX + sFw - ft;
 
-                if (!isFlushSealed) {
-                    svgFrontSolid += `<rect x="${panelX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#64748b"/>`;
-                    svgFrontSolid += `<rect x="${panelX + sPw - ft}" y="${vY}" width="${ft}" height="${vHeight}" fill="#64748b"/>`;
-                }
+                svgFrontSolid += `<rect x="${vLeftX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#64748b"/>`;
+                svgFrontSolid += `<rect x="${vRightX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#64748b"/>`;
 
-                let faceOpacity = p.mountStyle === 'Between' ? 0.8 : 0.95;
+                // Face Panel (Solid enough to see overall shape, slightly transparent to show frame alignment)
+                let faceOpacity = isFlush ? 0.95 : 0.85;
                 svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="${faceOpacity}"/>`;
                 svgFrontSolid += `<text x="${panelX + sPw/2}" y="${currY + sPh/2 + 2}" font-family="sans-serif" font-weight="900" font-size="${Math.min(10, sPh/4)}" fill="#ffffff" text-anchor="middle" opacity="0.9">LOGO</text>`;
                 
                 currY += sPh;
             });
 
-            // Dimensions
-            svgFrontSolid += drawHDim(0, sOw, -8, geom.overallW + '" O.A.W');
+            // Front Dimensions
+            svgFrontSolid += drawHDim(0, sOw, -10, geom.overallW + '" O.A.W');
             svgFrontSolid += drawHDim(p1X + sPostD, p2X, sTh - sUnder - (sClr/2), geom.postSpacing + '" I.D.');
-            svgFrontSolid += drawVDim(-8, 0, sTh - sUnder, geom.above + '" A.G.', "end");
-            svgFrontSolid += drawVDim(-8, sTh - sUnder, sTh, geom.under + '" B.G.', "end");
-            if (sClr > 0) svgFrontSolid += drawVDim(sOw + 8, sTh - sUnder - sClr, sTh - sUnder, geom.clearance + '" Clr', "start");
+            svgFrontSolid += drawVDim(-12, 0, sTh - sUnder, geom.above + '" A.G.', "end");
+            svgFrontSolid += drawVDim(-12, sTh - sUnder, sTh, geom.under + '" B.G.', "end");
+            if (sClr > 0) svgFrontSolid += drawVDim(sOw + 12, sTh - sUnder - sClr, sTh - sUnder, geom.clearance + '" Clr', "start");
             svgFrontSolid += `</svg>`;
 
             // SIDE PROFILE
-            const sideW = Math.max(geom.post + 4, 20);
+            const sideW = Math.max(geom.post + 8, 24);
             const visFaceThick = 2;
             const sSideW = sideW * scale;
             const px = (sSideW - sPostD) / 2;
 
             let svgSide = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sSideW + padX*2} ${sTh + padY*2}" style="overflow: visible;">`;
-            svgSide += `<rect x="0" y="${sTh - sUnder}" width="${sSideW}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
-            svgSide += `<line x1="-15" y1="${sTh - sUnder}" x2="${sSideW + 15}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
+            svgSide += `<rect x="-100" y="${sTh - sUnder}" width="${sSideW + 200}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
+            svgSide += `<line x1="-100" y1="${sTh - sUnder}" x2="${sSideW + 100}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
             svgSide += `<rect x="${px - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
-            svgSide += `<rect x="${px}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
+            svgSide += `<rect x="${px}" y="0" width="${sPostD}" height="${sTh}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
 
-            let sy = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            let sy = geom.topOffset * scale;
             geom.panels.forEach((p, i) => {
                 let sPh = p.h * scale;
                 if (i > 0) sy += (p.gap * scale);
+                
                 if (p.mountStyle === 'Between') {
                     svgSide += `<rect x="${px + (sPostD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#1e40af"/>`;
                 } else {
@@ -481,12 +486,13 @@
                 sy += sPh;
             });
 
-            svgSide += drawHDim(px, px + sPostD, -8, geom.post + '"');
-            let dy = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            svgSide += drawHDim(px, px + sPostD, -10, geom.post + '"');
+            
+            let dy = geom.topOffset * scale;
             geom.panels.forEach((p, i) => {
                 let sPh = p.h * scale;
                 if (i > 0) dy += (p.gap * scale);
-                svgSide += drawVDim(sSideW + 8, dy, dy + sPh, p.h + '"', "start");
+                svgSide += drawVDim(sSideW + 12, dy, dy + sPh, p.h + '"', "start");
                 dy += sPh;
             });
             svgSide += `</svg>`;
