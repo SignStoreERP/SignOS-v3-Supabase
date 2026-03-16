@@ -20,6 +20,10 @@
         #preview-wrapper:active { cursor: grabbing; }
         #svg-preview-container { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
         
+        /* FIXED: Target the container itself, removing the space in the selector */
+        #svg-preview-container.isometric-view { transform: rotateX(82deg) rotateZ(-25deg); }
+        #svg-preview-container.front-view { transform: rotateX(90deg) rotateZ(0deg); }
+        
         /* Lowered camera angle from 60deg to 82deg to fix the "Top Down" view */
         .isometric-view #svg-preview-container { transform: rotateX(82deg) rotateZ(-25deg); }
         .front-view #svg-preview-container { transform: rotateX(90deg) rotateZ(0deg); }
