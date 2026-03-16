@@ -14,21 +14,6 @@
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        
-        /* 3D CSS Renderer Core */
-        #preview-wrapper { perspective: 2000px; cursor: grab; }
-        #preview-wrapper:active { cursor: grabbing; }
-        
-        #svg-preview-container { 
-            transform-style: preserve-3d; 
-            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); 
-            position: relative; 
-        }
-        
-        /* Front View: X=82deg levels the camera so Z-elevation goes UP. */
-        .front-view #svg-preview-container { transform: rotateX(82deg) rotateZ(0deg); }
-        /* Isometric View: Tilts up to 65deg and pans sideways to show depth */
-        .isometric-view #svg-preview-container { transform: rotateX(65deg) rotateZ(-35deg); }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
@@ -62,21 +47,12 @@
         <div class="flex flex-col gap-4 w-full max-w-xl shrink-0 z-20">
             <div id="main-card" class="w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200 transition-all duration-300 relative">
                 
-                <!-- 3D ARCHITECTURAL VIEWPORT -->
-                <div class="w-full h-80 bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
-                    <div class="absolute top-3 left-3 z-30 flex gap-1.5 pointer-events-auto">
-                        <button onclick="toggle3D()" id="btn-3d" class="bg-white/90 hover:bg-gray-50 text-blue-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">3D Isometric View</button>
-                        <button onclick="toggleExplode()" id="btn-explode" class="hidden bg-white/90 hover:bg-gray-50 text-indigo-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Explode View</button>
-                        <button onclick="SignOS_UI.Camera3D.reset()" class="bg-white/80 hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Reset Camera</button>
-                    </div>
-                    <span class="absolute top-3 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10 pointer-events-none">Live Structural Physics</span>
+                <!-- 2D ARCHITECTURAL VIEWPORT (REPLACED 3D) -->
+                <div class="w-full h-[400px] bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
+                    <span class="absolute top-3 left-3 text-[10px] font-black text-blue-400 uppercase tracking-widest z-10 pointer-events-none">2D Architectural Draft</span>
+                    <span class="absolute top-3 right-3 text-[8px] font-bold text-slate-500 uppercase tracking-widest z-10 pointer-events-none">Live Structural Physics</span>
                     
-                    <!-- 3D STAGE W/ PAN & ZOOM HOOKS -->
-                    <div id="preview-wrapper" class="front-view w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
-                        <div id="zoom-stage" class="w-full h-full flex items-center justify-center origin-center">
-                            <div id="svg-preview-container"></div>
-                        </div>
-                    </div>
+                    <div id="svg-preview-container" class="w-full h-full flex pt-10 pb-4"></div>
                 </div>
 
                 <!-- PHYSICS COLLISION GUARD ALERT -->
@@ -264,34 +240,6 @@
 
         let backendData = {};
         let panels = [{ id: Date.now(), w: 36, h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 2, gap: 0 }];
-        
-        let is3D = false; // Defaulted to Flat Front View
-        let isExploded = false;
-
-        function toggle3D() {
-            is3D = !is3D;
-            const container = document.getElementById('preview-wrapper');
-            
-            if (is3D) {
-                container.classList.add('isometric-view');
-                container.classList.remove('front-view');
-            } else {
-                container.classList.remove('isometric-view');
-                container.classList.add('front-view');
-            }
-            
-            document.getElementById('btn-3d').innerText = is3D ? "Flat 2D View" : "3D Isometric View";
-            document.getElementById('btn-explode').classList.toggle('hidden', !is3D);
-            
-            if (!is3D && isExploded) toggleExplode();
-            runCalc();
-        }
-
-        function toggleExplode() {
-            isExploded = !isExploded;
-            document.getElementById('btn-explode').innerText = isExploded ? "Stack Layers" : "Explode View";
-            runCalc();
-        }
 
         function renderPanels() {
             const container = document.getElementById('panel-container');
@@ -367,7 +315,6 @@
             renderPanels();
         }
         
-        // --- PHYSICS ENFORCEMENT ENGINE ---
         function enforcePhysics() {
             let thagEl = document.getElementById('thag');
             let offsetEl = document.getElementById('topOffset');
@@ -421,140 +368,141 @@
             }
         }
 
-        // --- PURE HTML 3D CSS RENDER ENGINE (FACE-ANCHORED) ---
-        function renderIsometric(geom) {
+        // --- PURE 2D SVG DRAFTING ENGINE ---
+        function renderViews(geom) {
             const cont = document.getElementById('svg-preview-container');
             if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
 
-            // X is Left/Right. Y is Depth (Front/Back). Z is Elevation (Up/Down).
-            const p1 = geom.panels; 
-            const scale = Math.min(2.5, 300 / Math.max(...geom.panels.map(p => p.w))); 
-            let html = '';
-            
-            const sPw1 = p1.w * scale;
+            // Derived directly from sandbox_postpanel.js printSandbox generator [1-18]
+            const padX = 25;
+            const padY = 15;
+            const th = geom.above + geom.under;
+            const ow = geom.overallW;
+            const maxH = 280; 
+            const maxW = 320; 
+            const scale = Math.min(maxW / ow, maxH / th);
+
+            const sTh = th * scale;
+            const sOw = ow * scale;
+            const sClr = geom.clearance * scale;
             const sPostD = geom.post * scale;
             const sUnder = geom.under * scale;
-            const faceD = 2; // Fixed visual thickness of the faces
-            const explodeY = isExploded ? 40 : 0;
-            
-            const isAlum = document.getElementById('postType').value === 'Aluminum';
-            const postColor = isAlum ? '#cbd5e1' : '#94a3b8'; 
-            const frameColor = '#64748b';
-            const faceColor = '#3b82f6';
-            
-            // --- THE REFERENCE POINT: FRONT FACE OF PANEL 1 ---
-            const faceX = -sPw1 / 2; // Center the face on the X axis
-            const faceY = 0;         // Set the front depth of the face to Y=0
-            
-            // 1. Position Posts Based on Primary Panel Mount Type
-            let p1X, p2X, postY;
-            if (p1.mountStyle === 'Between') {
-                p1X = faceX - sPostD;
-                p2X = faceX + sPw1;
-                // Center posts behind the face depth
-                postY = faceY + (faceD / 2) - (sPostD / 2);
-            } else {
-                // Flush: Posts sit inside the outer boundaries of the face
-                p1X = faceX;
-                p2X = faceX + sPw1 - sPostD;
-                // Posts sit directly behind the flush face
-                postY = faceY + faceD;
-            }
+            const sHoleD = geom.holeD * scale;
 
-            // 2. Lock Top Elevation to the Top of the Face
-            let startZ = geom.above * scale;
-            let postHeight = startZ + sUnder;
+            let p1X = (sOw - (geom.postSpacing * scale + 2*sPostD)) / 2;
+            let p2X = p1X + sPostD + (geom.postSpacing * scale);
 
-            // Draw Ground Plane (Z=0 is ground level)
-            html += `<div style="position:absolute; left:0; top:0; width:2000px; height:2000px; background:rgba(34,197,94,0.1); border: 1px dashed rgba(22,163,74,0.3); transform: translate3d(-1000px, -1000px, 0);"></div>`;
-            
-            // Draw Posts (Extending from -under up to startZ)
-            html += draw3DBox(p1X, postY, -sUnder, sPostD, sPostD, postHeight, postColor); // Left Post
-            html += draw3DBox(p2X, postY, -sUnder, sPostD, sPostD, postHeight, postColor); // Right Post
-            
-            // Draw Panels and Frames
-            let currentZ = startZ - (geom.topOffset * scale); 
-            const ft = geom.frameThick * scale;
+            const dimColor = "#64748b"; // Slate-500
+            const fSize = 7;
+            const drawHDim = (x1, x2, y, label) => { return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${dimColor}" stroke-width="1"/><line x1="${x1}" y1="${y-2}" x2="${x1}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x2}" y1="${y-2}" x2="${x2}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="middle" font-weight="bold">${label}</text>`; };
+            const drawVDim = (x, y1, y2, label, align="end") => { let textX = align === "end" ? x - 4 : x + 4; return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y1}" x2="${x+2}" y2="${y1}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y2}" x2="${x+2}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><text x="${textX}" y="${(y1+y2)/2 + 2}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="${align}" font-weight="bold">${label}</text>`; };
 
-            geom.panels.forEach((p, idx) => {
+            // Ground & Footings
+            let bgLayer = `<rect x="0" y="${sTh - sUnder}" width="${sOw}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
+            bgLayer += `<line x1="-15" y1="${sTh - sUnder}" x2="${sOw + 15}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
+
+            const footerH = sUnder * 0.66;
+            const footerY = sTh - footerH;
+            bgLayer += `<rect x="${p1X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
+            bgLayer += `<rect x="${p2X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
+
+            const postCutThick = geom.frameThick * scale;
+            const postDrawH = sTh - postCutThick;
+            bgLayer += `<rect x="${p1X}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
+            bgLayer += `<rect x="${p2X}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
+
+            // FRONT ELEVATION
+            let svgFrontSolid = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sOw + padX*2} ${sTh + padY*2}" style="overflow: visible;">` + bgLayer;
+
+            let currY = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            geom.panels.forEach((p, i) => {
+                let pW_real = p.mountStyle === 'Between' ? geom.postSpacing : p.w;
+                let sPw = pW_real * scale;
                 let sPh = p.h * scale;
-                let sPw = p.w * scale;
-                
-                if (idx > 0) currentZ -= (p.gap * scale);
-                
-                let panelTopZ = currentZ;
-                let panelBotZ = currentZ - sPh;
-                currentZ = panelBotZ; 
-                
-                let isBetween = p.mountStyle === 'Between';
-                
-                // Align subsequent faces dynamically to the left post
-                let curFaceX = isBetween ? (p1X + sPostD) : p1X;
-                
-                // Exploded Views pull the faces out, but leave the frames locked in the center
-                let frontFaceY = faceY - explodeY;
-                let backFaceY = (isBetween ? postY + sPostD - faceD : postY + sPostD) + explodeY;
-                
-                // Frame Y is universally centered within the depth of the post
-                let frameY = postY + (sPostD / 2) - (ft / 2);
-                
-                // Frame Horizontals connect the inner edges of the left and right posts
-                let crossbarX = p1X + sPostD;
-                let crossbarW = p2X - (p1X + sPostD);
-                let shareTop = (idx > 0 && p.gap === 0 && p.mountStyle === geom.panels[idx-1].mountStyle);
+                let panelX = p.mountStyle === 'Between' ? p1X + sPostD : (sOw - sPw) / 2;
 
-                if (!shareTop) {
-                    html += draw3DBox(crossbarX, frameY, panelTopZ - ft, crossbarW, ft, ft, frameColor); // Top Frame
-                }
-                html += draw3DBox(crossbarX, frameY, panelBotZ, crossbarW, ft, ft, frameColor); // Bottom Frame
-                
-                // Frame Verticals run between the horizontal crossbars, hugging the posts
+                if (i > 0) currY += (p.gap * scale);
+
+                let frameW_real = Math.max(pW_real, geom.postSpacing);
+                let sFw = frameW_real * scale;
+                let fX = (sOw - sFw) / 2;
+                const ft = geom.frameThick * scale;
+                let shareTop = (i > 0 && p.gap === 0 && p.mountStyle === geom.panels[i-1].mountStyle);
+
+                svgFrontSolid += `<rect x="${fX}" y="${currY + sPh - ft}" width="${sFw}" height="${ft}" fill="#64748b"/>`;
+                if (!shareTop) svgFrontSolid += `<rect x="${fX}" y="${currY}" width="${sFw}" height="${ft}" fill="#64748b"/>`;
+
+                let isFlushSealed = p.mountStyle === 'Flush' && Math.abs(p.w - (geom.postSpacing + geom.post*2)) < 0.01;
                 let vHeight = sPh - (shareTop ? ft : ft*2);
-                let vZ = panelBotZ + ft;
-                html += draw3DBox(crossbarX, frameY, vZ, ft, ft, vHeight, frameColor); // Left Inside
-                html += draw3DBox(crossbarX + crossbarW - ft, frameY, vZ, ft, ft, vHeight, frameColor); // Right Inside
-                
-                // Faces
-                html += draw3DBox(curFaceX, frontFaceY, panelBotZ, sPw, faceD, sPh, faceColor, 1, true, "LOGO"); // Front Face
-                if (p.sides === 2) {
-                    html += draw3DBox(curFaceX, backFaceY, panelBotZ, sPw, faceD, sPh, faceColor, 1, false, ""); // Back Face
-                }
-            });
-            
-            cont.innerHTML = html;
-        }
+                let vY = currY + (shareTop ? 0 : ft);
 
-        // Helper: Generates a mathematically accurate 6-sided 3D CSS Box using Absolute XYZ
-        function draw3DBox(x, y, z, w, d, h, baseColor, customOpacity = 1, isText = false, textContent = "") {
-            const adjustColor = (hex, amt) => {
-                let useHex = hex.startsWith('#') ? hex.slice(1) : hex;
-                if(useHex.length === 3) useHex = useHex.split('').map(c=>c+c).join('');
-                let num = parseInt(useHex, 16);
-                let r = Math.min(255, Math.max(0, (num >> 16) + amt));
-                let g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amt));
-                let b = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
-                return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
-            };
-            const cTop = baseColor;
-            const cBot = adjustColor(baseColor, -30);
-            const cFront = adjustColor(baseColor, -15);
-            const cBack = adjustColor(baseColor, -40);
-            const cLeft = adjustColor(baseColor, -10);
-            const cRight = adjustColor(baseColor, -25);
-            
-            return `
-            <!-- Top -->
-            <div style="position:absolute; left:0; top:0; width:${w}px; height:${d}px; background:${cTop}; transform: translate3d(${x}px, ${y}px, ${z+h}px); opacity:${customOpacity}; border: 1px solid rgba(255,255,255,0.1);"></div>
-            <!-- Bottom -->
-            <div style="position:absolute; left:0; top:0; width:${w}px; height:${d}px; background:${cBot}; transform: translate3d(${x}px, ${y}px, ${z}px); opacity:${customOpacity}; border: 1px solid rgba(255,255,255,0.1);"></div>
-            <!-- Front -->
-            <div style="position:absolute; left:0; top:0; width:${w}px; height:${h}px; background:${cFront}; transform-origin: top left; transform: translate3d(${x}px, ${y+d}px, ${z}px) rotateX(-90deg); opacity:${customOpacity}; display:flex; align-items:center; justify-content:center;">${isText ? `<span style="font-weight:900; color:white; font-size:${h/3.5}px; letter-spacing: 2px;">${textContent}</span>` : ''}</div>
-            <!-- Back -->
-            <div style="position:absolute; left:0; top:0; width:${w}px; height:${h}px; background:${cBack}; transform-origin: top left; transform: translate3d(${x}px, ${y}px, ${z}px) rotateX(-90deg); opacity:${customOpacity};"></div>
-            <!-- Left -->
-            <div style="position:absolute; left:0; top:0; width:${d}px; height:${h}px; background:${cLeft}; transform-origin: top left; transform: translate3d(${x}px, ${y}px, ${z}px) rotateX(-90deg) rotateY(-90deg); opacity:${customOpacity};"></div>
-            <!-- Right -->
-            <div style="position:absolute; left:0; top:0; width:${d}px; height:${h}px; background:${cRight}; transform-origin: top left; transform: translate3d(${x+w}px, ${y}px, ${z}px) rotateX(-90deg) rotateY(-90deg); opacity:${customOpacity};"></div>
+                if (!isFlushSealed) {
+                    svgFrontSolid += `<rect x="${panelX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#64748b"/>`;
+                    svgFrontSolid += `<rect x="${panelX + sPw - ft}" y="${vY}" width="${ft}" height="${vHeight}" fill="#64748b"/>`;
+                }
+
+                let faceOpacity = p.mountStyle === 'Between' ? 0.8 : 0.95;
+                svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="${faceOpacity}"/>`;
+                svgFrontSolid += `<text x="${panelX + sPw/2}" y="${currY + sPh/2 + 2}" font-family="sans-serif" font-weight="900" font-size="${Math.min(10, sPh/4)}" fill="#ffffff" text-anchor="middle" opacity="0.9">LOGO</text>`;
+                
+                currY += sPh;
+            });
+
+            // Dimensions
+            svgFrontSolid += drawHDim(0, sOw, -8, geom.overallW + '" O.A.W');
+            svgFrontSolid += drawHDim(p1X + sPostD, p2X, sTh - sUnder - (sClr/2), geom.postSpacing + '" I.D.');
+            svgFrontSolid += drawVDim(-8, 0, sTh - sUnder, geom.above + '" A.G.', "end");
+            svgFrontSolid += drawVDim(-8, sTh - sUnder, sTh, geom.under + '" B.G.', "end");
+            if (sClr > 0) svgFrontSolid += drawVDim(sOw + 8, sTh - sUnder - sClr, sTh - sUnder, geom.clearance + '" Clr', "start");
+            svgFrontSolid += `</svg>`;
+
+            // SIDE PROFILE
+            const sideW = Math.max(geom.post + 4, 20);
+            const visFaceThick = 2;
+            const sSideW = sideW * scale;
+            const px = (sSideW - sPostD) / 2;
+
+            let svgSide = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sSideW + padX*2} ${sTh + padY*2}" style="overflow: visible;">`;
+            svgSide += `<rect x="0" y="${sTh - sUnder}" width="${sSideW}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
+            svgSide += `<line x1="-15" y1="${sTh - sUnder}" x2="${sSideW + 15}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
+            svgSide += `<rect x="${px - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
+            svgSide += `<rect x="${px}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
+
+            let sy = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            geom.panels.forEach((p, i) => {
+                let sPh = p.h * scale;
+                if (i > 0) sy += (p.gap * scale);
+                if (p.mountStyle === 'Between') {
+                    svgSide += `<rect x="${px + (sPostD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#1e40af"/>`;
+                } else {
+                    svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
+                    if(p.sides === 2) svgSide += `<rect x="${px + sPostD}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
+                }
+                sy += sPh;
+            });
+
+            svgSide += drawHDim(px, px + sPostD, -8, geom.post + '"');
+            let dy = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            geom.panels.forEach((p, i) => {
+                let sPh = p.h * scale;
+                if (i > 0) dy += (p.gap * scale);
+                svgSide += drawVDim(sSideW + 8, dy, dy + sPh, p.h + '"', "start");
+                dy += sPh;
+            });
+            svgSide += `</svg>`;
+
+            // Inject the 2D Layout
+            cont.innerHTML = `
+                <div class="flex gap-2 w-full h-full p-2">
+                    <div class="flex-1 flex flex-col items-center">
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Front Elevation</span>
+                        <div class="w-full flex-1 flex items-center justify-center">${svgFrontSolid}</div>
+                    </div>
+                    <div class="w-1/3 flex flex-col items-center border-l border-gray-700 pl-2">
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Side Profile</span>
+                        <div class="w-full flex-1 flex items-center justify-center">${svgSide}</div>
+                    </div>
+                </div>
             `;
         }
 
@@ -601,7 +549,7 @@
                 
                 document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" O.A.W x ${result.geom.above}" THAG Post & Panel Assembly.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${result.geom.clearance}" Ground Clearance)\nFrame: ${frameTxt}\n\nPanels:\n${panelStr}\n\nInternal Cut List Guidance:\n${result.geom.cutList.join('\n')}`;
 
-                if(result.geom) renderIsometric(result.geom);
+                if(result.geom) renderViews(result.geom);
 
                 if (typeof SignOS_Sandbox !== 'undefined' && SignOS_Sandbox.renderLedger) {
                     SignOS_Sandbox.renderLedger(result);
@@ -611,11 +559,6 @@
 
         window.addEventListener('load', async () => {
             if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
-            
-            if (typeof SignOS_UI !== 'undefined' && SignOS_UI.Camera3D) {
-                SignOS_UI.Camera3D.init('zoom-stage');
-                SignOS_UI.Camera3D.toggle(false); 
-            }
 
             const btnSandbox = document.getElementById('btn-sandbox');
             if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
