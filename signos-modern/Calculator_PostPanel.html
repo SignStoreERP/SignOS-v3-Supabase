@@ -16,8 +16,11 @@
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         
         /* 3D Rendering Engine Classes */
-        .isometric-view { transform: rotateX(60deg) rotateZ(-45deg); }
-        .front-view { transform: rotateX(90deg) rotateZ(0deg); }
+        #preview-wrapper { perspective: 1200px; cursor: grab; }
+        #preview-wrapper:active { cursor: grabbing; }
+        #svg-preview-container { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
+        .isometric-view #svg-preview-container { transform: rotateX(60deg) rotateZ(-45deg); }
+        .front-view #svg-preview-container { transform: rotateX(90deg) rotateZ(0deg); }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
@@ -369,7 +372,7 @@
             let msg = "";
 
             // 1. Force Offset to 0 if Primary Panel is Flush
-            if (panels && panels.mountStyle === 'Flush' && offset > 0) {
+            if (panels && panels && panels.mountStyle === 'Flush' && offset > 0) {
                 offset = 0; offsetEl.value = 0;
                 didClamp = true; msg = "Top Offset must be 0 when Primary Panel is Flush Mount.";
             }
@@ -428,53 +431,69 @@
             const frameColor = '#64748b';
             const faceColor = '#3b82f6';
             
-            // Draw Ground Plane
+            // Draw Ground Plane (Z=0 is ground level)
             html += `<div style="position:absolute; left:-1000px; top:-1000px; width:2000px; height:2000px; background:rgba(34,197,94,0.1); border: 1px dashed rgba(22,163,74,0.3); transform: translateZ(0);"></div>`;
             
-            // Posts
-            html += draw3DBox(cx, cy, -under, pSize, pSize, thag+under, postColor);
-            html += draw3DBox(cx + oaw - pSize, cy, -under, pSize, pSize, thag+under, postColor);
+            // Posts (Extending from -under up to thag)
+            html += draw3DBox(cx, cy, -under, pSize, pSize, thag+under, postColor); // Left Post
+            html += draw3DBox(cx + oaw - pSize, cy, -under, pSize, pSize, thag+under, postColor); // Right Post
             
             // Panels
-            let currentY = geom.topOffset * scale;
+            let currentZ = thag - (geom.topOffset * scale); // Top starts at thag - offset
             geom.panels.forEach((p, idx) => {
                 let sGap = (parseFloat(p.gap) || 0) * scale;
-                if (idx > 0) currentY += sGap;
+                if (idx > 0) currentZ -= sGap;
                 
                 const isBetween = p.mountStyle === 'Between';
                 const pw = isBetween ? oaw - (pSize*2) : oaw;
                 const px = isBetween ? cx + pSize : cx;
                 
                 const ph = p.h * scale;
-                const pz = thag - currentY - ph;
+                currentZ -= ph; // Advance Z downwards to the bottom of the current panel
+                const pz = currentZ; 
+                
                 const pd = geom.frameThick * scale;
-                const pdy = cy + (pSize - pd)/2;
+                const frameY = cy + (pSize - pd) / 2; // Frame is centered between the front and back of the posts
                 
-                // Exploded View Z-Translation Variables
+                // Exploded View Y-Translation Variables (Depth)
                 const faceD = 2; // 2px visual thickness
-                const explodeY = isExploded ? 50 : 0;
+                const explodeY = isExploded ? 40 : 0;
                 
+                let frontFaceY, backFaceY;
+                if (isBetween) {
+                    frontFaceY = frameY + pd; 
+                    backFaceY = frameY - faceD;
+                } else {
+                    // Flush mount goes on the outside of the posts
+                    frontFaceY = cy + pSize; 
+                    backFaceY = cy - faceD; 
+                }
+
                 // Frames
                 let shareTop = (idx > 0 && sGap === 0);
-                if (!shareTop) html += draw3DBox(px, pdy, pz + ph - pd, pw, pd, pd, frameColor); // Top
-                html += draw3DBox(px, pdy, pz, pw, pd, pd, frameColor); // Bottom
+                let crossbarW = isBetween ? pw : oaw - (pSize*2);
+                let crossbarX = isBetween ? px : cx + pSize;
+
+                if (!shareTop) html += draw3DBox(crossbarX, frameY, pz + ph - pd, crossbarW, pd, pd, frameColor); // Top Frame
+                html += draw3DBox(crossbarX, frameY, pz, crossbarW, pd, pd, frameColor); // Bottom Frame
                 
                 if (isBetween) {
-                    html += draw3DBox(px, pdy, pz + pd, pd, pd, ph - pd*2, frameColor); // Left
-                    html += draw3DBox(px + pw - pd, pdy, pz + pd, pd, pd, ph - pd*2, frameColor); // Right
+                    html += draw3DBox(px, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); // Left Vertical
+                    html += draw3DBox(px + pw - pd, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); // Right Vertical
                 }
                 
                 // Faces
-                html += draw3DBox(px, pdy + pd + explodeY, pz, pw, faceD, ph, faceColor, false); // Front
-                if (p.sides === 2) html += draw3DBox(px, pdy - faceD - explodeY, pz, pw, faceD, ph, faceColor, false); // Back
-                
-                currentY += ph;
+                html += draw3DBox(px, frontFaceY + explodeY, pz, pw, faceD, ph, faceColor, false); // Front Face
+                if (p.sides === 2) {
+                    html += draw3DBox(px, backFaceY - explodeY, pz, pw, faceD, ph, faceColor, false); // Back Face
+                }
             });
             
             cont.innerHTML = html;
         }
 
         // Helper: Generates a 6-sided 3D CSS Box using Absolute XYZ
+        // Note: CSS translateZ pushes the element "up" in rotateX(60deg) view
         function draw3DBox(x, y, z, w, d, h, baseColor, isGhost = false) {
             const adjustColor = (hex, amt) => '#' + hex.replace(/^#/, '').replace(/../g, c => ('0'+Math.min(255, Math.max(0, parseInt(c, 16) + amt)).toString(16)).substr(-2));
             const cTop = baseColor;
