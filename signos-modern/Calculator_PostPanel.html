@@ -42,18 +42,19 @@
                     </div>
                     <button onclick="SignOS_Sandbox.toggle()" class="text-gray-400 hover:text-red-500 transition font-bold text-lg focus:outline-none">✕</button>
                 </div>
-                <div id="ledger-interactive-header" class="bg-white p-3 rounded border border-gray-200 shadow-sm">
-                    <!-- Interactive Margin HTML Injected Here -->
+                <div class="flex justify-between items-center bg-white p-3 rounded border border-gray-200 shadow-sm">
+                    <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Simulated Margin:</span>
+                    <span id="glb-sbx-margin" class="text-2xl font-black text-gray-400 tracking-tight leading-none">--</span>
                 </div>
             </div>
             <div class="p-5 space-y-6">
                 <div>
                     <h3 class="text-[11px] font-black text-blue-700 uppercase tracking-widest border-b-2 border-blue-100 pb-2 mb-3">Market Logic (Retail)</h3>
-                    <div id="sbx-retail-breakdown" class="space-y-3 mb-4"></div>
+                    <div id="glb-sbx-retail-breakdown" class="space-y-3 mb-4 text-xs italic text-gray-400">Run simulation...</div>
                 </div>
                 <div>
                     <h3 class="text-[11px] font-black text-red-700 uppercase tracking-widest border-b-2 border-red-100 pb-2 mb-3">Physics Engine (Hard Cost)</h3>
-                    <div id="sbx-cost-breakdown" class="space-y-3"></div>
+                    <div id="glb-sbx-cost-breakdown" class="space-y-3 text-xs italic text-gray-400">Run simulation...</div>
                 </div>
             </div>
         </div>
@@ -200,8 +201,14 @@
                 </div>
             </div>
             <div class="p-5 space-y-6 overflow-y-auto custom-scroll max-h-[60vh]">
-                <div id="sbx-retail-inputs" class="space-y-2 mb-6"></div>
-                <div id="sbx-cost-inputs" class="space-y-2"></div>
+                <div>
+                    <span class="text-[10px] font-black text-blue-700 uppercase tracking-widest border-b border-blue-200 pb-1 mb-2 block">Market Overrides</span>
+                    <div id="glb-sbx-retail-inputs" class="space-y-2 mb-6"></div>
+                </div>
+                <div>
+                    <span class="text-[10px] font-black text-red-700 uppercase tracking-widest border-b border-red-200 pb-1 mb-3 block">Physics Overrides</span>
+                    <div id="glb-sbx-cost-inputs" class="space-y-2"></div>
+                </div>
             </div>
             <div class="p-4 bg-slate-50 border-t border-gray-200 shrink-0 space-y-2 rounded-b-xl z-20">
                 <button onclick="SignOS_Sandbox.apply()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded shadow text-xs uppercase tracking-widest transition">Apply & Simulate</button>
@@ -307,7 +314,11 @@
         function drawShopDrawings(geom) {
             const frontCont = document.getElementById('svg-front-container');
             const sideCont = document.getElementById('svg-side-container');
-            if (!frontCont || !sideCont || !geom) return;
+            if (!frontCont || !sideCont || !geom || !geom.panels || geom.panels.length === 0) return;
+
+            const pW = geom.panels.w;
+            const pH = geom.panels.h;
+            const mountStyle = geom.panels.mountStyle;
 
             const maxH = 150; const maxW = 350;
             const th = geom.above + geom.under;
@@ -319,24 +330,24 @@
             const sTh = th * scale;
             const p1_x = 0;
             const p2_x = sOw - (geom.post * scale);
-            const pnl_y = sTh - (geom.under * scale) - (geom.clearance * scale) - (geom.h * scale);
-            const pnl_x = geom.mount === 'Between' ? geom.post * scale : 0;
+            const pnl_y = sTh - (geom.under * scale) - (geom.clearance * scale) - (pH * scale);
+            const pnl_x = mountStyle === 'Between' ? geom.post * scale : 0;
 
             const drawHDim = (x1, x2, y, txt) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#64748b" stroke-width="1"/><line x1="${x1}" y1="${y-3}" x2="${x1}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><line x1="${x2}" y1="${y-3}" x2="${x2}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-3}" font-family="sans-serif" font-size="8" fill="#94a3b8" text-anchor="middle">${txt}</text>`;
             const drawVDim = (x, y1, y2, txt, align="start") => `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y1}" x2="${x+3}" y1="${y1}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y2}" x2="${x+3}" y1="${y2}" stroke="#64748b" stroke-width="1"/><text x="${align === 'start' ? x+4 : x-4}" y="${(y1+y2)/2}" font-family="sans-serif" font-size="8" fill="#94a3b8" dominant-baseline="middle" text-anchor="${align}">${txt}</text>`;
 
-            frontCont.innerHTML = `<svg viewBox="${-padX} ${-padY} ${sOw + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sOw + padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sOw + (padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="${p1_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${p2_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${pnl_x}" y="${pnl_y}" width="${geom.w * scale}" height="${geom.h * scale}" fill="#f1f5f9" stroke="#3b82f6" stroke-width="1" /><text x="${pnl_x + (geom.w * scale / 2)}" y="${pnl_y + (geom.h * scale / 2)}" font-family="sans-serif" font-weight="900" font-size="${geom.h * scale / 4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>${drawHDim(0, sOw, -8, geom.overallW + '" O.A.W')}${drawVDim(-8, 0, sTh - (geom.under * scale), geom.above + '" A.G.', "end")}</svg>`;
+            frontCont.innerHTML = `<svg viewBox="${-padX} -${padY} ${sOw + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sOw + padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sOw + (padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="${p1_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${p2_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${pnl_x}" y="${pnl_y}" width="${pW * scale}" height="${pH * scale}" fill="#f1f5f9" stroke="#3b82f6" stroke-width="1" /><text x="${pnl_x + (pW * scale / 2)}" y="${pnl_y + (pH * scale / 2)}" font-family="sans-serif" font-weight="900" font-size="${pH * scale / 4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>${drawHDim(0, sOw, -8, geom.overallW + '" O.A.W')}${drawVDim(-8, 0, sTh - (geom.under * scale), geom.above + '" A.G.', "end")}</svg>`;
 
             const sideW = geom.post + 8;
             const pnlThick = 2;
-            let sidePnl_x = geom.mount === 'Between' ? (geom.post - pnlThick) / 2 : geom.post;
+            let sidePnl_x = mountStyle === 'Between' ? (geom.post - pnlThick) / 2 : geom.post;
 
-            sideCont.innerHTML = `<svg viewBox="${-padX} ${-padY} ${sideW + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sideW+padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sideW+(padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="0" y="0" width="${geom.post * scale}" height="${sTh}" fill="#64748b" /><rect x="${sidePnl_x * scale}" y="${pnl_y}" width="${pnlThick * scale}" height="${geom.h * scale}" fill="#3b82f6" />${drawVDim(sideW * scale + 8, pnl_y, pnl_y + (geom.h * scale), geom.h + '"', "start")}</svg>`;
+            sideCont.innerHTML = `<svg viewBox="${-padX} -${padY} ${sideW + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sideW+padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sideW+(padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="0" y="0" width="${geom.post * scale}" height="${sTh}" fill="#64748b" /><rect x="${sidePnl_x * scale}" y="${pnl_y}" width="${pnlThick * scale}" height="${pH * scale}" fill="#3b82f6" />${drawVDim(sideW * scale + 8, pnl_y, pnl_y + (pH * scale), pH + '"', "start")}</svg>`;
         }
 
         async function runCalc() {
             if(!backendData.Retail_Min_Order) return;
-            enforcePhysics(); // Validates the user inputs structurally
+            enforcePhysics(); 
             
             const panelArray = [{
                 w: parseFloat(document.getElementById('w').value) || 48,
@@ -407,6 +418,9 @@
                 btnSandbox.classList.remove('hidden');
             }
 
+            const statusText = document.getElementById("status-text");
+            const statusDot = document.getElementById("status-dot");
+
             try {
                 const payload = await SignOS.fetchProductData('PROD_Post_Panel');
                 backendData = payload.config || {};
@@ -414,10 +428,23 @@
                 
                 if (typeof SignOS_Sandbox !== 'undefined') SignOS_Sandbox.init(backendData.ui_schema, backendData, runCalc);
 
+                if(statusText) {
+                    statusText.innerText = "ONLINE";
+                    statusText.className = "font-bold text-green-500";
+                    if(statusDot) {
+                        statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                        statusDot.classList.remove("animate-pulse");
+                    }
+                }
+
                 toggleInsetUI();
                 runCalc();
             } catch(e) {
                 console.error("API Error:", e);
+                if(statusText) {
+                    statusText.innerText = "OFFLINE";
+                    statusText.className = "font-bold text-red-500";
+                }
             }
         });
     </script>
