@@ -42,19 +42,18 @@
                     </div>
                     <button onclick="SignOS_Sandbox.toggle()" class="text-gray-400 hover:text-red-500 transition font-bold text-lg focus:outline-none">✕</button>
                 </div>
-                <div class="flex justify-between items-center bg-white p-3 rounded border border-gray-200 shadow-sm">
-                    <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Simulated Margin:</span>
-                    <span id="glb-sbx-margin" class="text-2xl font-black text-gray-400 tracking-tight leading-none">--</span>
+                <div id="ledger-interactive-header" class="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                    <!-- Interactive Margin HTML Injected Here -->
                 </div>
             </div>
             <div class="p-5 space-y-6">
                 <div>
                     <h3 class="text-[11px] font-black text-blue-700 uppercase tracking-widest border-b-2 border-blue-100 pb-2 mb-3">Market Logic (Retail)</h3>
-                    <div id="glb-sbx-retail-breakdown" class="space-y-3 mb-4 text-xs italic text-gray-400">Run simulation...</div>
+                    <div id="sbx-retail-breakdown" class="space-y-3 mb-4"></div>
                 </div>
                 <div>
                     <h3 class="text-[11px] font-black text-red-700 uppercase tracking-widest border-b-2 border-red-100 pb-2 mb-3">Physics Engine (Hard Cost)</h3>
-                    <div id="glb-sbx-cost-breakdown" class="space-y-3 text-xs italic text-gray-400">Run simulation...</div>
+                    <div id="sbx-cost-breakdown" class="space-y-3"></div>
                 </div>
             </div>
         </div>
@@ -65,7 +64,7 @@
                 <div id="sim-badge" class="hidden bg-yellow-400 text-yellow-900 text-[10px] font-black text-center py-1 uppercase tracking-widest animate-pulse">Simulation Active</div>
                 
                 <!-- 2D ARCHITECTURAL SHOP DRAWINGS -->
-                <div class="w-full h-56 bg-slate-800 border-b border-gray-200 flex flex-col relative">
+                <div class="w-full h-64 bg-slate-800 border-b border-gray-200 flex flex-col relative">
                     <span class="absolute top-2 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10">Live Shop Drawings</span>
                     <div class="flex flex-1 w-full h-full p-4 gap-4">
                         <!-- Front Elevation -->
@@ -193,7 +192,7 @@
         </div>
 
         <!-- RIGHT: SANDBOX VARIABLES -->
-        <div id="sandbox-vars" class="hidden w-[300px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
+        <div id="sandbox-vars" class="hidden w-[350px] bg-white shadow-xl rounded-xl border border-gray-200 flex-col shrink-0 relative z-10">
             <div class="p-4 bg-slate-50 border-b border-gray-200 flex justify-between items-center shrink-0 rounded-t-xl">
                 <div>
                     <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Sandbox Variables</h2>
@@ -201,14 +200,8 @@
                 </div>
             </div>
             <div class="p-5 space-y-6 overflow-y-auto custom-scroll max-h-[60vh]">
-                <div>
-                    <span class="text-[10px] font-black text-blue-700 uppercase tracking-widest border-b border-blue-200 pb-1 mb-2 block">Market Overrides</span>
-                    <div id="glb-sbx-retail-inputs" class="space-y-2 mb-6"></div>
-                </div>
-                <div>
-                    <span class="text-[10px] font-black text-red-700 uppercase tracking-widest border-b border-red-200 pb-1 mb-3 block">Physics Overrides</span>
-                    <div id="glb-sbx-cost-inputs" class="space-y-2"></div>
-                </div>
+                <div id="sbx-retail-inputs" class="space-y-2 mb-6"></div>
+                <div id="sbx-cost-inputs" class="space-y-2"></div>
             </div>
             <div class="p-4 bg-slate-50 border-t border-gray-200 shrink-0 space-y-2 rounded-b-xl z-20">
                 <button onclick="SignOS_Sandbox.apply()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded shadow text-xs uppercase tracking-widest transition">Apply & Simulate</button>
@@ -221,25 +214,58 @@
     </div>
 
     <script>
+        // EXPANDED SCHEMA: Maps all database variables into the Sandbox UI
         const POSTPANEL_UI_SCHEMA = {
             retails: [
                 { key: 'Target_Margin_Pct', label: 'Target Margin (%)' },
                 { key: 'Override_Retail_Total', label: 'Override Price ($)' }
             ],
             costs: [
+                // Metals
                 { key: 'Cost_Post_Aluminum_3_1/8', label: '3" Alum Post ($/LF)' },
                 { key: 'Cost_Post_Aluminum_4_1/8', label: '4" Alum Post ($/LF)' },
+                { key: 'Cost_Post_Aluminum_6_1/4', label: '6" Alum Post ($/LF)' },
+                { key: 'Cost_Post_Steel_3_1/8', label: '3" Steel Post ($/LF)' },
+                { key: 'Cost_Post_Steel_4_3/16', label: '4" Steel Post ($/LF)' },
+                { key: 'Cost_Post_Steel_6_3/16', label: '6" Steel Post ($/LF)' },
                 { key: 'Cost_Frame_Angle15', label: '1.5" Angle ($/LF)' },
                 { key: 'Cost_Frame_Angle20', label: '2.0" Angle ($/LF)' },
+                { key: 'Cost_Frame_Tube10', label: '1" Tube ($/LF)' },
+                { key: 'Cost_Frame_Tube20', label: '2" Tube ($/LF)' },
+
+                // Substrates
+                { key: 'Cost_Stock_040_4x8', label: '.040 Alum Sht ($)' },
                 { key: 'Cost_Stock_063_4x8', label: '.063 Alum Sht ($)' },
+                { key: 'Cost_Stock_080_4x8', label: '.080 Alum Sht ($)' },
                 { key: 'Cost_Stock_3mm_4x8', label: '3mm ACM Sht ($)' },
+                { key: 'Cost_Stock_6mm_4x8', label: '6mm ACM Sht ($)' },
+
+                // Consumables & Print
+                { key: 'Cost_Concrete_Bag', label: 'Concrete Bag ($)' },
+                { key: 'Cost_Adhesive_Tube', label: 'Lord\'s Glue ($/Tube)' },
                 { key: 'Cost_Vin_Cast', label: 'Cast Vinyl ($/SF)' },
                 { key: 'Cost_Lam_Cast', label: 'Cast Lam ($/SF)' },
+                { key: 'Cost_Ink_Latex', label: 'Latex Ink ($/SF)' },
                 { key: 'Cost_Paint_SqFt', label: 'Paint Cost ($/SF)' },
+
+                // Labor & Overhead Rates
                 { key: 'Rate_Shop_Labor', label: 'Shop Rate ($/Hr)' },
                 { key: 'Rate_Paint_Labor', label: 'Paint Rate ($/Hr)' },
-                { key: 'Rate_Operator', label: 'Operator ($/Hr)' },
-                { key: 'Waste_Factor', label: 'Waste Multiplier' }
+                { key: 'Rate_Operator', label: 'Print Op ($/Hr)' },
+                { key: 'Rate_Machine_Print', label: 'Print Mach ($/Hr)' },
+                { key: 'Rate_Machine_CNC', label: 'Router Mach ($/Hr)' },
+
+                // Times
+                { key: 'Time_Saw_Band', label: 'Band Saw (Mins/Cut)' },
+                { key: 'Time_Saw_Miter', label: 'Miter Saw (Mins/Cut)' },
+                { key: 'Time_Weld_Per_Loc', label: 'Weld (Mins/Loc)' },
+                { key: 'Time_Clean_Weld_Loc', label: 'Clean Weld (Mins/Loc)' },
+                { key: 'Time_Paint_Setup', label: 'Paint Prep (Mins)' },
+                { key: 'Time_Setup_Job', label: 'File RIP (Mins)' },
+
+                // Multipliers
+                { key: 'Waste_Factor', label: 'Waste Multiplier' },
+                { key: 'Factor_Risk', label: 'Risk Multiplier' }
             ]
         };
 
@@ -311,38 +337,123 @@
             }
         }
 
+        // --- FIXED 2D DRAWING ALGORITHM ---
         function drawShopDrawings(geom) {
             const frontCont = document.getElementById('svg-front-container');
             const sideCont = document.getElementById('svg-side-container');
+            // Ensure geom.panels exists and is an array before we try to loop through it
             if (!frontCont || !sideCont || !geom || !geom.panels || geom.panels.length === 0) return;
-
-            const pW = geom.panels.w;
-            const pH = geom.panels.h;
-            const mountStyle = geom.panels.mountStyle;
 
             const maxH = 150; const maxW = 350;
             const th = geom.above + geom.under;
             const ow = geom.overallW;
             const scale = Math.min(maxW / ow, maxH / th);
-            const padX = 25; const padY = 15;
+            const padX = 15; const padY = 15;
 
-            const sOw = ow * scale;
             const sTh = th * scale;
-            const p1_x = 0;
-            const p2_x = sOw - (geom.post * scale);
-            const pnl_y = sTh - (geom.under * scale) - (geom.clearance * scale) - (pH * scale);
-            const pnl_x = mountStyle === 'Between' ? geom.post * scale : 0;
+            const sOw = ow * scale;
+            const sClr = geom.clearance * scale;
+            const sPostD = geom.post * scale;
+            const sUnder = geom.under * scale;
+            const sHoleD = geom.holeD * scale;
 
-            const drawHDim = (x1, x2, y, txt) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#64748b" stroke-width="1"/><line x1="${x1}" y1="${y-3}" x2="${x1}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><line x1="${x2}" y1="${y-3}" x2="${x2}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-3}" font-family="sans-serif" font-size="8" fill="#94a3b8" text-anchor="middle">${txt}</text>`;
-            const drawVDim = (x, y1, y2, txt, align="start") => `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y1}" x2="${x+3}" y1="${y1}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y2}" x2="${x+3}" y1="${y2}" stroke="#64748b" stroke-width="1"/><text x="${align === 'start' ? x+4 : x-4}" y="${(y1+y2)/2}" font-family="sans-serif" font-size="8" fill="#94a3b8" dominant-baseline="middle" text-anchor="${align}">${txt}</text>`;
+            let p1X = (sOw - (geom.postSpacing * scale + 2*sPostD)) / 2;
+            let p2X = p1X + sPostD + (geom.postSpacing * scale);
 
-            frontCont.innerHTML = `<svg viewBox="${-padX} -${padY} ${sOw + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sOw + padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sOw + (padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="${p1_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${p2_x}" y="0" width="${geom.post * scale}" height="${sTh}" fill="#94a3b8" stroke="#475569" stroke-width="0.5" /><rect x="${pnl_x}" y="${pnl_y}" width="${pW * scale}" height="${pH * scale}" fill="#f1f5f9" stroke="#3b82f6" stroke-width="1" /><text x="${pnl_x + (pW * scale / 2)}" y="${pnl_y + (pH * scale / 2)}" font-family="sans-serif" font-weight="900" font-size="${pH * scale / 4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>${drawHDim(0, sOw, -8, geom.overallW + '" O.A.W')}${drawVDim(-8, 0, sTh - (geom.under * scale), geom.above + '" A.G.', "end")}</svg>`;
+            // 1. Background Grade
+            let bgLayer = `<rect x="-${padX}" y="${sTh - sUnder}" width="${sOw + (padX*2)}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
+            bgLayer += `<line x1="-${padX}" y1="${sTh - sUnder}" x2="${sOw + padX}" y2="${sTh - sUnder}" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="3,2"/>`;
 
-            const sideW = geom.post + 8;
-            const pnlThick = 2;
-            let sidePnl_x = mountStyle === 'Between' ? (geom.post - pnlThick) / 2 : geom.post;
+            // 2. Concrete Footers
+            if (geom.hasConcrete) {
+                const footerH = sUnder * 0.66;
+                const footerY = sTh - footerH;
+                bgLayer += `<rect x="${p1X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#94a3b8" opacity="0.3" rx="2"/>`;
+                bgLayer += `<rect x="${p2X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#94a3b8" opacity="0.3" rx="2"/>`;
+            }
 
-            sideCont.innerHTML = `<svg viewBox="${-padX} -${padY} ${sideW + (padX*2)} ${sTh + (padY*2)}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><line x1="${-padX}" y1="${sTh - (geom.under * scale)}" x2="${sideW+padX}" y2="${sTh - (geom.under * scale)}" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 4" /><rect x="${-padX}" y="${sTh - (geom.under * scale)}" width="${sideW+(padX*2)}" height="${geom.under * scale}" fill="#0f172a" opacity="0.3" /><rect x="0" y="0" width="${geom.post * scale}" height="${sTh}" fill="#64748b" /><rect x="${sidePnl_x * scale}" y="${pnl_y}" width="${pnlThick * scale}" height="${pH * scale}" fill="#3b82f6" />${drawVDim(sideW * scale + 8, pnl_y, pnl_y + (pH * scale), pH + '"', "start")}</svg>`;
+            // 3. Posts
+            const postCutThick = geom.frameThick * scale;
+            const postDrawH = sTh - postCutThick;
+            bgLayer += `<rect x="${p1X}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#cbd5e1" stroke="#475569" stroke-width="1"/>`;
+            bgLayer += `<rect x="${p2X}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#cbd5e1" stroke="#475569" stroke-width="1"/>`;
+
+            // ----- FRONT SOLID RENDER -----
+            let svgFrontSolid = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sOw + padX*2} ${sTh + padY*2}" style="overflow: visible;">` + bgLayer;
+
+            let currY = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+
+            geom.panels.forEach((p, i) => {
+                let pW_real = p.mountStyle === 'Between' ? geom.postSpacing : p.w;
+                let sPw = pW_real * scale;
+                let sPh = p.h * scale;
+                let panelX = p.mountStyle === 'Between' ? p1X + sPostD : (sOw - sPw) / 2;
+                if (i > 0) currY += (p.gap * scale);
+
+                // Frame
+                let frameW_real = Math.max(pW_real, geom.postSpacing);
+                let sFw = frameW_real * scale;
+                let fX = (sOw - sFw) / 2;
+                const ft = geom.frameThick * scale;
+                let shareTop = (i > 0 && p.gap === 0 && p.mountStyle === geom.panels[i-1].mountStyle);
+
+                svgFrontSolid += `<rect x="${fX}" y="${currY + sPh - ft}" width="${sFw}" height="${ft}" fill="#94a3b8"/>`;
+                if (!shareTop) svgFrontSolid += `<rect x="${fX}" y="${currY}" width="${sFw}" height="${ft}" fill="#94a3b8"/>`;
+
+                let isFlushSealed = p.mountStyle === 'Flush' && Math.abs(p.w - (geom.postSpacing + geom.post*2)) < 0.01;
+                let vHeight = sPh - (shareTop ? ft : ft*2);
+                let vY = currY + (shareTop ? 0 : ft);
+
+                if (!isFlushSealed) {
+                    svgFrontSolid += `<rect x="${panelX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#94a3b8"/>`;
+                    svgFrontSolid += `<rect x="${panelX + sPw - ft}" y="${vY}" width="${ft}" height="${vHeight}" fill="#94a3b8"/>`;
+                }
+
+                // Substrate Face
+                let faceOpacity = p.mountStyle === 'Between' ? 0.8 : 0.95;
+                svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="${faceOpacity}"/>`;
+                svgFrontSolid += `<text x="${panelX + (sPw / 2)}" y="${currY + (sPh / 2)}" font-family="sans-serif" font-weight="900" font-size="${sPh / 4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>`;
+
+                currY += sPh;
+            });
+
+            svgFrontSolid += `</svg>`;
+
+            // ----- SIDE VIEW RENDER -----
+            const sideW = Math.max(geom.post + 4, 20);
+            const visFaceThick = 2;
+            const sSideW = sideW * scale;
+            const px = (sSideW - sPostD) / 2;
+
+            let svgSide = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sSideW + padX*2} ${sTh + padY*2}" style="overflow: visible;">`;
+            svgSide += `<rect x="-${padX}" y="${sTh - sUnder}" width="${sSideW + padX*2}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
+            svgSide += `<line x1="-${padX}" y1="${sTh - sUnder}" x2="${sSideW + padX}" y2="${sTh - sUnder}" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+
+            if (geom.hasConcrete) {
+                const footerH = sUnder * 0.66;
+                const footerY = sTh - footerH;
+                svgSide += `<rect x="${px - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#94a3b8" opacity="0.3" rx="2"/>`;
+            }
+
+            svgSide += `<rect x="${px}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#64748b" />`;
+
+            let sy = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            geom.panels.forEach((p, i) => {
+                let sPh = p.h * scale;
+                if (i > 0) sy += (p.gap * scale);
+                if (p.mountStyle === 'Between') {
+                    svgSide += `<rect x="${px + (sPostD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#1e40af"/>`;
+                } else {
+                    svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
+                    if(p.sides === 2) svgSide += `<rect x="${px + sPostD}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
+                }
+                sy += sPh;
+            });
+
+            svgSide += `</svg>`;
+
+            frontCont.innerHTML = svgFrontSolid;
+            sideCont.innerHTML = svgSide;
         }
 
         async function runCalc() {
