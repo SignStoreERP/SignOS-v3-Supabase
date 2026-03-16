@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Master Data Engine v2.0 | SignOS Admin</title>
+    <title>Master Data Engine v3.0 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <style>
@@ -20,10 +20,10 @@
     <div class="bg-gray-900 text-white border-b border-gray-800 px-6 py-4 flex justify-between items-center shadow-lg z-30 shrink-0">
         <div>
             <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
-                <span class="text-blue-400">🗄️</span> Master Data Engine <span class="text-gray-500 text-xs font-normal">v2.0</span>
+                <span class="text-blue-400">🗄️</span> Master Data Engine <span class="text-gray-500 text-xs font-normal">v3.0</span>
             </h1>
             <div class="text-[10px] font-bold text-gray-400 mt-0.5 tracking-wider uppercase">
-                Database Access & Routing Matrix
+                Procurement & Database Routing Matrix
             </div>
         </div>
         <div class="flex items-center gap-4">
@@ -33,30 +33,43 @@
         </div>
     </div>
 
-    <!-- MAIN CONTENT -->
-    <div class="flex flex-1 overflow-hidden">
-        <!-- SIDEBAR -->
-        <div class="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-20">
-            <div class="p-4 bg-slate-50 border-b border-gray-100">
-                <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest">Database Tables</h2>
+    <!-- MAIN LAYOUT -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- SIDEBAR NAVIGATION -->
+        <div class="w-64 bg-white border-r border-gray-200 flex flex-col z-20 shrink-0 shadow-sm">
+            <div class="p-4 border-b border-gray-100 bg-slate-50">
+                <h2 class="text-xs font-black text-gray-700 uppercase tracking-wider">Data Categories</h2>
             </div>
-            <div class="flex-1 overflow-y-auto p-2 space-y-4 custom-scroll">
+            
+            <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-4">
                 
-                <!-- ECONOMICS & LOGIC -->
+                <!-- VENDOR & PROCUREMENT -->
                 <div>
-                    <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Economics & Logic</span>
-                    <button onclick="loadTable('global_variables')" id="btn-tab-global_variables" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
-                        Global Variables
+                    <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Procurement</span>
+                    <button onclick="loadTable('global_variables', 'Material')" id="btn-tab-Material" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
+                        Vendor Materials
                     </button>
-                    <button class="w-full text-left px-3 py-2 rounded-lg text-gray-300 font-bold text-xs uppercase tracking-wide transition cursor-not-allowed" disabled>
-                        Retail Curves (Algorithms)
+                    <button onclick="loadTable('global_variables', 'Labor')" id="btn-tab-Labor" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
+                        Labor & Overheads
+                    </button>
+                </div>
+
+                <!-- ECONOMICS & LOGIC -->
+                <div class="border-t border-gray-100 pt-2">
+                    <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Economics & Logic</span>
+                    <button onclick="loadTable('global_variables', 'System')" id="btn-tab-System" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
+                        System & Margins
+                    </button>
+                    <button onclick="loadTable('retail_curves', 'Curves')" id="btn-tab-Curves" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
+                        Retail Curves
                     </button>
                 </div>
 
                 <!-- SYSTEM INFRASTRUCTURE -->
                 <div class="border-t border-gray-100 pt-2">
                     <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">System Infrastructure</span>
-                    <button onclick="loadTable('system_modules')" id="btn-tab-system_modules" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
+                    <button onclick="loadTable('system_modules', 'Modules')" id="btn-tab-Modules" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
                         System Modules (Menu)
                     </button>
                 </div>
@@ -80,7 +93,7 @@
                     <!-- Dynamic Legend -->
                 </div>
             </div>
-
+            
             <div class="flex-1 overflow-auto custom-scroll p-4">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <table class="w-full text-left border-collapse min-w-[800px]">
@@ -109,7 +122,6 @@
                     <span id="mod-id" class="text-sm font-black text-gray-800"></span>
                     <span id="mod-desc" class="block text-[10px] text-gray-500 mt-1 italic"></span>
                 </div>
-                
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">System Actual</label>
@@ -120,7 +132,6 @@
                         <input type="number" id="mod-override" step="0.01" class="w-full border border-orange-300 p-2 rounded font-black text-orange-900 bg-orange-50 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner">
                     </div>
                 </div>
-
                 <div>
                     <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Audit Diagnostic Note (Optional)</label>
                     <textarea id="mod-reason" placeholder="e.g. Supplier raised price, hidden freight cost, etc." class="w-full border border-gray-300 p-2 rounded text-xs font-medium text-gray-700 outline-none focus:border-blue-500 h-20 shadow-inner"></textarea>
@@ -136,6 +147,7 @@
     <script>
         let tableData = [];
         let activeTable = 'global_variables';
+        let activeFilterGroup = 'Material';
         let activeRowId = null;
 
         window.onload = async function() {
@@ -145,32 +157,42 @@
                 window.location.href = 'menu.html';
                 return;
             }
-            loadTable('system_modules'); // Default landing page
+            loadTable('global_variables', 'Material'); // Default landing page
         };
 
         // --- DYNAMIC TABLE ROUTER ---
-        async function loadTable(tableName) {
+        async function loadTable(tableName, filterGroup) {
             activeTable = tableName;
-            
+            activeFilterGroup = filterGroup;
+
             // UI Button Highlighting
             document.querySelectorAll('.tab-btn').forEach(b => {
-                b.className = "w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn";
+                b.classList.remove('bg-gray-100', 'text-gray-900', 'border-l-4', 'border-blue-500');
+                b.classList.add('text-gray-500');
             });
-            const activeBtn = document.getElementById('btn-tab-' + tableName);
-            if(activeBtn) activeBtn.className = "w-full text-left px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-black text-xs border border-blue-200 shadow-sm uppercase tracking-wide transition tab-btn";
+            const activeBtn = document.getElementById(`btn-tab-${filterGroup}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('text-gray-500');
+                activeBtn.classList.add('bg-gray-100', 'text-gray-900', 'border-l-4', 'border-blue-500');
+            }
 
-            document.getElementById('data-table').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400 font-bold animate-pulse text-xs uppercase tracking-widest">Fetching Data...</td></tr>`;
+            document.getElementById('data-table').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-blue-500 font-bold animate-pulse text-xs uppercase tracking-widest">Fetching Data...</td></tr>`;
+            document.getElementById('search-filter').value = '';
 
             try {
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?select=*&order=id.asc`, {
+                let queryUrl = `${SUPABASE_URL}/rest/v1/${tableName}?select=*`;
+                if(tableName === 'retail_curves') queryUrl += '&order=product_line.asc,sqft_min.asc';
+
+                const res = await fetch(queryUrl, {
                     headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
                 });
-                if(!res.ok) throw new Error("Database query blocked by RLS.");
+                
+                if (!res.ok) throw new Error("Failed to connect to database");
                 
                 tableData = await res.json();
                 
-                // Special Sorting for System Modules
-                if(tableName === 'system_modules') {
+                // Pre-sort global variables by category so they group nicely
+                if (tableName === 'global_variables') {
                     tableData.sort((a,b) => (a.category > b.category) ? 1 : ((b.category > a.category) ? -1 : 0));
                 }
                 
@@ -185,32 +207,55 @@
             const thead = document.getElementById('table-head');
             const tbody = document.getElementById('data-table');
             const legend = document.getElementById('table-legend');
-            const search = document.getElementById('search-filter').value.toLowerCase();
+            const searchVal = document.getElementById('search-filter').value.toLowerCase();
+
             let html = '';
 
-            // VIEW: GLOBAL VARIABLES
+            // Apply Category Filtering for Global Variables
+            let filteredData = tableData;
             if (activeTable === 'global_variables') {
-                legend.innerHTML = '<span class="w-3 h-3 bg-yellow-200 border border-yellow-400 inline-block rounded-sm"></span> = Manual Override Active';
+                if (activeFilterGroup === 'Material') {
+                    filteredData = tableData.filter(r => r.category === 'Material');
+                } else if (activeFilterGroup === 'Labor') {
+                    filteredData = tableData.filter(r => r.category === 'Labor' || r.category === 'Overhead');
+                } else if (activeFilterGroup === 'System') {
+                    filteredData = tableData.filter(r => r.category !== 'Material' && r.category !== 'Labor' && r.category !== 'Overhead');
+                }
+            }
+
+            // Apply Text Search Filter
+            if (searchVal) {
+                filteredData = filteredData.filter(r => {
+                    return JSON.stringify(r).toLowerCase().includes(searchVal);
+                });
+            }
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400 font-bold text-xs uppercase tracking-widest">No matching records found.</td></tr>`;
+                return;
+            }
+
+            // VIEW: VENDOR & SYSTEM VARIABLES
+            if (activeTable === 'global_variables') {
+                legend.innerHTML = 'Note: Manual overrides supersede System Actuals until cleared.';
                 thead.innerHTML = `<tr>
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Variable ID</th>
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Category</th>
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Unit</th>
                     <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">System Actual</th>
                     <th class="p-3 text-[10px] font-black text-orange-600 uppercase tracking-widest text-right">Manual Override</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Action</th>
+                    <th class="p-3 text-center"></th>
                 </tr>`;
 
-                tableData.forEach(row => {
-                    if (search && !row.id.toLowerCase().includes(search) && !row.category.toLowerCase().includes(search)) return;
-                    const hasOverride = row.override_value !== null && row.override_value !== undefined;
-                    const rowClass = hasOverride ? 'override-active bg-yellow-50' : 'hover:bg-slate-50 transition';
-                    const catColors = { 'Material': 'bg-purple-100 text-purple-700', 'Labor': 'bg-blue-100 text-blue-700', 'Overhead': 'bg-red-100 text-red-700', 'Markup': 'bg-green-100 text-green-700', 'Time': 'bg-indigo-100 text-indigo-700' };
-                    const cBadge = catColors[row.category] || 'bg-gray-100 text-gray-700';
-
-                    html += `
-                    <tr class="${rowClass} border-b border-gray-100 group">
+                filteredData.forEach(row => {
+                    const hasOverride = row.override_value !== null && row.override_value !== undefined && row.override_value !== '';
+                    const cBadge = row.category === 'Material' ? 'bg-green-100 text-green-700' : 
+                                 (row.category === 'Labor' ? 'bg-purple-100 text-purple-700' : 
+                                 (row.category === 'Retail' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'));
+                    
+                    html += `<tr class="hover:bg-blue-50/50 transition group ${hasOverride ? 'bg-orange-50/30' : ''}">
                         <td class="p-3">
-                            <div class="font-black text-gray-800">${row.id}</div>
+                            <div class="font-bold text-gray-800 text-xs">${row.id}</div>
                             <div class="text-[9px] text-gray-500 mt-0.5 truncate max-w-[250px] italic">${row.notes || ''}</div>
                         </td>
                         <td class="p-3"><span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${cBadge}">${row.category}</span></td>
@@ -222,27 +267,62 @@
                         </td>
                     </tr>`;
                 });
-            } 
-            
+            }
+
+            // VIEW: RETAIL CURVES
+            else if (activeTable === 'retail_curves') {
+                legend.innerHTML = 'Note: These algorithms dictate the auto-scaling market prices for standard signs.';
+                thead.innerHTML = `<tr>
+                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Product Line</th>
+                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Tier Condition</th>
+                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">SqFt Range</th>
+                    <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">Price per SqFt ($)</th>
+                    <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">Hard Min ($)</th>
+                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Action</th>
+                </tr>`;
+
+                filteredData.forEach(row => {
+                    html += `<tr class="hover:bg-blue-50/50 transition">
+                        <td class="p-3">
+                            <div class="font-bold text-gray-800 text-xs">${row.product_line}</div>
+                            <div class="text-[9px] text-gray-400 mt-0.5 font-mono">${row.id}</div>
+                        </td>
+                        <td class="p-3 text-center"><span class="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded uppercase tracking-widest">${row.condition}</span></td>
+                        <td class="p-3 text-center text-xs font-mono text-gray-500">${row.sqft_min} - ${row.sqft_max >= 999 ? 'MAX' : row.sqft_max}</td>
+                        <td class="p-3 text-right">
+                            <input type="number" step="0.01" id="rc-price-${row.id}" value="${row.price_per_sqft}" class="w-20 text-right border rounded p-1.5 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-rc-${row.id}').classList.remove('hidden')">
+                        </td>
+                        <td class="p-3 text-right">
+                            <input type="number" step="0.01" id="rc-min-${row.id}" value="${row.min_price}" class="w-20 text-right border rounded p-1.5 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-rc-${row.id}').classList.remove('hidden')">
+                        </td>
+                        <td class="p-3 text-center">
+                            <button id="btn-rc-${row.id}" onclick="saveCurve('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">
+                                Update
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+            }
+
             // VIEW: SYSTEM MODULES (ROUTING / VERSIONS / DEPLOYMENT)
             else if (activeTable === 'system_modules') {
                 legend.innerHTML = 'Note: SUPER role bypasses visibility matrices.';
                 thead.innerHTML = `<tr>
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Module Info</th>
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Dev Status</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Versions (Live/Dev)</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Menu Visibility (S / P / A)</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Action</th>
+                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Versions</th>
+                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Visibility Matrix</th>
+                    <th class="p-3 text-center"></th>
                 </tr>`;
 
-                tableData.forEach(row => {
-                    if (search && !row.id.toLowerCase().includes(search) && !row.display_name.toLowerCase().includes(search)) return;
-                    html += `
-                    <tr class="hover:bg-slate-50 transition border-b border-gray-100">
+                filteredData.forEach(row => {
+                    html += `<tr class="hover:bg-blue-50/50 transition">
                         <td class="p-3">
-                            <div class="font-black text-gray-800">${row.display_name}</div>
-                            <div class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">${row.category} | ${row.id}</div>
-                            <a href="${row.file_link}" target="_blank" class="text-[9px] text-blue-500 hover:underline mt-0.5 block">${row.file_link}</a>
+                            <div class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                <span class="bg-gray-100 p-1 rounded border border-gray-200 shadow-inner">${row.icon || '⚡'}</span> 
+                                ${row.display_name}
+                            </div>
+                            <div class="text-[9px] text-gray-400 font-mono mt-1">${row.id} <span class="text-gray-300 mx-1">|</span> ${row.file_name}</div>
                         </td>
                         <td class="p-3 text-center">
                             <select id="sm-status-${row.id}" class="text-[10px] font-black uppercase tracking-widest border border-gray-300 rounded p-1.5 outline-none focus:border-blue-500 bg-white" onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')">
@@ -286,11 +366,71 @@
             tbody.innerHTML = html;
         }
 
+        // --- SAVING LOGIC (Retail Curves) ---
+        async function saveCurve(id) {
+            const btn = document.getElementById(`btn-rc-${id}`);
+            btn.innerText = "SAVING..."; btn.disabled = true;
+
+            const payload = {
+                price_per_sqft: parseFloat(document.getElementById(`rc-price-${id}`).value),
+                min_price: parseFloat(document.getElementById(`rc-min-${id}`).value)
+            };
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/retail_curves?id=eq.${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!res.ok) throw new Error("Failed to write to database.");
+
+                // Log the action
+                fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify({
+                        user_id: sessionStorage.getItem('signos_user') || 'Admin',
+                        role: sessionStorage.getItem('signos_role') || 'ADMIN',
+                        action: 'UPDATE_RETAIL_CURVE',
+                        target: id,
+                        meta_data: payload
+                    })
+                });
+
+                btn.innerText = "SAVED";
+                btn.classList.replace('bg-blue-600', 'bg-green-500');
+                
+                // Update local memory so search/re-render holds the new data
+                const row = tableData.find(r => r.id === id);
+                if (row) {
+                    row.price_per_sqft = payload.price_per_sqft;
+                    row.min_price = payload.min_price;
+                }
+
+                setTimeout(() => {
+                    btn.classList.add('hidden');
+                    btn.classList.replace('bg-green-500', 'bg-blue-600');
+                    btn.innerText = "UPDATE";
+                    btn.disabled = false;
+                }, 1500);
+
+            } catch (e) {
+                alert(e.message);
+                btn.innerText = "ERROR";
+                btn.classList.replace('bg-blue-600', 'bg-red-500');
+                setTimeout(() => {
+                    btn.innerText = "UPDATE";
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
+
         // --- SAVING LOGIC (System Modules) ---
         async function saveSystemModule(id) {
             const btn = document.getElementById(`btn-sm-${id}`);
             btn.innerText = "SAVING..."; btn.disabled = true;
-            
+
             const payload = {
                 dev_status: document.getElementById(`sm-status-${id}`).value,
                 live_ver: document.getElementById(`sm-lv-${id}`).value,
@@ -309,16 +449,19 @@
                     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
                     body: JSON.stringify(payload)
                 });
-
+                
                 if (!res.ok) throw new Error("Failed to write to database.");
 
-                // Forensic Telemetry Log
-                await fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+                // Log the action
+                fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
                     body: JSON.stringify({
-                        target: id, action: 'MODULE_UPDATED', role: sessionStorage.getItem('signos_role') || 'ADMIN',
-                        meta_data: { user: sessionStorage.getItem('signos_user') || 'Admin', updates: payload }
+                        user_id: sessionStorage.getItem('signos_user') || 'Admin',
+                        role: sessionStorage.getItem('signos_role') || 'ADMIN',
+                        action: 'UPDATE_MODULE',
+                        target: id,
+                        meta_data: payload
                     })
                 });
 
@@ -342,11 +485,13 @@
         function openModal(id) {
             activeRowId = id;
             const row = tableData.find(r => r.id === id);
+            
             document.getElementById('mod-id').innerText = row.id;
             document.getElementById('mod-desc').innerText = row.notes;
             document.getElementById('mod-actual').value = row.default_value;
             document.getElementById('mod-override').value = row.override_value !== null ? row.override_value : '';
             document.getElementById('mod-reason').value = '';
+            
             document.getElementById('override-modal').classList.remove('hidden');
         }
 
@@ -356,20 +501,27 @@
             const val = document.getElementById('mod-override').value;
             const reason = document.getElementById('mod-reason').value.trim();
             const user = sessionStorage.getItem('signos_user') || 'Admin';
-            const numVal = val === '' ? null : parseFloat(val);
+
+            const payload = { 
+                override_value: val === '' ? null : parseFloat(val),
+                updated_at: new Date().toISOString()
+            };
 
             try {
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?id=eq.${activeRowId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                    body: JSON.stringify({ override_value: numVal })
+                    body: JSON.stringify(payload)
                 });
-
-                if (!res.ok) throw new Error("Failed to write to database.");
+                
+                if (!res.ok) throw new Error("Database update failed.");
 
                 const logPayload = {
-                    target: activeRowId, action: numVal === null ? 'CLEARED_OVERRIDE' : 'MANUAL_OVERRIDE', role: sessionStorage.getItem('signos_role') || 'ADMIN',
-                    meta_data: { new_value: numVal, old_actual: document.getElementById('mod-actual').value, reason: reason || "No note provided", user: user }
+                    user_id: user,
+                    role: sessionStorage.getItem('signos_role') || 'ADMIN',
+                    action: val === '' ? 'CLEAR_OVERRIDE' : 'SET_OVERRIDE',
+                    target: activeRowId,
+                    meta_data: { new_value: payload.override_value, reason: reason }
                 };
 
                 await fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
@@ -379,13 +531,14 @@
                 });
 
                 closeModal();
-                loadTable('global_variables');
+                loadTable('global_variables', activeFilterGroup); // Refresh specific tab
+
             } catch (e) { alert(e.message); }
         }
 
         function clearOverride() {
             document.getElementById('mod-override').value = '';
-            document.getElementById('mod-reason').value = ''; 
+            document.getElementById('mod-reason').value = '';
             saveOverride();
         }
     </script>
