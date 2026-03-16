@@ -15,16 +15,20 @@
         .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         
-        /* 3D Rendering Engine Classes */
-        #preview-wrapper { perspective: 1200px; cursor: grab; }
+        /* 3D CSS Renderer Core */
+        #preview-wrapper { perspective: 2000px; cursor: grab; }
         #preview-wrapper:active { cursor: grabbing; }
         
-        #svg-preview-container { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; width: 0; height: 0; }
+        #svg-preview-container { 
+            transform-style: preserve-3d; 
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); 
+            position: relative; 
+        }
         
-        /* 3D Isometric View drops the camera to 65deg to show depth and Z-axis elevation */
+        /* Front View: X=82deg levels the camera so Z-elevation goes UP. */
+        .front-view #svg-preview-container { transform: rotateX(82deg) rotateZ(0deg); }
+        /* Isometric View: Tilts up to 65deg and pans sideways to show depth */
         .isometric-view #svg-preview-container { transform: rotateX(65deg) rotateZ(-35deg); }
-        /* Flat 2D View pitches the camera exactly 90deg, turning Depth (Y) into Line-of-Sight, and Elevation (Z) into Screen-Y */
-        .front-view #svg-preview-container { transform: rotateX(90deg) rotateZ(0deg); }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
@@ -68,10 +72,9 @@
                     <span class="absolute top-3 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10 pointer-events-none">Live Structural Physics</span>
                     
                     <!-- 3D STAGE W/ PAN & ZOOM HOOKS -->
-                    <div id="preview-wrapper" class="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
+                    <div id="preview-wrapper" class="front-view w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
                         <div id="zoom-stage" class="w-full h-full flex items-center justify-center origin-center">
-                            <!-- Defaulted to Front View! -->
-                            <div id="svg-preview-container" class="front-view relative transition-transform duration-700 ease-in-out"></div>
+                            <div id="svg-preview-container"></div>
                         </div>
                     </div>
                 </div>
@@ -83,33 +86,21 @@
 
                 <div class="p-6 space-y-5">
                     <!-- Global Configuration -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 border-b border-gray-100 pb-4">
+                    <div class="grid grid-cols-2 gap-3 border-b border-gray-100 pb-4">
                         <div>
                             <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Total Qty</label>
                             <input type="number" id="qty" value="1" min="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()">
                         </div>
-                        <div class="col-span-3 grid grid-cols-3 gap-3 bg-blue-50/50 p-2 rounded border border-blue-100 shadow-sm">
-                            <div class="col-span-2">
-                                <label class="block text-[9px] font-bold text-blue-700 uppercase mb-1">Panel / System Width (in)</label>
-                                <div class="flex">
-                                    <input type="number" id="systemWidth" value="36" min="12" step="1" class="w-16 border border-gray-300 p-2 rounded-l text-sm font-black text-center focus:border-blue-500 outline-none shadow-inner bg-white" oninput="runCalc()">
-                                    <select id="widthMode" class="flex-1 border-y border-r border-gray-300 p-2 rounded-r text-[11px] font-bold text-gray-700 outline-none focus:border-blue-500 bg-white" onchange="runCalc()">
-                                        <option value="Overall" selected>Overall Width (O.A.W)</option>
-                                        <option value="Inside">Inside Distance (Between Posts)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-[9px] font-bold text-blue-700 uppercase mb-1" title="Overall Height Above Grade">Overall Height (in)</label>
-                                <input type="number" id="thag" value="60" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-sm font-black text-center focus:border-blue-500 outline-none shadow-inner bg-white" oninput="runCalc()">
-                            </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-blue-700 uppercase mb-1" title="Overall Height Above Grade">Overall Height Above Grade (in)</label>
+                            <input type="number" id="thag" value="60" min="12" step="1" class="w-full border border-blue-300 p-2 rounded text-lg font-black text-center bg-blue-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()">
                         </div>
                     </div>
 
                     <!-- Panel Section Builder -->
                     <div>
                         <div class="flex justify-between items-end mb-2">
-                            <label class="block text-[10px] font-black text-gray-600 uppercase tracking-widest">Sign Panels</label>
+                            <label class="block text-[10px] font-black text-gray-600 uppercase tracking-widest">Sign Panels (Faces)</label>
                             <button onclick="addPanel()" class="text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1 rounded hover:bg-blue-600 hover:text-white transition shadow-sm">+ ADD PANEL</button>
                         </div>
                         <div id="panel-container" class="space-y-3"></div>
@@ -137,18 +128,13 @@
                                     <option value="AlumAngle_2_1/8">2" Aluminum Angle</option>
                                     <option value="AlumAngle_3_1/8">3" Aluminum Angle</option>
                                     <option value="AlumAngle_4_1/8">4" Aluminum Angle</option>
-                                    
                                     <option value="AlumTube_1.5_1/8">1.5" Aluminum Square Tube</option>
                                     <option value="AlumTube_2_1/8" selected>2" Aluminum Square Tube</option>
                                     <option value="AlumTube_3_1/8">3" Aluminum Square Tube</option>
                                     <option value="AlumTube_4_1/8">4" Aluminum Square Tube</option>
                                     <option value="AlumTube_6_1/4">6" Aluminum Square Tube</option>
-                                    
                                     <option value="SteelAngle_1.5_1/8">1.5" Steel Angle</option>
                                     <option value="SteelAngle_2_1/8">2" Steel Angle</option>
-                                    <option value="SteelAngle_3_1/8">3" Steel Angle</option>
-                                    <option value="SteelAngle_4_3/16">4" Steel Angle</option>
-                                    
                                     <option value="SteelTube_1.5_1/8">1.5" Steel Tube</option>
                                     <option value="SteelTube_2_1/8">2" Steel Tube</option>
                                     <option value="SteelTube_3_1/8">3" Steel Tube</option>
@@ -275,14 +261,14 @@
         };
 
         let backendData = {};
-        let panels = [{ id: Date.now(), h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 2, gap: 0 }];
+        let panels = [{ id: Date.now(), w: 36, h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 2, gap: 0 }];
         
         let is3D = false; // Defaulted to Flat Front View
         let isExploded = false;
 
         function toggle3D() {
             is3D = !is3D;
-            const container = document.getElementById('svg-preview-container');
+            const container = document.getElementById('preview-wrapper');
             
             if (is3D) {
                 container.classList.add('isometric-view');
@@ -326,24 +312,30 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[8px] font-bold text-gray-500 uppercase mb-0.5 text-center">Panel Height (in)</label>
+                            <label class="block text-[8px] font-bold text-gray-500 uppercase mb-0.5 text-center">Width (in)</label>
+                            <input type="number" value="${p.w}" oninput="updateDim(${p.id}, 'w', this.value)" class="w-full border border-gray-300 p-1.5 rounded text-xs font-bold text-center outline-none focus:border-blue-500 bg-white shadow-inner">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-bold text-gray-500 uppercase mb-0.5 text-center">Height (in)</label>
                             <input type="number" value="${p.h}" oninput="updateDim(${p.id}, 'h', this.value)" class="w-full border border-gray-300 p-1.5 rounded text-xs font-bold text-center outline-none focus:border-blue-500 bg-white shadow-inner">
                         </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
                         <div>
                             <label class="block text-[8px] font-bold text-gray-500 uppercase mb-0.5 text-center">Gap (in)</label>
                             <input type="number" value="${p.gap}" oninput="updateDim(${p.id}, 'gap', this.value)" class="w-full border border-gray-300 p-1.5 rounded text-xs font-bold text-center outline-none focus:border-blue-500 bg-white shadow-inner" ${isFirst ? 'disabled opacity-50' : ''}>
                         </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2">
-                        <div class="col-span-2">
+                        <div>
+                            <label class="block text-[8px] font-bold text-transparent uppercase mb-0.5 text-center">M</label>
                             <select onchange="updatePanel(${p.id}, 'faceMat', this.value)" class="w-full border border-gray-300 p-1.5 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 bg-white">
-                                <option value="063 Alum" ${p.faceMat === '063 Alum' ? 'selected' : ''}>.063 Aluminum</option>
-                                <option value="080 Alum" ${p.faceMat === '080 Alum' ? 'selected' : ''}>.080 Aluminum</option>
+                                <option value="063 Alum" ${p.faceMat === '063 Alum' ? 'selected' : ''}>.063 Alum</option>
+                                <option value="080 Alum" ${p.faceMat === '080 Alum' ? 'selected' : ''}>.080 Alum</option>
                                 <option value="3mm ACM" ${p.faceMat === '3mm ACM' ? 'selected' : ''}>3mm ACM</option>
                                 <option value="6mm ACM" ${p.faceMat === '6mm ACM' ? 'selected' : ''}>6mm ACM</option>
                             </select>
                         </div>
                         <div>
+                            <label class="block text-[8px] font-bold text-transparent uppercase mb-0.5 text-center">S</label>
                             <select onchange="updateDim(${p.id}, 'sides', this.value)" class="w-full border border-gray-300 p-1.5 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 bg-white">
                                 <option value="1" ${p.sides == 1 ? 'selected' : ''}>1-Sided</option>
                                 <option value="2" ${p.sides == 2 ? 'selected' : ''}>2-Sided</option>
@@ -364,7 +356,9 @@
             if(p) { p[field] = parseFloat(val) || 0; runCalc(); }
         }
         function addPanel() {
-            panels.push({ id: Date.now(), h: 12, mountStyle: 'Between', faceMat: '063 Alum', sides: 2, gap: 2 });
+            // New panel copies primary panel width by default
+            const defW = panels.length > 0 ? panels.w : 36;
+            panels.push({ id: Date.now(), w: defW, h: 12, mountStyle: 'Between', faceMat: '063 Alum', sides: 2, gap: 2 });
             renderPanels();
         }
         function removePanel(id) {
@@ -426,11 +420,13 @@
             }
         }
 
-        // --- PURE CSS 3D RENDER ENGINE ---
+        // --- PURE HTML 3D CSS RENDER ENGINE ---
         function renderIsometric(geom) {
             const cont = document.getElementById('svg-preview-container');
             if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
 
+            // X is Left/Right. Y is Depth (Front/Back). Z is Elevation (Up/Down).
+            // A scale limit to ensure large signs fit the preview box visually.
             const scale = Math.min(2.5, 300 / geom.overallW); 
             let html = '';
             
@@ -463,34 +459,38 @@
                 if (idx > 0) currentZ -= sGap;
                 
                 const isBetween = p.mountStyle === 'Between';
-                const pw = isBetween ? oaw - (pSize*2) : oaw;
-                const px = isBetween ? cx + pSize : cx;
-                
+                const pw = p.w * scale;
                 const ph = p.h * scale;
-                currentZ -= ph; // Advance Z downwards to the bottom of the current panel
+                
+                // Advance Z downwards to the bottom of the current panel
+                currentZ -= ph; 
                 const pz = currentZ; 
                 
                 const pd = geom.frameThick * scale;
-                const frameY = cy + (pSize - pd) / 2; // Frame is centered between the front and back of the posts
+                const frameY = cy + (pSize - pd) / 2; 
                 
-                // Exploded View Y-Translation Variables (Depth separation)
                 const faceD = 2; // 2px visual thickness
                 const explodeY = isExploded ? 40 : 0;
                 
-                let frontFaceY, backFaceY;
+                let px, frontFaceY, backFaceY, crossbarW, crossbarX;
+
                 if (isBetween) {
+                    px = cx + pSize; // Inside left post
                     frontFaceY = frameY + pd; 
                     backFaceY = frameY - faceD;
+                    crossbarW = pw;
+                    crossbarX = px;
                 } else {
-                    // Flush mount goes on the outside of the posts
+                    // Flush mount goes on the outside front of the posts
+                    px = cx + (oaw - pw)/2; // Centered
                     frontFaceY = cy + pSize; 
                     backFaceY = cy - faceD; 
+                    crossbarW = oaw - (pSize*2); // Frame is still between the posts
+                    crossbarX = cx + pSize;
                 }
 
                 // Frames
-                let shareTop = (idx > 0 && sGap === 0);
-                let crossbarW = isBetween ? pw : oaw - (pSize*2);
-                let crossbarX = isBetween ? px : cx + pSize;
+                let shareTop = (idx > 0 && sGap === 0 && p.mountStyle === geom.panels[idx-1].mountStyle);
 
                 if (!shareTop) html += draw3DBox(crossbarX, frameY, pz + ph - pd, crossbarW, pd, pd, frameColor); // Top Frame
                 html += draw3DBox(crossbarX, frameY, pz, crossbarW, pd, pd, frameColor); // Bottom Frame
@@ -498,6 +498,10 @@
                 if (isBetween) {
                     html += draw3DBox(px, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); // Left Vertical
                     html += draw3DBox(px + pw - pd, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); // Right Vertical
+                } else {
+                    // Flush vertical frame pieces hug the posts
+                    html += draw3DBox(cx, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); 
+                    html += draw3DBox(cx + oaw - pd, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor);
                 }
                 
                 // Faces
@@ -530,9 +534,9 @@
             
             return `
             <!-- Top -->
-            <div style="position:absolute; left:0; top:0; width:${w}px; height:${d}px; background:${cTop}; transform: translate3d(${x}px, ${y}px, ${z+h}px); opacity:${customOpacity};"></div>
+            <div style="position:absolute; left:0; top:0; width:${w}px; height:${d}px; background:${cTop}; transform: translate3d(${x}px, ${y}px, ${z+h}px); opacity:${customOpacity}; border: 1px solid rgba(255,255,255,0.1);"></div>
             <!-- Bottom -->
-            <div style="position:absolute; left:0; top:0; width:${w}px; height:${d}px; background:${cBot}; transform: translate3d(${x}px, ${y}px, ${z}px); opacity:${customOpacity};"></div>
+            <div style="position:absolute; left:0; top:0; width:${w}px; height:${d}px; background:${cBot}; transform: translate3d(${x}px, ${y}px, ${z}px); opacity:${customOpacity}; border: 1px solid rgba(255,255,255,0.1);"></div>
             <!-- Front -->
             <div style="position:absolute; left:0; top:0; width:${w}px; height:${h}px; background:${cFront}; transform-origin: top left; transform: translate3d(${x}px, ${y+d}px, ${z}px) rotateX(-90deg); opacity:${customOpacity}; display:flex; align-items:center; justify-content:center;">${isText ? `<span style="font-weight:900; color:white; font-size:${h/3.5}px; letter-spacing: 2px;">${textContent}</span>` : ''}</div>
             <!-- Back -->
@@ -550,8 +554,6 @@
 
             const inputs = {
                 qty: parseInt(document.getElementById('qty').value) || 1,
-                systemWidth: parseFloat(document.getElementById('systemWidth').value) || 36,
-                widthMode: document.getElementById('widthMode').value,
                 thag: parseFloat(document.getElementById('thag').value) || 60,
                 topOffset: parseFloat(document.getElementById('topOffset').value) || 0,
                 belowGrade: parseFloat(document.getElementById('underground').value) || 36,
@@ -585,7 +587,7 @@
 
                 const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
                 
-                let panelStr = panels.map((p, i) => `[P${i+1}] ${p.h}" ${p.mountStyle} - ${p.faceMat} (${p.sides} Sides)`).join('\n');
+                let panelStr = panels.map((p, i) => `[P${i+1}] ${p.w}" x ${p.h}" ${p.mountStyle} - ${p.faceMat} (${p.sides} Sides)`).join('\n');
                 
                 document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" O.A.W x ${result.geom.above}" THAG Post & Panel Assembly.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${result.geom.clearance}" Ground Clearance)\nFrame: ${frameTxt}\n\nPanels:\n${panelStr}\n\nInternal Cut List Guidance:\n${result.geom.cutList.join('\n')}`;
 
@@ -600,10 +602,9 @@
         window.addEventListener('load', async () => {
             if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
             
-            // Force Camera3D to initialize so pan/zoom works on both Flat 2D and Isometric 3D views
             if (typeof SignOS_UI !== 'undefined' && SignOS_UI.Camera3D) {
                 SignOS_UI.Camera3D.init('zoom-stage');
-                SignOS_UI.Camera3D.toggle(true); // Toggle to ensure default rendering works properly
+                SignOS_UI.Camera3D.toggle(false); 
             }
 
             const btnSandbox = document.getElementById('btn-sandbox');

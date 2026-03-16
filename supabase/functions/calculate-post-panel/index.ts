@@ -30,11 +30,14 @@ Deno.serve(async (req) => {
         const fThickMatch = String(inputs.frameMat).match(/(\d+(\.\d+)?)/);
         const fThick = fThickMatch ? parseFloat(fThickMatch) : 2;
         const isAngle = String(inputs.frameMat).includes('Angle');
-        const isSameMaterial = (inputs.postType === 'Aluminum' && inputs.frameMat.includes('Alum')) || (inputs.postType === 'Steel' && inputs.frameMat.includes('Steel'));
-
-        let sysW = parseFloat(inputs.systemWidth) || 36;
-        let oaw = inputs.widthMode === 'Inside' ? sysW + (postSizeInches * 2) : sysW;
-        let idWidth = oaw - (postSizeInches * 2);
+        
+        // Define Structure based on Panel 1 (Primary Panel)
+        const primaryPanel = inputs.panels;
+        const primaryW = parseFloat(primaryPanel.w) || 36;
+        
+        // Inside Distance (Between Posts) vs Overall Width
+        let idWidth = primaryPanel.mountStyle === 'Between' ? primaryW : Math.max(1, primaryW - (postSizeInches * 2));
+        let oaw = idWidth + (postSizeInches * 2);
 
         let topOffset = parseFloat(inputs.topOffset) || 0;
         let thag = parseFloat(inputs.thag) || 60;
@@ -47,49 +50,37 @@ Deno.serve(async (req) => {
         let totalPanelSqFt = 0, totalFrameLF = 0;
         let miterSawCuts = 0, bandSawCuts = 0;
         let frameCutsRaw = 0, postCutsRaw = 2; 
-        let miterTopApplies = false;
         
         let totalSkinSqIn = 0;
         let currentY = topOffset;
         let frameCutDesc: string[] = [];
 
-        // Map Y coordinates and yield metrics directly into the panels object for the UI
         inputs.panels.forEach((p: any, idx: number) => {
             let gap = parseFloat(p.gap) || 0;
-            if (idx > 0) currentY += gap;
+            let pw = parseFloat(p.w) || 36;
+            let ph = parseFloat(p.h) || 24;
             
-            p.y = currentY; // Crucial for 3D/2D visualization!
+            if (idx > 0) currentY += gap;
+            p.y = currentY; 
 
-            let shareTop = (idx > 0 && gap === 0);
             let pLF = 0, pCuts = 0;
             let pDesc = [];
 
             if (p.mountStyle === 'Between') {
-                let vLen = p.h - (fThick * 2);
+                let vLen = ph - (fThick * 2);
                 pLF += (vLen * 2) / 12;
-                pCuts += 2;
-                pDesc.push(`(x2) ${vLen}" Verts`);
-
-                if (!shareTop) { pLF += idWidth / 12; pCuts += 1; pDesc.push(`(x1) ${idWidth}" Top Horiz`); }
-                pLF += idWidth / 12; pCuts += 1; pDesc.push(`(x1) ${idWidth}" Bot Horiz`);
-                if (isAngle) totalSkinSqIn += (idWidth * postSizeInches * 2) * inputs.qty;
+                pLF += (pw * 2) / 12;
+                pCuts += 4;
+                pDesc.push(`(x2) ${pw}" Horizontals | (x2) ${vLen}" Verticals`);
+                if (isAngle) totalSkinSqIn += (pw * postSizeInches * 2) * inputs.qty;
             } else {
-                if (!shareTop) {
-                    if (idx === 0 && currentY === 0 && isSameMaterial) {
-                        pLF += oaw / 12;
-                        pCuts += 2; 
-                        miterTopApplies = true;
-                        pDesc.push(`(x1) ${oaw}" Top (Mitered)`);
-                    } else {
-                        pLF += idWidth / 12;
-                        pCuts += 1;
-                        pDesc.push(`(x1) ${idWidth}" Top Horiz`);
-                    }
-                }
-                pLF += idWidth / 12; pCuts += 1; pDesc.push(`(x1) ${idWidth}" Bot Horiz`);
+                // Flush Mount
+                pLF += (pw * 2) / 12; // Top & Bottom
+                pLF += (ph * 2) / 12; // Sides
+                pCuts += 4;
+                pDesc.push(`(x2) ${pw}" Horizontals | (x2) ${ph}" Verticals`);
                 if (isAngle || fThick < postSizeInches) {
-                    if (!shareTop) totalSkinSqIn += (idWidth * postSizeInches) * inputs.qty;
-                    totalSkinSqIn += (idWidth * postSizeInches) * inputs.qty;
+                    totalSkinSqIn += (pw * postSizeInches * 2) * inputs.qty;
                 }
             }
 
@@ -97,19 +88,16 @@ Deno.serve(async (req) => {
             totalFrameLF += (pLF * fMult) * inputs.qty;
             frameCutsRaw += (pCuts * fMult) * inputs.qty;
             
-            let pArea = ((p.mountStyle === 'Between' ? idWidth : oaw) * p.h) / 144 * inputs.qty * (p.sides === 2 ? 2 : 1);
+            let pArea = (pw * ph) / 144 * inputs.qty * (p.sides === 2 ? 2 : 1);
             totalPanelSqFt += pArea;
 
-            currentY += p.h;
-            frameCutDesc.push(`P${idx+1} [${p.mountStyle}]: ` + pDesc.join(' | '));
+            currentY += ph;
+            frameCutDesc.push(`P${idx+1} [${p.mountStyle}]: ` + pDesc.join(''));
         });
 
-        if (miterTopApplies) postCutsRaw += 2;
-        else postCutsRaw += 2; 
-
+        postCutsRaw += 2; 
         if (fThick > 4) bandSawCuts += frameCutsRaw;
         else miterSawCuts += frameCutsRaw;
-
         if (postSizeInches > 4) bandSawCuts += postCutsRaw * inputs.qty;
         else miterSawCuts += postCutsRaw * inputs.qty;
 
@@ -156,19 +144,17 @@ Deno.serve(async (req) => {
             else if (p.faceMat === '3mm ACM') { subCost = parseFloat(config.Cost_Stock_3mm_4x8 || "52.09") / 32; subKey = 'Cost_Stock_3mm_4x8'; }
             else if (p.faceMat === '6mm ACM') { subCost = parseFloat(config.Cost_Stock_6mm_4x8 || "72.10") / 32; subKey = 'Cost_Stock_6mm_4x8'; }
             
-            let sqft = ((p.mountStyle === 'Between' ? idWidth : oaw) * p.h) / 144 * inputs.qty * (p.sides === 2 ? 2 : 1);
+            let sqft = (p.w * p.h) / 144 * inputs.qty * (p.sides === 2 ? 2 : 1);
             if(!matCache[subKey]) matCache[subKey] = { name: p.faceMat, cost: subCost, sqft: 0, key: subKey };
             matCache[subKey].sqft += sqft;
         });
 
-        let highestFaceCostPerSqFt = 0;
         for(const [key, m] of Object.entries(matCache) as any) {
             L(`Face Substrate (${m.name})`, m.sqft * m.cost * wastePct, `${m.sqft.toFixed(1)} SF * $${m.cost.toFixed(2)}/SF * Waste`, 'faces', 'struct_mat');
-            if (m.cost > highestFaceCostPerSqFt) highestFaceCostPerSqFt = m.cost;
         }
         
-        if (totalSkinSqIn > 0 && highestFaceCostPerSqFt > 0) {
-            L(`Top/Bot Skinning`, (totalSkinSqIn / 144) * highestFaceCostPerSqFt * wastePct, `${(totalSkinSqIn/144).toFixed(1)} SF Skin * $${highestFaceCostPerSqFt.toFixed(2)}/SF * Waste`, 'faces', 'struct_mat');
+        if (totalSkinSqIn > 0) {
+            L(`Top/Bot Skinning`, (totalSkinSqIn / 144) * 3.06 * wastePct, `${(totalSkinSqIn/144).toFixed(1)} SF Skin * Waste`, 'faces', 'struct_mat');
         }
 
         const rateOp = parseFloat(config.Rate_Operator || "150");
@@ -181,7 +167,7 @@ Deno.serve(async (req) => {
         L(`Vinyl Mount Labor`, ((totalPanelSqFt * parseFloat(config.Time_Mount_Flat_SqFt || "0.25")) / 60) * rateShop, `${totalPanelSqFt.toFixed(1)} SF * 0.25 Mins/SF * $${rateShop}/hr`, 'graphics', 'graphics');
 
         const ratePaint = parseFloat(config.Rate_Paint_Labor || "150");
-        let totalPaintSqFt = ((postSizeInches / 12) * 4 * totalPoleLF) + (inputs.panels.reduce((sum: number, p: any) => sum + ((p.mountStyle === 'Between' ? idWidth : oaw) * p.h)/144 * p.sides * inputs.qty, 0));
+        let totalPaintSqFt = ((postSizeInches / 12) * 4 * totalPoleLF) + totalPanelSqFt;
         
         L(`Automotive Paint (Polyurethane)`, totalPaintSqFt * parseFloat(config.Cost_Paint_SqFt || "2.50") * wastePct, `${totalPaintSqFt.toFixed(1)} SF * $2.50/SF * Waste`, 'finish', 'paint_mat');
         L(`Paint Setup & Gun Clean`, (parseFloat(config.Time_Paint_Setup || "20") * inputs.qty / 60) * ratePaint, `20 Mins * Qty * $${ratePaint}/hr`, 'finish', 'paint_lab');
