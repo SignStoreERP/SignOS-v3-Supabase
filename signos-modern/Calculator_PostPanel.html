@@ -19,7 +19,9 @@
         #preview-wrapper { perspective: 1200px; cursor: grab; }
         #preview-wrapper:active { cursor: grabbing; }
         #svg-preview-container { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
-        .isometric-view #svg-preview-container { transform: rotateX(60deg) rotateZ(-45deg); }
+        
+        /* Lowered camera angle from 60deg to 82deg to fix the "Top Down" view */
+        .isometric-view #svg-preview-container { transform: rotateX(82deg) rotateZ(-25deg); }
         .front-view #svg-preview-container { transform: rotateX(90deg) rotateZ(0deg); }
     </style>
 </head>
@@ -58,7 +60,7 @@
                 <div class="w-full h-80 bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
                     <div class="absolute top-3 left-3 z-30 flex gap-1.5 pointer-events-auto">
                         <button onclick="toggle3D()" id="btn-3d" class="bg-white/90 hover:bg-gray-50 text-blue-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">3D Isometric View</button>
-                        <button onclick="toggleExplode()" id="btn-explode" class="hidden bg-white/90 hover:bg-gray-50 text-indigo-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Explode View</button>
+                        <button onclick="toggleExplode()" id="btn-explode" class="bg-white/90 hover:bg-gray-50 text-indigo-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Explode View</button>
                         <button onclick="SignOS_UI.Camera3D.reset()" class="bg-white/80 hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Reset Camera</button>
                     </div>
                     <span class="absolute top-3 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10 pointer-events-none">Live Structural Physics</span>
@@ -66,6 +68,7 @@
                     <!-- 3D STAGE W/ PAN & ZOOM HOOKS -->
                     <div id="preview-wrapper" class="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
                         <div id="zoom-stage" class="w-full h-full flex items-center justify-center origin-center">
+                            <!-- Defaulted to Front View! -->
                             <div id="svg-preview-container" class="front-view relative transition-transform duration-700 ease-in-out" style="transform-style: preserve-3d; width: 0; height: 0;"></div>
                         </div>
                     </div>
@@ -255,7 +258,7 @@
         let backendData = {};
         let panels = [{ id: Date.now(), h: 48, mountStyle: 'Flush', faceMat: '3mm ACM', sides: 2, gap: 0 }];
         
-        let is3D = false;
+        let is3D = false; // Defaulted to Flat Front View
         let isExploded = false;
 
         function toggle3D() {
@@ -431,8 +434,11 @@
             const frameColor = '#64748b';
             const faceColor = '#3b82f6';
             
-            // Draw Ground Plane (Z=0 is ground level)
-            html += `<div style="position:absolute; left:-1000px; top:-1000px; width:2000px; height:2000px; background:rgba(34,197,94,0.1); border: 1px dashed rgba(22,163,74,0.3); transform: translateZ(0);"></div>`;
+            // 1. GRADE LINE & UNDERGROUND DIRT
+            // A 3D block representing the dirt underground (Opacity 0.15 for X-Ray effect)
+            html += draw3DBox(cx - (oaw*0.5), cy - pSize, -under, oaw * 2, pSize * 3, under, '#22c55e', true, 0.15);
+            // A solid green physical strip exactly at Z=0 to act as the undeniable grade line
+            html += draw3DBox(cx - (oaw*0.5), cy - pSize/2, -1.5, oaw * 2, pSize * 2, 3, '#16a34a', false, 0.9);
             
             // Posts (Extending from -under up to thag)
             html += draw3DBox(cx, cy, -under, pSize, pSize, thag+under, postColor); // Left Post
@@ -492,15 +498,14 @@
             cont.innerHTML = html;
         }
 
-        // Helper: Generates a 6-sided 3D CSS Box using Absolute XYZ
-        // Note: CSS translateZ pushes the element "up" in rotateX(60deg) view
-        function draw3DBox(x, y, z, w, d, h, baseColor, isGhost = false) {
+        // Helper: Generates a 6-sided 3D CSS Box using Absolute XYZ. Added customOpacity support.
+        function draw3DBox(x, y, z, w, d, h, baseColor, isGhost = false, customOpacity = null) {
             const adjustColor = (hex, amt) => '#' + hex.replace(/^#/, '').replace(/../g, c => ('0'+Math.min(255, Math.max(0, parseInt(c, 16) + amt)).toString(16)).substr(-2));
             const cTop = baseColor;
             const cFront = adjustColor(baseColor, -25);
             const cSide = adjustColor(baseColor, -40);
             
-            const op = isGhost ? 0.8 : 1;
+            const op = customOpacity !== null ? customOpacity : (isGhost ? 0.8 : 1);
             const border = isGhost ? 'border: 1px solid rgba(255,255,255,0.4);' : '';
             
             return `
@@ -572,7 +577,7 @@
             // Force Camera3D to initialize so pan/zoom works on both Flat 2D and Isometric 3D views
             if (typeof SignOS_UI !== 'undefined' && SignOS_UI.Camera3D) {
                 SignOS_UI.Camera3D.init('zoom-stage');
-                SignOS_UI.Camera3D.toggle(true);
+                SignOS_UI.Camera3D.toggle(true); // Toggle to ensure default rendering matches Front View layout logic
             }
 
             const btnSandbox = document.getElementById('btn-sandbox');
