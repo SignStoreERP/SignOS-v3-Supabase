@@ -21,6 +21,12 @@
             linear-gradient(90deg, rgba(59, 130, 246, 0.2) 1px, transparent 1px);
             background-size: 20px 20px;
         }
+        .highlight-var {
+            background-color: #fef08a !important; color: #854d0e !important;
+            border-color: #eab308 !important; border-style: solid !important;
+            border-width: 1px !important; border-radius: 4px; padding: 0 4px;
+            box-shadow: 0 0 8px rgba(234, 179, 8, 0.5); text-decoration: none !important;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
@@ -81,8 +87,8 @@
                     <!-- Dimensions -->
                     <div class="grid grid-cols-4 gap-3">
                         <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
-                        <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel W (in)</label><input type="number" id="w" value="48" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
-                        <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel H (in)</label><input type="number" id="h" value="48" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                        <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel W (in)</label><input type="number" id="w" value="36" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                        <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Panel H (in)</label><input type="number" id="h" value="24" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
                         <div><label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Clearance (in)</label><input type="number" id="clearance" value="36" min="0" step="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center focus:border-blue-500 outline-none shadow-inner bg-blue-50 text-blue-800" oninput="runCalc()" title="Distance from ground to bottom of panel"></div>
                     </div>
 
@@ -105,31 +111,35 @@
                             <div>
                                 <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Material</label>
                                 <select id="postType" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
-                                    <option value="Aluminum">Aluminum</option>
+                                    <option value="Aluminum" selected>Aluminum</option>
                                     <option value="Steel">Steel Tube</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Size</label>
                                 <select id="postSize" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
-                                    <option value="2">2" Square</option>
+                                    <option value="2" selected>2" Square</option>
                                     <option value="3">3" Square</option>
-                                    <option value="4" selected>4" Square</option>
+                                    <option value="4">4" Square</option>
                                     <option value="6">6" Square</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Above Grade (in)</label>
-                                <input type="number" id="postAbove" value="84" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-center focus:border-blue-500 outline-none shadow-sm h-[38px] bg-green-50 text-green-800" oninput="runCalc()" title="Total height of post above the dirt. Will auto-adjust to Panel+Clearance if too short.">
+                                <input type="number" id="postAbove" value="60" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-center focus:border-blue-500 outline-none shadow-sm h-[38px] bg-green-50 text-green-800" oninput="runCalc()" title="Total height of post above the dirt. Will auto-adjust to Panel+Clearance if too short.">
                             </div>
                         </div>
                         <div>
                             <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Internal Frame Skeleton</label>
                             <select id="frameMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
-                                <option value="Angle15">1.5" Steel Angle Iron</option>
-                                <option value="Angle20" selected>2" Steel Angle Iron</option>
-                                <option value="Tube10">1" Steel Square Tube</option>
-                                <option value="Tube20">2" Steel Square Tube</option>
+                                <option value="AlumAngle_1.5_1/8">1.5" Aluminum Angle</option>
+                                <option value="AlumAngle_2_1/8">2" Aluminum Angle</option>
+                                <option value="AlumTube_1.5_1/8">1.5" Aluminum Square Tube</option>
+                                <option value="AlumTube_2_1/8" selected>2" Aluminum Square Tube</option>
+                                <option value="SteelAngle_1.5_1/8">1.5" Steel Angle</option>
+                                <option value="SteelAngle_2_1/8">2" Steel Angle</option>
+                                <option value="SteelTube_1.5_1/8">1.5" Steel Square Tube</option>
+                                <option value="SteelTube_2_1/8">2" Steel Square Tube</option>
                             </select>
                         </div>
                     </div>
@@ -140,9 +150,10 @@
                             <div>
                                 <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Face Substrate</label>
                                 <select id="faceMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
-                                    <option value="063 Alum">.063 Aluminum</option>
+                                    <option value="040 Alum">.040 Aluminum</option>
+                                    <option value="063 Alum" selected>.063 Aluminum</option>
                                     <option value="080 Alum">.080 Aluminum</option>
-                                    <option value="3mm ACM" selected>3mm ACM</option>
+                                    <option value="3mm ACM">3mm ACM</option>
                                     <option value="6mm ACM">6mm ACM</option>
                                 </select>
                             </div>
@@ -175,6 +186,11 @@
                     <button id="btn-sandbox" onclick="SignOS_Sandbox.toggle()" class="hidden w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black py-2.5 rounded shadow-md uppercase tracking-widest transition">
                         Launch Cost Sandbox
                     </button>
+                </div>
+                
+                <div class="bg-gray-50 p-4 border-t border-gray-200">
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
+                    <textarea id="job-desc" class="w-full text-xs p-3 border border-gray-300 rounded bg-white h-24 text-gray-700 font-mono outline-none leading-snug shadow-inner custom-scroll" readonly></textarea>
                 </div>
             </div>
         </div>
@@ -222,30 +238,40 @@
                 { key: 'Cost_Post_Steel_3_1/8', label: '3" Steel Post ($/LF)' },
                 { key: 'Cost_Post_Steel_4_3/16', label: '4" Steel Post ($/LF)' },
                 { key: 'Cost_Post_Steel_6_3/16', label: '6" Steel Post ($/LF)' },
-                { key: 'Cost_Frame_Angle15', label: '1.5" Angle ($/LF)' },
-                { key: 'Cost_Frame_Angle20', label: '2.0" Angle ($/LF)' },
-                { key: 'Cost_Frame_Tube10', label: '1" Tube ($/LF)' },
-                { key: 'Cost_Frame_Tube20', label: '2" Tube ($/LF)' },
+                
+                { key: 'Cost_Frame_AlumAngle_1.5_1/8', label: '1.5" Alum Angle ($/LF)' },
+                { key: 'Cost_Frame_AlumAngle_2_1/8', label: '2.0" Alum Angle ($/LF)' },
+                { key: 'Cost_Frame_AlumTube_1.5_1/8', label: '1.5" Alum Tube ($/LF)' },
+                { key: 'Cost_Frame_AlumTube_2_1/8', label: '2.0" Alum Tube ($/LF)' },
+                { key: 'Cost_Frame_SteelAngle_1.5_1/8', label: '1.5" Steel Angle ($/LF)' },
+                { key: 'Cost_Frame_SteelAngle_2_1/8', label: '2.0" Steel Angle ($/LF)' },
+                { key: 'Cost_Frame_SteelTube_1.5_1/8', label: '1.5" Steel Tube ($/LF)' },
+                { key: 'Cost_Frame_SteelTube_2_1/8', label: '2.0" Steel Tube ($/LF)' },
+
                 { key: 'Cost_Stock_040_4x8', label: '.040 Alum Sht ($)' },
                 { key: 'Cost_Stock_063_4x8', label: '.063 Alum Sht ($)' },
                 { key: 'Cost_Stock_080_4x8', label: '.080 Alum Sht ($)' },
                 { key: 'Cost_Stock_3mm_4x8', label: '3mm ACM Sht ($)' },
                 { key: 'Cost_Stock_6mm_4x8', label: '6mm ACM Sht ($)' },
+                
                 { key: 'Cost_Concrete_Bag', label: 'Concrete Bag ($)' },
                 { key: 'Cost_Adhesive_Tube', label: 'Lord\'s Glue ($/Tube)' },
                 { key: 'Cost_Vin_Cast', label: 'Cast Vinyl ($/SF)' },
                 { key: 'Cost_Lam_Cast', label: 'Cast Lam ($/SF)' },
                 { key: 'Cost_Ink_Latex', label: 'Latex Ink ($/SF)' },
                 { key: 'Cost_Paint_SqFt', label: 'Paint Cost ($/SF)' },
+                
                 { key: 'Rate_Shop_Labor', label: 'Shop Rate ($/Hr)' },
                 { key: 'Rate_Paint_Labor', label: 'Paint Rate ($/Hr)' },
                 { key: 'Rate_Operator', label: 'Print Op ($/Hr)' },
                 { key: 'Rate_Machine_Print', label: 'Print Mach ($/Hr)' },
+                
                 { key: 'Time_Saw_Band', label: 'Band Saw (Mins/Cut)' },
                 { key: 'Time_Saw_Miter', label: 'Miter Saw (Mins/Cut)' },
                 { key: 'Time_Weld_Per_Loc', label: 'Weld (Mins/Loc)' },
                 { key: 'Time_Clean_Weld_Loc', label: 'Clean Weld (Mins/Loc)' },
                 { key: 'Time_Paint_Setup', label: 'Paint Prep (Mins)' },
+                
                 { key: 'Waste_Factor', label: 'Waste Multiplier' },
                 { key: 'Factor_Risk', label: 'Risk Multiplier' }
             ]
@@ -258,14 +284,19 @@
             let hEl = document.getElementById('h');
             let clrEl = document.getElementById('clearance');
             let aboveEl = document.getElementById('postAbove');
-            let pSize = parseFloat(document.getElementById('postSize').value) || 4;
-            let fThick = parseFloat(document.getElementById('frameMat').value.replace(/[^0-9.]/g, '')) / 10 || 2;
-            let isAngle = document.getElementById('frameMat').value.includes('Angle');
+            let pSize = parseFloat(document.getElementById('postSize').value) || 2;
+            let frameMatVal = document.getElementById('frameMat').value;
+            
+            // Extract frame thickness structurally (e.g., 'AlumTube_2_1/8' -> 2)
+            let fThickMatch = frameMatVal.match(/(\d+(\.\d+)?)/); 
+            let fThick = fThickMatch ? parseFloat(fThickMatch[1]) : 2;
+            
+            let isAngle = frameMatVal.includes('Angle');
             let sides = parseInt(document.getElementById('sides').value) || 2;
             let warnEl = document.getElementById('physics-warn');
             let warnMsg = document.getElementById('physics-warn-msg');
 
-            let h = parseFloat(hEl.value) || 12;
+            let h = parseFloat(hEl.value) || 24;
             let clr = parseFloat(clrEl.value) || 0;
             let pAbove = parseFloat(aboveEl.value) || (h + clr);
             let didClamp = false;
@@ -281,10 +312,10 @@
             // 2. Internal Frame Depth Collision Guard
             let internalFrameDepth = (isAngle && sides === 2) ? fThick * 2 : fThick;
             if (document.querySelector('input[name="mountStyle"]:checked').value === 'Flush' && internalFrameDepth > pSize) {
-                // Force frame down to Tube10 (1") to resolve the physics overlap instantly
-                document.getElementById('frameMat').value = 'Tube10'; 
+                // Drop down to 1.5" frame to resolve the physics overlap instantly
+                document.getElementById('frameMat').value = frameMatVal.includes('Alum') ? 'AlumTube_1.5_1/8' : 'SteelTube_1.5_1/8'; 
                 didClamp = true;
-                msg = `Structural collision: Frame depth (${internalFrameDepth}") exceeded Post size (${pSize}"). Frame reduced to 1" Tube.`;
+                msg = `Structural collision: Frame depth (${internalFrameDepth}") exceeded Post size (${pSize}"). Frame reduced to 1.5" material.`;
             }
 
             if (didClamp) {
@@ -403,13 +434,13 @@
             enforcePhysics(); 
             
             const mountStyleStr = document.querySelector('input[name="mountStyle"]:checked').value;
-            const wInput = parseFloat(document.getElementById('w').value) || 48;
+            const wInput = parseFloat(document.getElementById('w').value) || 36;
             const postSizeStr = document.getElementById('postSize').value;
 
             // In Flush Mount, W is Overall Width. In Between Posts, it is Panel Width.
             const panelArray = [{
                 w: wInput,
-                h: parseFloat(document.getElementById('h').value) || 48,
+                h: parseFloat(document.getElementById('h').value) || 24,
                 sides: parseInt(document.getElementById('sides').value) || 2,
                 faceMat: document.getElementById('faceMat').value,
                 mountStyle: mountStyleStr,
@@ -421,7 +452,7 @@
             const inputs = {
                 qty: parseInt(document.getElementById('qty').value) || 1,
                 w: wInput,
-                h: parseFloat(document.getElementById('h').value) || 48,
+                h: parseFloat(document.getElementById('h').value) || 24,
                 clearance: parseFloat(document.getElementById('clearance').value) || 36,
                 postAbove: parseFloat(document.getElementById('postAbove').value),
                 mountStyle: mountStyleStr,
