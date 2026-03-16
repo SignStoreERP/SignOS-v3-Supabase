@@ -136,8 +136,8 @@
                                 <option value="AlumTube_2_1/8" selected>2" Aluminum Square Tube</option>
                                 <option value="SteelAngle_1.5_1/8">1.5" Steel Angle</option>
                                 <option value="SteelAngle_2_1/8">2" Steel Angle</option>
-                                <option value="SteelTube_1.5_1/8">1.5" Steel Tube</option>
-                                <option value="SteelTube_2_1/8">2" Steel Tube</option>
+                                <option value="SteelTube_1.5_1/8">1.5" Steel Square Tube</option>
+                                <option value="SteelTube_2_1/8">2" Steel Square Tube</option>
                             </select>
                         </div>
                     </div>
@@ -230,6 +230,7 @@
                 { key: 'Cost_Post_Steel_3_1/8', label: '3" Steel Post ($/LF)' },
                 { key: 'Cost_Post_Steel_4_3/16', label: '4" Steel Post ($/LF)' },
                 { key: 'Cost_Post_Steel_6_3/16', label: '6" Steel Post ($/LF)' },
+                
                 { key: 'Cost_Frame_AlumAngle_1.5_1/8', label: '1.5" Alum Angle ($/LF)' },
                 { key: 'Cost_Frame_AlumAngle_2_1/8', label: '2.0" Alum Angle ($/LF)' },
                 { key: 'Cost_Frame_AlumTube_1.5_1/8', label: '1.5" Alum Tube ($/LF)' },
@@ -238,26 +239,31 @@
                 { key: 'Cost_Frame_SteelAngle_2_1/8', label: '2.0" Steel Angle ($/LF)' },
                 { key: 'Cost_Frame_SteelTube_1.5_1/8', label: '1.5" Steel Tube ($/LF)' },
                 { key: 'Cost_Frame_SteelTube_2_1/8', label: '2.0" Steel Tube ($/LF)' },
+
                 { key: 'Cost_Stock_040_4x8', label: '.040 Alum Sht ($)' },
                 { key: 'Cost_Stock_063_4x8', label: '.063 Alum Sht ($)' },
                 { key: 'Cost_Stock_080_4x8', label: '.080 Alum Sht ($)' },
                 { key: 'Cost_Stock_3mm_4x8', label: '3mm ACM Sht ($)' },
                 { key: 'Cost_Stock_6mm_4x8', label: '6mm ACM Sht ($)' },
+                
                 { key: 'Cost_Concrete_Bag', label: 'Concrete Bag ($)' },
                 { key: 'Cost_Adhesive_Tube', label: 'Lord\'s Glue ($/Tube)' },
                 { key: 'Cost_Vin_Cast', label: 'Cast Vinyl ($/SF)' },
                 { key: 'Cost_Lam_Cast', label: 'Cast Lam ($/SF)' },
                 { key: 'Cost_Ink_Latex', label: 'Latex Ink ($/SF)' },
                 { key: 'Cost_Paint_SqFt', label: 'Paint Cost ($/SF)' },
+                
                 { key: 'Rate_Shop_Labor', label: 'Shop Rate ($/Hr)' },
                 { key: 'Rate_Paint_Labor', label: 'Paint Rate ($/Hr)' },
                 { key: 'Rate_Operator', label: 'Print Op ($/Hr)' },
                 { key: 'Rate_Machine_Print', label: 'Print Mach ($/Hr)' },
+                
                 { key: 'Time_Saw_Band', label: 'Band Saw (Mins/Cut)' },
                 { key: 'Time_Saw_Miter', label: 'Miter Saw (Mins/Cut)' },
                 { key: 'Time_Weld_Per_Loc', label: 'Weld (Mins/Loc)' },
                 { key: 'Time_Clean_Weld_Loc', label: 'Clean Weld (Mins/Loc)' },
                 { key: 'Time_Paint_Setup', label: 'Paint Prep (Mins)' },
+                
                 { key: 'Waste_Factor', label: 'Waste Multiplier' },
                 { key: 'Factor_Risk', label: 'Risk Multiplier' }
             ]
@@ -273,6 +279,7 @@
             let pSize = parseFloat(document.getElementById('postSize').value) || 2;
             let frameMatVal = document.getElementById('frameMat').value;
             
+            // Extract frame thickness structurally (e.g., 'AlumTube_2_1/8' -> 2)
             let fThickMatch = frameMatVal.match(/(\d+(\.\d+)?)/); 
             let fThick = fThickMatch ? parseFloat(fThickMatch) : 2;
             
@@ -287,7 +294,7 @@
             let didClamp = false;
             let msg = "";
 
-            // 1. Post Height Auto-Clamp
+            // 1. Post Height Auto-Clamp (Posts can't be shorter than the panel + clearance)
             if (pAbove < (h + clr)) {
                 aboveEl.value = (h + clr);
                 didClamp = true;
@@ -297,6 +304,7 @@
             // 2. Internal Frame Depth Collision Guard
             let internalFrameDepth = (isAngle && sides === 2) ? fThick * 2 : fThick;
             if (document.querySelector('input[name="mountStyle"]:checked').value === 'Flush' && internalFrameDepth > pSize) {
+                // Drop down to 1.5" frame to resolve the physics overlap instantly
                 document.getElementById('frameMat').value = frameMatVal.includes('Alum') ? 'AlumTube_1.5_1/8' : 'SteelTube_1.5_1/8'; 
                 didClamp = true;
                 msg = `Structural collision: Frame depth (${internalFrameDepth}") exceeded Post size (${pSize}"). Frame reduced to 1.5" material.`;
@@ -310,15 +318,14 @@
             }
         }
 
-        // --- NEW OUTSIDE-IN DRAWING ALGORITHM (Supports X-Ray Toggle) ---
+        // --- FIXED 2D DRAWING ALGORITHM (Proper Z-Index & Array Safe) ---
         function drawShopDrawings(geom) {
             const frontCont = document.getElementById('svg-front-container');
             const sideCont = document.getElementById('svg-side-container');
+            
+            // Fixed the array crash rule
             if (!frontCont || !sideCont || !geom || !geom.panels || geom.panels.length === 0) return;
 
-            const pW = geom.panels.w;
-            const pH = geom.panels.h;
-            const mountStyle = geom.panels.mountStyle;
             const showXray = document.getElementById('xray-toggle') ? document.getElementById('xray-toggle').checked : false;
 
             const maxH = 150; const maxW = 350;
@@ -332,54 +339,88 @@
             const sClr = geom.clearance * scale;
             const sPostD = geom.post * scale;
             const sUnder = geom.under * scale;
+            const sHoleD = geom.holeD * scale;
 
-            let p1X = 0;
-            let p2X = (geom.overallW - geom.post) * scale;
+            // Proper bounds calculation based on spacing and post dimension
+            let p1X = (sOw - (geom.postSpacing * scale + 2*sPostD)) / 2;
+            let p2X = p1X + sPostD + (geom.postSpacing * scale);
 
             // 1. Background Grade
             let bgLayer = `<rect x="-${padX}" y="${sTh - sUnder}" width="${sOw + (padX*2)}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
             bgLayer += `<line x1="-${padX}" y1="${sTh - sUnder}" x2="${sOw + padX}" y2="${sTh - sUnder}" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="3,2"/>`;
 
-            // 2. Posts
-            const postDrawH = sTh;
-            bgLayer += `<rect x="${p1X}" y="0" width="${sPostD}" height="${postDrawH}" fill="#cbd5e1" stroke="#475569" stroke-width="1"/>`;
-            bgLayer += `<rect x="${p2X}" y="0" width="${sPostD}" height="${postDrawH}" fill="#cbd5e1" stroke="#475569" stroke-width="1"/>`;
-
-            // ----- FRONT ELEVATION -----
-            let svgFrontSolid = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sOw + padX*2} ${sTh + padY*2}" style="overflow: visible;">` + bgLayer;
-
-            let currY = sTh - sUnder - sClr - (pH * scale);
-            let sPw = pW * scale;
-            let sPh = pH * scale;
-            let panelX = mountStyle === 'Between' ? sPostD : 0;
-            const ft = geom.frameThick * scale;
-
-            if (showXray) {
-                // X-Ray Frame Skeleton (Drawn from panel perimeter INWARD)
-                if(mountStyle === 'Between') {
-                    svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${ft}" fill="#94a3b8"/>`; // Top
-                    svgFrontSolid += `<rect x="${panelX}" y="${currY + sPh - ft}" width="${sPw}" height="${ft}" fill="#94a3b8"/>`; // Bot
-                    svgFrontSolid += `<rect x="${panelX}" y="${currY + ft}" width="${ft}" height="${sPh - 2*ft}" fill="#94a3b8"/>`; // Left
-                    svgFrontSolid += `<rect x="${panelX + sPw - ft}" y="${currY + ft}" width="${ft}" height="${sPh - 2*ft}" fill="#94a3b8"/>`; // Right
-                } else {
-                    // Flush mount: The posts act as the side frames. Crossbars go between.
-                    let crossbarW = sOw - (2 * sPostD);
-                    if (crossbarW > 0) {
-                        svgFrontSolid += `<rect x="${sPostD}" y="${currY}" width="${crossbarW}" height="${ft}" fill="#94a3b8"/>`; // Top
-                        svgFrontSolid += `<rect x="${sPostD}" y="${currY + sPh - ft}" width="${crossbarW}" height="${ft}" fill="#94a3b8"/>`; // Bot
-                    }
-                }
-                // Ghost Face
-                svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="0.35"/>`;
-            } else {
-                // Solid Face
-                svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="0.95"/>`;
-                svgFrontSolid += `<text x="${panelX + (sPw / 2)}" y="${currY + (sPh / 2)}" font-family="sans-serif" font-weight="900" font-size="${sPh / 4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>`;
+            // 2. Concrete Footers
+            if (geom.hasConcrete) {
+                const footerH = sUnder * 0.66;
+                const footerY = sTh - footerH;
+                bgLayer += `<rect x="${p1X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#94a3b8" opacity="0.3" rx="2"/>`;
+                bgLayer += `<rect x="${p2X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#94a3b8" opacity="0.3" rx="2"/>`;
             }
 
+            // Layer preparation for Z-index swapping
+            let layerPosts = '';
+            let layerFrames = '';
+            let layerFaces = '';
+
+            const postCutThick = geom.frameThick * scale;
+            const postDrawH = sTh;
+            
+            layerPosts += `<rect x="${p1X}" y="0" width="${sPostD}" height="${postDrawH}" fill="#cbd5e1" stroke="#475569" stroke-width="1"/>`;
+            layerPosts += `<rect x="${p2X}" y="0" width="${sPostD}" height="${postDrawH}" fill="#cbd5e1" stroke="#475569" stroke-width="1"/>`;
+
+            let currY = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            const ft = geom.frameThick * scale;
+
+            // Correctly iterating over the panels array instead of a static object!
+            geom.panels.forEach((p, i) => {
+                let pW_real = p.mountStyle === 'Between' ? geom.postSpacing : p.w;
+                let sPw = pW_real * scale;
+                let sPh = p.h * scale;
+                let panelX = p.mountStyle === 'Between' ? p1X + sPostD : (sOw - sPw) / 2;
+
+                if (i > 0) currY += (p.gap * scale);
+
+                // Frames Generation
+                if(p.mountStyle === 'Between') {
+                    layerFrames += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${ft}" fill="#94a3b8" stroke="#475569" stroke-width="0.5"/>`; // Top
+                    layerFrames += `<rect x="${panelX}" y="${currY + sPh - ft}" width="${sPw}" height="${ft}" fill="#94a3b8" stroke="#475569" stroke-width="0.5"/>`; // Bot
+                    layerFrames += `<rect x="${panelX}" y="${currY + ft}" width="${ft}" height="${sPh - 2*ft}" fill="#94a3b8" stroke="#475569" stroke-width="0.5"/>`; // Left
+                    layerFrames += `<rect x="${panelX + sPw - ft}" y="${currY + ft}" width="${ft}" height="${sPh - 2*ft}" fill="#94a3b8" stroke="#475569" stroke-width="0.5"/>`; // Right
+                } else {
+                    let crossbarW = geom.postSpacing * scale;
+                    let crossbarX = p1X + sPostD;
+                    if (crossbarW > 0) {
+                        layerFrames += `<rect x="${crossbarX}" y="${currY}" width="${crossbarW}" height="${ft}" fill="#94a3b8" stroke="#475569" stroke-width="0.5"/>`; // Top
+                        layerFrames += `<rect x="${crossbarX}" y="${currY + sPh - ft}" width="${crossbarW}" height="${ft}" fill="#94a3b8" stroke="#475569" stroke-width="0.5"/>`; // Bot
+                    }
+                }
+
+                // Faces Generation
+                let faceOpacity = showXray ? 0.35 : 0.90;
+                layerFaces += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="${faceOpacity}"/>`;
+
+                // Only draw text if it's not X-Ray mode
+                if (!showXray) {
+                    layerFaces += `<text x="${panelX + (sPw / 2)}" y="${currY + (sPh / 2)}" font-family="sans-serif" font-weight="900" font-size="${sPh / 4}" fill="#e2e8f0" text-anchor="middle" dominant-baseline="middle">LOGO</text>`;
+                }
+
+                currY += sPh;
+            });
+
+            // ----- ASSEMBLE FRONT VIEW (Z-INDEX LOGIC) -----
+            let svgFrontSolid = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sOw + padX*2} ${sTh + padY*2}" style="overflow: visible;">` + bgLayer;
+            
+            if (showXray) {
+                // X-Ray Mode: Faces (35%) -> Posts -> Frames
+                svgFrontSolid += layerFaces + layerPosts + layerFrames;
+            } else {
+                // Normal Mode: Posts -> Frames -> Faces (90%)
+                svgFrontSolid += layerPosts + layerFrames + layerFaces;
+            }
+            
             svgFrontSolid += `</svg>`;
 
-            // ----- SIDE ELEVATION -----
+            // ----- ASSEMBLE SIDE VIEW -----
             const sideW = Math.max(geom.post + 4, 20);
             const visFaceThick = 2;
             const sSideW = sideW * scale;
@@ -389,15 +430,27 @@
             svgSide += `<rect x="-${padX}" y="${sTh - sUnder}" width="${sSideW + padX*2}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
             svgSide += `<line x1="-${padX}" y1="${sTh - sUnder}" x2="${sSideW+padX}" y2="${sTh - sUnder}" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="3,2"/>`;
 
-            svgSide += `<rect x="${px}" y="0" width="${sPostD}" height="${postDrawH}" fill="#64748b" />`;
-
-            let sy = sTh - sUnder - sClr - (pH * scale);
-            if (mountStyle === 'Between') {
-                svgSide += `<rect x="${px + (sPostD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#1e40af"/>`;
-            } else {
-                svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
-                if(geom.panels.sides === 2) svgSide += `<rect x="${px + sPostD}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
+            if (geom.hasConcrete) {
+                const footerH = sUnder * 0.66;
+                const footerY = sTh - footerH;
+                svgSide += `<rect x="${px - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#94a3b8" opacity="0.3" rx="2"/>`;
             }
+
+            svgSide += `<rect x="${px}" y="0" width="${sPostD}" height="${sTh}" fill="#64748b" />`;
+
+            let sy = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            geom.panels.forEach((p, i) => {
+                let sPh = p.h * scale;
+                if (i > 0) sy += (p.gap * scale);
+                
+                if (p.mountStyle === 'Between') {
+                    svgSide += `<rect x="${px + (sPostD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#1e40af"/>`;
+                } else {
+                    svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6" opacity="${showXray ? 0.35 : 0.9}"/>`;
+                    if(p.sides === 2) svgSide += `<rect x="${px + sPostD}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6" opacity="${showXray ? 0.35 : 0.9}"/>`;
+                }
+                sy += sPh;
+            });
 
             svgSide += `</svg>`;
 
@@ -413,6 +466,7 @@
             const wInput = parseFloat(document.getElementById('w').value) || 36;
             const postSizeStr = document.getElementById('postSize').value;
 
+            // In Flush Mount, W is Overall Width. In Between Posts, it is Panel Width.
             const panelArray = [{
                 w: wInput,
                 h: parseFloat(document.getElementById('h').value) || 24,
@@ -422,9 +476,12 @@
                 gap: 0, isCNC: false, graphicMethod: 'Printed'
             }];
 
+            let overallSpacing = mountStyleStr === 'Between' ? wInput : (wInput - (parseFloat(postSizeStr)*2));
+
             const inputs = {
                 qty: parseInt(document.getElementById('qty').value) || 1,
                 w: wInput,
+                h: parseFloat(document.getElementById('h').value) || 24,
                 clearance: parseFloat(document.getElementById('clearance').value) || 36,
                 postAbove: parseFloat(document.getElementById('postAbove').value),
                 mountStyle: mountStyleStr,
@@ -434,7 +491,8 @@
                 faceMat: document.getElementById('faceMat').value,
                 sides: parseInt(document.getElementById('sides').value) || 2,
                 panels: panelArray,
-                belowGrade: 36, hasConcrete: true, finishType: 'Printed', isCutVinyl: false
+                belowGrade: 36, hasConcrete: true, finishType: 'Printed', isCutVinyl: false,
+                postSpacing: overallSpacing
             };
 
             try {
@@ -459,8 +517,9 @@
                 document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
 
                 const sideTxt = inputs.sides === 2 ? "Double Sided" : "Single Sided";
+                const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount`;
                 const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
-                document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" O.A.W x ${inputs.panels.h}" Post & Panel Assembly.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountStyleStr} Mount)\nPanel: ${inputs.faceMat} (${sideTxt})\n\nInternal Cut List Guidance:\n${result.geom.cutList.join('\n')}`;
+                document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" O.A.W x ${inputs.h}" Panel.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})\n\nInternal Cut List Guidance:\n${result.geom.cutList.join('\n')}`;
 
                 if(result.geom) drawShopDrawings(result.geom);
 

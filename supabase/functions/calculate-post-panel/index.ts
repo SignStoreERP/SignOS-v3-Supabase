@@ -25,7 +25,9 @@ Deno.serve(async (req) => {
         const riskFactor = parseFloat(config.Factor_Risk || "1.05");
 
         const postSizeInches = parseFloat(String(inputs.postSize)) || 2;
-        const fThick = parseFloat(String(inputs.frameMat).match(/(\d+(\.\d+)?)/)?. || "2");
+        // FIXED: Extract the thickness number correctly from the string match array
+        const fThickMatch = String(inputs.frameMat).match(/(\d+(\.\d+)?)/);
+        const fThick = fThickMatch ? parseFloat(fThickMatch) : 2;
         const isAngle = String(inputs.frameMat).includes('Angle');
 
         // Post Math & Yield Chunking
@@ -143,13 +145,19 @@ Deno.serve(async (req) => {
             else if (p.faceMat === '6mm ACM') { subCost = parseFloat(config.Cost_Stock_6mm_4x8 || "72.10") / 32; subKey = 'Cost_Stock_6mm_4x8'; }
             
             let sqft = (p.w * p.h) / 144 * inputs.qty * (p.sides === 2 ? 2 : 1);
-            if(!matCache[subKey]) matCache[subKey] = { name: p.faceMat, cost: subCost, sqft: 0 };
+            if(!matCache[subKey]) matCache[subKey] = { name: p.faceMat, cost: subCost, sqft: 0, key: subKey };
             matCache[subKey].sqft += sqft;
         });
 
+        let highestFaceCostPerSqFt = 0;
         for(const [key, m] of Object.entries(matCache) as any) {
             L(`Face Substrate (${m.name})`, m.sqft * m.cost * wastePct, `${m.sqft.toFixed(1)} SF * $${m.cost.toFixed(2)}/SF * Waste`, 'faces', 'struct_mat');
-            if (totalSkinSqIn > 0) L(`Top/Bot Skinning (${m.name})`, (totalSkinSqIn / 144) * m.cost * wastePct, `${(totalSkinSqIn/144).toFixed(1)} SF Skin * $${m.cost.toFixed(2)}/SF * Waste`, 'faces', 'struct_mat');
+            if (m.cost > highestFaceCostPerSqFt) highestFaceCostPerSqFt = m.cost;
+        }
+        
+        // Add Top/Bottom Skinning material using the highest face cost (worst-case physics mapping)
+        if (totalSkinSqIn > 0 && highestFaceCostPerSqFt > 0) {
+            L(`Top/Bot Skinning`, (totalSkinSqIn / 144) * highestFaceCostPerSqFt * wastePct, `${(totalSkinSqIn/144).toFixed(1)} SF Skin * $${highestFaceCostPerSqFt.toFixed(2)}/SF * Waste`, 'faces', 'struct_mat');
         }
 
         const rateOp = parseFloat(config.Rate_Operator || "150");
@@ -185,8 +193,8 @@ Deno.serve(async (req) => {
         if (isMinApplied) retBreakdown.push({ label: 'Shop Minimum Surcharge', total: minOrder - grandTotalRaw, formula: 'Minimum order difference' });
 
         const geometry = {
-            panels: inputs.panels, post: postSizeInches,
-            clearance: inputs.clearance, hasConcrete: inputs.hasConcrete,
+            panels: inputs.panels, postSpacing: inputs.postSpacing, post: postSizeInches,
+            clearance: inputs.clearance, hasConcrete: inputs.hasConcrete, holeD: parseFloat(config.Hole_Diameter_Inches || "12"),
             above: aboveGroundInches, under: undergroundInches, totalPanelH: totalPanelH,
             overallW: maxOverallW, frameThick: fThick, cutList: frameCutDesc
         };
