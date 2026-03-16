@@ -15,10 +15,9 @@
         .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         
-        #preview-wrapper { perspective: 1200px; cursor: grab; }
-        #preview-wrapper:active { cursor: grabbing; }
-        #svg-preview-container { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
-        .isometric-view #svg-preview-container { transform: rotateX(60deg) rotateZ(-45deg); }
+        /* 3D Rendering Engine Classes */
+        .isometric-view { transform: rotateX(60deg) rotateZ(-45deg); }
+        .front-view { transform: rotateX(90deg) rotateZ(0deg); }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
@@ -52,16 +51,20 @@
         <div class="flex flex-col gap-4 w-full max-w-xl shrink-0 z-20">
             <div id="main-card" class="w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200 transition-all duration-300 relative">
                 
-                <!-- 3D ARCHITECTURAL ISOMETRIC VIEW -->
-                <div class="w-full h-72 bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
+                <!-- 3D ARCHITECTURAL VIEWPORT -->
+                <div class="w-full h-80 bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
                     <div class="absolute top-3 left-3 z-30 flex gap-1.5 pointer-events-auto">
+                        <button onclick="toggle3D()" id="btn-3d" class="bg-white/90 hover:bg-gray-50 text-blue-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">3D Isometric View</button>
+                        <button onclick="toggleExplode()" id="btn-explode" class="hidden bg-white/90 hover:bg-gray-50 text-indigo-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Explode View</button>
                         <button onclick="SignOS_UI.Camera3D.reset()" class="bg-white/80 hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Reset Camera</button>
                     </div>
                     <span class="absolute top-3 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10 pointer-events-none">Live Structural Physics</span>
                     
-                    <!-- 3D STAGE -->
-                    <div id="preview-wrapper" class="isometric-view w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
-                        <div id="svg-preview-container" class="relative transition-all" style="transform-style: preserve-3d; width: 0; height: 0;"></div>
+                    <!-- 3D STAGE W/ PAN & ZOOM HOOKS -->
+                    <div id="preview-wrapper" class="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
+                        <div id="zoom-stage" class="w-full h-full flex items-center justify-center origin-center">
+                            <div id="svg-preview-container" class="front-view relative transition-transform duration-700 ease-in-out" style="transform-style: preserve-3d; width: 0; height: 0;"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -248,6 +251,34 @@
 
         let backendData = {};
         let panels = [{ id: Date.now(), h: 48, mountStyle: 'Flush', faceMat: '3mm ACM', sides: 2, gap: 0 }];
+        
+        let is3D = false;
+        let isExploded = false;
+
+        function toggle3D() {
+            is3D = !is3D;
+            const container = document.getElementById('svg-preview-container');
+            
+            if (is3D) {
+                container.classList.add('isometric-view');
+                container.classList.remove('front-view');
+            } else {
+                container.classList.remove('isometric-view');
+                container.classList.add('front-view');
+            }
+            
+            document.getElementById('btn-3d').innerText = is3D ? "Flat 2D View" : "3D Isometric View";
+            document.getElementById('btn-explode').classList.toggle('hidden', !is3D);
+            
+            if (!is3D && isExploded) toggleExplode();
+            runCalc();
+        }
+
+        function toggleExplode() {
+            isExploded = !isExploded;
+            document.getElementById('btn-explode').innerText = isExploded ? "Stack Layers" : "Explode View";
+            runCalc();
+        }
 
         function renderPanels() {
             const container = document.getElementById('panel-container');
@@ -374,7 +405,7 @@
             }
         }
 
-        // --- 3D ISOMETRIC RENDER ENGINE ---
+        // --- 3D ISOMETRIC / 2D FRONT RENDER ENGINE ---
         function renderIsometric(geom) {
             const cont = document.getElementById('svg-preview-container');
             if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
@@ -393,7 +424,7 @@
             
             // Materials 
             const isAlum = document.getElementById('postType').value === 'Aluminum';
-            const postColor = isAlum ? '#cbd5e1' : '#94a3b8'; // Steel is slightly darker
+            const postColor = isAlum ? '#cbd5e1' : '#94a3b8'; 
             const frameColor = '#64748b';
             const faceColor = '#3b82f6';
             
@@ -419,6 +450,10 @@
                 const pd = geom.frameThick * scale;
                 const pdy = cy + (pSize - pd)/2;
                 
+                // Exploded View Z-Translation Variables
+                const faceD = 2; // 2px visual thickness
+                const explodeY = isExploded ? 50 : 0;
+                
                 // Frames
                 let shareTop = (idx > 0 && sGap === 0);
                 if (!shareTop) html += draw3DBox(px, pdy, pz + ph - pd, pw, pd, pd, frameColor); // Top
@@ -430,9 +465,8 @@
                 }
                 
                 // Faces
-                const faceD = 2; // 2px visual thickness
-                html += draw3DBox(px, pdy + pd, pz, pw, faceD, ph, faceColor, true); // Front
-                if (p.sides === 2) html += draw3DBox(px, pdy - faceD, pz, pw, faceD, ph, faceColor, true); // Back
+                html += draw3DBox(px, pdy + pd + explodeY, pz, pw, faceD, ph, faceColor, false); // Front
+                if (p.sides === 2) html += draw3DBox(px, pdy - faceD - explodeY, pz, pw, faceD, ph, faceColor, false); // Back
                 
                 currentY += ph;
             });
@@ -515,7 +549,12 @@
 
         window.addEventListener('load', async () => {
             if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
-            if (typeof SignOS_UI !== 'undefined' && SignOS_UI.Camera3D) SignOS_UI.Camera3D.init('preview-wrapper');
+            
+            // Force Camera3D to initialize so pan/zoom works on both Flat 2D and Isometric 3D views
+            if (typeof SignOS_UI !== 'undefined' && SignOS_UI.Camera3D) {
+                SignOS_UI.Camera3D.init('zoom-stage');
+                SignOS_UI.Camera3D.toggle(true);
+            }
 
             const btnSandbox = document.getElementById('btn-sandbox');
             if(btnSandbox && (sessionStorage.getItem('signos_role') === 'ADMIN' || sessionStorage.getItem('signos_role') === 'SUPER')) {
