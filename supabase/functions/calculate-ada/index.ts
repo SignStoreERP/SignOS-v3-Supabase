@@ -15,13 +15,12 @@ Deno.serve(async (req) => {
     const R = (label: string, total: number, formula: string) => { if(total !== 0 && !isNaN(total)) ret.push({label, total, unit: total / inputs.qty, formula}); return total; };
     const L = (label: string, total: number, formula: string) => { if(total !== 0 && !isNaN(total)) cst.push({label, total, unit: total / inputs.qty, formula}); return total; };
 
-    // The Ultimate Wrapper: Injects Value, Hover Attribute, and Tooltip definitions
     const getDesc = (k: string) => config['META_NOTE_' + k] || "System parameter.";
     const num = (val: any, fallback: string) => { const p = parseFloat(val); return isNaN(p) ? parseFloat(fallback) : p; };
     const V = (k: string, fb: string) => `<span class="hover-var text-blue-600 border-b border-dotted border-blue-400 cursor-help transition-all font-bold" data-var="${k}" title="${getDesc(k)}">[${k}: ${num(config[k], fb)}]</span>`;
 
-    const rateOp = num(config.Rate_Operator, "25");
-    const shopRate = num(config.Rate_Shop_Labor, "20");
+    const rateOp = num(config.Rate_Operator, "150");
+    const shopRate = num(config.Rate_Shop_Labor, "150");
     const engraveRate = num(config.Rate_Machine_Engraver, "10");
     const cncRate = num(config.Rate_Machine_CNC, "10");
     const wastePct = num(config.Waste_Factor, "1.15");
@@ -57,18 +56,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // NEW WINDOW INSERTS LOGIC
     let safeAddons = inputs.addons || [];
     if (safeAddons.includes('window_paper')) {
         hasCNC = true;
         let lensCost = num(config.ADA_APP_132_CLR, "58.12");
         L(`1/32" Clear Lens (Paper Insert Window)`, (totalSqin * (lensCost / 1152)) * wastePct, `(${totalSqin.toFixed(1)} SqIn * ${V('ADA_APP_132_CLR', "58.12")} / 1152) * ${V('Waste_Factor', "1.15")}`);
         
-        let tapeCost = num(config.Cost_ADA_Tape, "0.30"); // SqFt cost for adhesive tape
+        let tapeCost = num(config.Cost_ADA_Tape, "0.30"); 
         L(`Double-Sided Lens Adhesive`, (totalSqin / 144) * tapeCost * wastePct, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Cost_ADA_Tape', "0.30")}) * ${V('Waste_Factor', "1.15")}`);
         
         R(`Paper Insert Window Option`, totalSqin * num(config.Retail_Price_Window_Paper, "0.40"), `${totalSqin.toFixed(1)} SqIn * ${V('Retail_Price_Window_Paper', "0.40")}`);
-        L(`CNC Router Penalty (Window Pocket)`, ((totalSqin * num(config.Time_CNC_Easy_SqFt, "1") / 144) / 60) * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Easy_SqFt', "1")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
+        
+        let windowCncMins = (totalSqin * num(config.Time_CNC_Easy_SqFt, "1")) / 144;
+        let windowCncHrs = windowCncMins / 60;
+        L(`CNC Router Penalty (Window Pocket)`, windowCncHrs * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Easy_SqFt', "1")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
+        L(`CNC Op (Window Pocket)`, windowCncHrs * rateOp * num(config.Labor_Attendance_Ratio, "0.10"), `CNC Mins * ${V('Rate_Operator', "150")}/hr * ${V('Labor_Attendance_Ratio', "0.10")}`);
     }
 
     if (safeAddons.includes('window_engraved')) {
@@ -77,30 +79,41 @@ Deno.serve(async (req) => {
         L(`1/16" ADA Core (Engraved Insert Window)`, (totalSqin * (insertCost / 1152)) * wastePct, `(${totalSqin.toFixed(1)} SqIn * ${V('Cost_Sub_ADA_Core_116', "50")} / 1152) * ${V('Waste_Factor', "1.15")}`);
         
         R(`Engraved Insert Window Option`, totalSqin * num(config.Retail_Price_Window_Engraved, "0.20"), `${totalSqin.toFixed(1)} SqIn * ${V('Retail_Price_Window_Engraved', "0.20")}`);
-        L(`CNC Router Penalty (Window Pocket & Insert)`, ((totalSqin * num(config.Time_CNC_Complex_SqFt, "2") / 144) / 60) * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Complex_SqFt', "2")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
+        
+        let windowCncMins = (totalSqin * num(config.Time_CNC_Complex_SqFt, "2")) / 144;
+        let windowCncHrs = windowCncMins / 60;
+        L(`CNC Router Penalty (Window Pocket & Insert)`, windowCncHrs * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Complex_SqFt', "2")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
+        L(`CNC Op (Window & Insert)`, windowCncHrs * rateOp * num(config.Labor_Attendance_Ratio, "0.10"), `CNC Mins * ${V('Rate_Operator', "150")}/hr * ${V('Labor_Attendance_Ratio', "0.10")}`);
     }
 
     let tapeLayers = Math.max(0, solidLayers - 1);
     if (inputs.mounting === 'Foam Tape') tapeLayers++;
 
-    L(`File Preflight`, (num(config.Time_Preflight_Job, "15") / 60) * rateOp, `${V('Time_Preflight_Job', "15")} Mins * ${V('Rate_Operator', "25")}/hr`);
-    L(`Engraver Handling`, (num(config.Time_Engraver_Load_Per_Item, "2") * inputs.qty / 60) * rateOp, `${inputs.qty} Qty * ${V('Time_Engraver_Load_Per_Item', "2")} Mins * ${V('Rate_Operator', "25")}/hr`);
+    L(`File Preflight`, (num(config.Time_Preflight_Job, "10") / 60) * rateOp, `${V('Time_Preflight_Job', "10")} Mins * ${V('Rate_Operator', "150")}/hr`);
+    L(`Engraver Handling`, (num(config.Time_Engraver_Load_Per_Item, "2") * inputs.qty / 60) * rateOp, `${inputs.qty} Qty * ${V('Time_Engraver_Load_Per_Item', "2")} Mins * ${V('Rate_Operator', "150")}/hr`);
     L(`Engraver Run`, ((totalSqin * num(config.Time_Engrave_SqIn, "0.25")) / 60) * engraveRate, `${totalSqin.toFixed(1)} SqIn * ${V('Time_Engrave_SqIn', "0.25")} Mins * ${V('Rate_Machine_Engraver', "10")}/hr`);
 
     let totalBeads = tactileLayers > 0 ? (inputs.qty * 10) : 0;
     if (totalBeads > 0) {
       L(`Braille Beads`, totalBeads * num(config.Cost_Raster_Bead, "0.01") * wastePct, `${totalBeads} Beads * ${V('Cost_Raster_Bead', "0.01")} * ${V('Waste_Factor', "1.15")}`);
-      L(`Braille Insertion`, (totalBeads * 0.05 / 60) * shopRate, `${totalBeads} Beads * 0.05 Mins * ${V('Rate_Shop_Labor', "20")}/hr`);
+      L(`Braille Insertion`, (totalBeads * 0.05 / 60) * shopRate, `${totalBeads} Beads * 0.05 Mins * ${V('Rate_Shop_Labor', "150")}/hr`);
     }
 
     if (hasCNC) {
-      L(`CNC Router Run (Cutting)`, ((totalSqin * num(config.Time_CNC_Easy_SqFt, "1") / 144) / 60) * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Easy_SqFt', "1")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
+      let cncMins = (totalSqin * num(config.Time_CNC_Easy_SqFt, "1")) / 144;
+      let cncHrs = cncMins / 60;
+      L(`CNC Router Run (Cutting)`, cncHrs * cncRate, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Time_CNC_Easy_SqFt', "1")} Mins) * ${V('Rate_Machine_CNC', "10")}/hr`);
+      L(`CNC Op (Attn Ratio)`, cncHrs * rateOp * num(config.Labor_Attendance_Ratio, "0.10"), `CNC Mins * ${V('Rate_Operator', "150")}/hr * ${V('Labor_Attendance_Ratio', "0.10")}`);
     }
 
     if (tapeLayers > 0) {
       const tapeCostLF = num(config.Cost_Hem_Tape, "0.08");
-      L(`Assembly Tape (${tapeLayers} Layers)`, ((totalSqin / 144) * tapeCostLF * tapeLayers) * wastePct, `(${(totalSqin/144).toFixed(2)} SqFt * ${V('Cost_Hem_Tape', "0.08")}) * ${tapeLayers} Lyr * ${V('Waste_Factor', "1.15")}`);
-      L(`Assembly Labor`, (inputs.qty * tapeLayers * 2 / 60) * shopRate, `${inputs.qty} Qty * ${tapeLayers} Lyr * 2 Mins * ${V('Rate_Shop_Labor', "20")}/hr`);
+      let stripsPerSign = Math.max(2, Math.ceil(inputs.h / 3)); // 1 strip approx every 3 inches
+      let lfPerSign = (inputs.w * stripsPerSign) / 12;
+      let totalTapeLF = lfPerSign * inputs.qty * tapeLayers;
+      
+      L(`Assembly Tape (${tapeLayers} Layers)`, totalTapeLF * tapeCostLF * wastePct, `(${stripsPerSign} Strips * ${(inputs.w/12).toFixed(2)}' W) * ${inputs.qty} Qty * ${tapeLayers} Lyr * ${V('Cost_Hem_Tape', "0.08")} * ${V('Waste_Factor', "1.15")}`);
+      L(`Assembly Labor`, (inputs.qty * tapeLayers * 2 / 60) * shopRate, `${inputs.qty} Qty * ${tapeLayers} Lyr * 2 Mins * ${V('Rate_Shop_Labor', "150")}/hr`);
     }
 
     let baseRetailSqIn = inputs.product === 'BasicClear' ? num(config.Retail_Price_ADA_Basic_Clear, "1.80") : num(config.Retail_Price_ADA_Basic_AB, "1.60");
