@@ -25,77 +25,91 @@ Deno.serve(async (req) => {
         const riskFactor = parseFloat(config.Factor_Risk || "1.05");
 
         const postSizeInches = parseFloat(String(inputs.postSize)) || 2;
-        // FIXED: Extract the thickness number correctly from the string match array
         const fThickMatch = String(inputs.frameMat).match(/(\d+(\.\d+)?)/);
         const fThick = fThickMatch ? parseFloat(fThickMatch) : 2;
         const isAngle = String(inputs.frameMat).includes('Angle');
+        const isSameMaterial = (inputs.postType === 'Aluminum' && inputs.frameMat.includes('Alum')) || (inputs.postType === 'Steel' && inputs.frameMat.includes('Steel'));
 
-        // Post Math & Yield Chunking
-        const aboveGroundInches = inputs.postAbove || (inputs.panels.h + inputs.clearance); 
-        const undergroundInches = inputs.belowGrade || 36; 
-        const exactPostInches = aboveGroundInches + undergroundInches;
+        // Core Geometry Base
+        let sysW = parseFloat(inputs.systemWidth) || 48;
+        let oaw = inputs.widthMode === 'Inside' ? sysW + (postSizeInches * 2) : sysW;
+        let idWidth = oaw - (postSizeInches * 2);
+
+        let topOffset = parseFloat(inputs.topOffset) || 0;
+        let thag = parseFloat(inputs.thag) || 84;
+        let undergroundInches = parseFloat(inputs.belowGrade) || 36;
+        let exactPostInches = thag + undergroundInches;
+
         const billedPostFt = Math.ceil(exactPostInches / 12); 
         const totalPoleLF = billedPostFt * 2 * inputs.qty;
 
         let totalPanelSqFt = 0, totalFrameLF = 0;
-        let bandSawCuts = 0, miterSawCuts = 0;
-        let totalPanelH = 0, maxOverallW = 0;
-        let frameCutDesc: string[] = [];
+        let miterSawCuts = 0, bandSawCuts = 0;
+        let frameCutsRaw = 0, postCutsRaw = 2; // Bottom post cuts
+        let miterTopApplies = false;
+        
         let totalSkinSqIn = 0;
+        let currentY = topOffset;
+        let frameCutDesc: string[] = [];
 
         inputs.panels.forEach((p: any, idx: number) => {
-            let area = (p.w * p.h) / 144 * inputs.qty;
-            totalPanelSqFt += area;
-            totalPanelH += p.h;
-
-            // Geometry: Overall Width is derived from Mount Style
-            let pOverallW = p.mountStyle === 'Between' ? p.w + (postSizeInches * 2) : p.w;
-            if (pOverallW > maxOverallW) maxOverallW = pOverallW;
-
+            let gap = parseFloat(p.gap) || 0;
+            if (idx > 0) currentY += gap;
+            
+            // If gap is 0, they share a crossbar (saving 1 top horizontal cut for this panel)
+            let shareTop = (idx > 0 && gap === 0);
             let pLF = 0, pCuts = 0;
             let pDesc = [];
 
             if (p.mountStyle === 'Between') {
-                // Outer perimeter frame based on panel size. 
-                // E.g., 36x24 face with 2" frame -> 36" horizontals, 20" verticals.
-                let topBotLF = Math.ceil((p.w * 2) / 12);
-                let vertLen = p.h - (fThick * 2);
-                let leftRightLF = Math.ceil((vertLen * 2) / 12);
-                
-                pLF += topBotLF + leftRightLF;
-                pCuts += 4;
-                pDesc.push(`(x2) ${p.w}" Horiz, (x2) ${vertLen}" Verts`);
-            } else {
-                // Flush Mount: Posts act as the vertical frame.
-                // Horizontals span between the posts.
-                let topBotLen = p.w - (postSizeInches * 2);
-                if (topBotLen > 0) {
-                    pLF += Math.ceil((topBotLen * 2) / 12);
-                    pCuts += 2;
-                    pDesc.push(`(x2) ${topBotLen}" Horiz (Top/Bot)`);
-                } else {
-                    pDesc.push(`Solid Posts (No Crossbars)`);
-                }
+                let vLen = p.h - (fThick * 2);
+                pLF += (vLen * 2) / 12;
+                pCuts += 2;
+                pDesc.push(`(x2) ${vLen}" Verts`);
 
-                // Add Skinning Material if the frame is thinner than the posts, or is open angle iron.
+                if (!shareTop) { pLF += idWidth / 12; pCuts += 1; pDesc.push(`(x1) ${idWidth}" Top Horiz`); }
+                pLF += idWidth / 12; pCuts += 1; pDesc.push(`(x1) ${idWidth}" Bot Horiz`);
+                if (isAngle) totalSkinSqIn += (idWidth * postSizeInches * 2) * inputs.qty;
+            } else {
+                if (!shareTop) {
+                    if (idx === 0 && currentY === 0 && isSameMaterial) {
+                        pLF += oaw / 12;
+                        pCuts += 2; // Miter cuts on frame
+                        miterTopApplies = true;
+                        pDesc.push(`(x1) ${oaw}" Top (Mitered)`);
+                    } else {
+                        pLF += idWidth / 12;
+                        pCuts += 1;
+                        pDesc.push(`(x1) ${idWidth}" Top Horiz`);
+                    }
+                }
+                pLF += idWidth / 12; pCuts += 1; pDesc.push(`(x1) ${idWidth}" Bot Horiz`);
                 if (isAngle || fThick < postSizeInches) {
-                    if (topBotLen > 0) totalSkinSqIn += (topBotLen * postSizeInches * 2) * inputs.qty; 
+                    if (!shareTop) totalSkinSqIn += (idWidth * postSizeInches) * inputs.qty;
+                    totalSkinSqIn += (idWidth * postSizeInches) * inputs.qty;
                 }
             }
 
             let fMult = (p.sides === 2 && isAngle) ? 2 : 1; 
             totalFrameLF += (pLF * fMult) * inputs.qty;
+            frameCutsRaw += (pCuts * fMult) * inputs.qty;
             
-            // Saw Routing (Strictly based on > 4" thickness limit)
-            if (fThick > 4) bandSawCuts += (pCuts * fMult) * inputs.qty;
-            else miterSawCuts += (pCuts * fMult) * inputs.qty;
+            let pArea = ((p.mountStyle === 'Between' ? idWidth : oaw) * p.h) / 144 * inputs.qty * (p.sides === 2 ? 2 : 1);
+            totalPanelSqFt += pArea;
 
-            frameCutDesc.push(`Panel ${idx+1}: ` + pDesc.join(' | '));
+            currentY += p.h;
+            frameCutDesc.push(`P${idx+1} [${p.mountStyle}]: ` + pDesc.join(' | '));
         });
 
-        // Add Posts to Saw Logic
-        if (postSizeInches > 4) bandSawCuts += (2 * inputs.qty);
-        else miterSawCuts += (2 * inputs.qty);
+        // Resolve Saws (<= 4" = Miter | > 4" = BandSaw)
+        if (miterTopApplies) postCutsRaw += 2; // Adds top miters to posts
+        else postCutsRaw += 2; // Flat 90-deg cuts to post tops
+
+        if (fThick > 4) bandSawCuts += frameCutsRaw;
+        else miterSawCuts += frameCutsRaw;
+
+        if (postSizeInches > 4) bandSawCuts += postCutsRaw * inputs.qty;
+        else miterSawCuts += postCutsRaw * inputs.qty;
 
         // 1. POSTS & METALS
         const postKey = `Cost_Post_${inputs.postType}_${inputs.postSize}_${inputs.postType === 'Aluminum' ? '1/8' : '3/16'}`;
@@ -125,7 +139,7 @@ Deno.serve(async (req) => {
         if (miterSawCuts > 0) L(`Miter Saw Cuts (<= 4")`, (miterSawCuts * parseFloat(config.Time_Saw_Miter || "5") / 60) * rateShop, `${miterSawCuts} Cuts * 5 Mins * $${rateShop}/hr`, 'finish', 'struct_lab');
         if (bandSawCuts > 0) L(`Band Saw Cuts (> 4")`, (bandSawCuts * parseFloat(config.Time_Saw_Band || "10") / 60) * rateShop, `${bandSawCuts} Cuts * 10 Mins * $${rateShop}/hr`, 'finish', 'struct_lab');
 
-        const weldLocs = bandSawCuts + miterSawCuts;
+        const weldLocs = frameCutsRaw;
         L(`Tack Welding`, ((weldLocs * parseFloat(config.Time_Weld_Per_Loc || "1.5")) / 60) * rateShop, `${weldLocs} Locs * 1.5 Mins * $${rateShop}/hr`, 'finish', 'struct_lab');
         L(`Weld Cleaning & Grinding`, ((weldLocs * parseFloat(config.Time_Clean_Weld_Loc || "0.33")) / 60) * rateShop, `${weldLocs} Locs * 0.33 Mins * $${rateShop}/hr`, 'finish', 'struct_lab');
 
@@ -144,7 +158,7 @@ Deno.serve(async (req) => {
             else if (p.faceMat === '3mm ACM') { subCost = parseFloat(config.Cost_Stock_3mm_4x8 || "52.09") / 32; subKey = 'Cost_Stock_3mm_4x8'; }
             else if (p.faceMat === '6mm ACM') { subCost = parseFloat(config.Cost_Stock_6mm_4x8 || "72.10") / 32; subKey = 'Cost_Stock_6mm_4x8'; }
             
-            let sqft = (p.w * p.h) / 144 * inputs.qty * (p.sides === 2 ? 2 : 1);
+            let sqft = ((p.mountStyle === 'Between' ? idWidth : oaw) * p.h) / 144 * inputs.qty * (p.sides === 2 ? 2 : 1);
             if(!matCache[subKey]) matCache[subKey] = { name: p.faceMat, cost: subCost, sqft: 0, key: subKey };
             matCache[subKey].sqft += sqft;
         });
@@ -155,7 +169,6 @@ Deno.serve(async (req) => {
             if (m.cost > highestFaceCostPerSqFt) highestFaceCostPerSqFt = m.cost;
         }
         
-        // Add Top/Bottom Skinning material using the highest face cost (worst-case physics mapping)
         if (totalSkinSqIn > 0 && highestFaceCostPerSqFt > 0) {
             L(`Top/Bot Skinning`, (totalSkinSqIn / 144) * highestFaceCostPerSqFt * wastePct, `${(totalSkinSqIn/144).toFixed(1)} SF Skin * $${highestFaceCostPerSqFt.toFixed(2)}/SF * Waste`, 'faces', 'struct_mat');
         }
@@ -171,7 +184,7 @@ Deno.serve(async (req) => {
 
         // 6. PAINT
         const ratePaint = parseFloat(config.Rate_Paint_Labor || "150");
-        let totalPaintSqFt = ((postSizeInches / 12) * 4 * totalPoleLF) + (inputs.panels.reduce((sum: number, p: any) => sum + (p.w * p.h)/144 * p.sides * inputs.qty, 0));
+        let totalPaintSqFt = ((postSizeInches / 12) * 4 * totalPoleLF) + (inputs.panels.reduce((sum: number, p: any) => sum + ((p.mountStyle === 'Between' ? idWidth : oaw) * p.h)/144 * p.sides * inputs.qty, 0));
         
         L(`Automotive Paint (Polyurethane)`, totalPaintSqFt * parseFloat(config.Cost_Paint_SqFt || "2.50") * wastePct, `${totalPaintSqFt.toFixed(1)} SF * $2.50/SF * Waste`, 'finish', 'paint_mat');
         L(`Paint Setup & Gun Clean`, (parseFloat(config.Time_Paint_Setup || "20") * inputs.qty / 60) * ratePaint, `20 Mins * Qty * $${ratePaint}/hr`, 'finish', 'paint_lab');
@@ -193,10 +206,10 @@ Deno.serve(async (req) => {
         if (isMinApplied) retBreakdown.push({ label: 'Shop Minimum Surcharge', total: minOrder - grandTotalRaw, formula: 'Minimum order difference' });
 
         const geometry = {
-            panels: inputs.panels, postSpacing: inputs.postSpacing, post: postSizeInches,
-            clearance: inputs.clearance, hasConcrete: inputs.hasConcrete, holeD: parseFloat(config.Hole_Diameter_Inches || "12"),
-            above: aboveGroundInches, under: undergroundInches, totalPanelH: totalPanelH,
-            overallW: maxOverallW, frameThick: fThick, cutList: frameCutDesc
+            panels: inputs.panels, postSpacing: idWidth, post: postSizeInches,
+            clearance: Math.max(0, thag - currentY), hasConcrete: inputs.hasConcrete, holeD: parseFloat(config.Hole_Diameter_Inches || "12"),
+            above: thag, under: undergroundInches, totalPanelH: currentY - topOffset, topOffset: topOffset,
+            overallW: oaw, frameThick: fThick, cutList: frameCutDesc
         };
 
         const payload = {
