@@ -17,16 +17,16 @@ Deno.serve(async (req) => {
         const FALLBACK_METALS: any = {
             'Cost_Post_Aluminum_2_1/8': 4.28, 'Cost_Post_Aluminum_3_1/8': 6.56, 'Cost_Post_Aluminum_4_1/8': 8.84, 'Cost_Post_Aluminum_6_1/4': 26.22,
             'Cost_Post_Steel_2_1/8': 2.88, 'Cost_Post_Steel_3_1/8': 3.88, 'Cost_Post_Steel_4_3/16': 9.25, 'Cost_Post_Steel_6_3/16': 13.85,
-            'Cost_Frame_Angle15': 1.45, 'Cost_Frame_Angle20': 1.85, 'Cost_Frame_Tube10': 1.65, 'Cost_Frame_Tube20': 2.15
+            'Cost_Frame_AlumAngle_1.5_1/8': 1.65, 'Cost_Frame_AlumAngle_2_1/8': 2.24, 'Cost_Frame_AlumTube_1.5_1/8': 1.65, 'Cost_Frame_AlumTube_2_1/8': 2.24,
+            'Cost_Frame_SteelAngle_1.5_1/8': 1.20, 'Cost_Frame_SteelAngle_2_1/8': 1.45, 'Cost_Frame_SteelTube_1.5_1/8': 1.20, 'Cost_Frame_SteelTube_2_1/8': 1.45
         };
 
         const wastePct = parseFloat(config.Waste_Factor || "1.15");
         const riskFactor = parseFloat(config.Factor_Risk || "1.05");
 
-        const postSizeInches = parseFloat(String(inputs.postSize)) || 4;
-        const fThick = parseFloat(String(inputs.frameMat).replace(/[^0-9.]/g, '')) / 10 || 2; 
+        const postSizeInches = parseFloat(String(inputs.postSize)) || 2;
+        const fThick = parseFloat(String(inputs.frameMat).match(/(\d+(\.\d+)?)/)?. || "2");
         const isAngle = String(inputs.frameMat).includes('Angle');
-        const isSameMaterial = (inputs.postType === 'Aluminum' && inputs.frameMat.includes('Alum')) || (inputs.postType === 'Steel' && inputs.frameMat.includes('Steel'));
 
         // Post Math & Yield Chunking
         const aboveGroundInches = inputs.postAbove || (inputs.panels.h + inputs.clearance); 
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
         let totalPanelSqFt = 0, totalFrameLF = 0;
         let bandSawCuts = 0, miterSawCuts = 0;
-        let totalPanelH = 0, maxOverallW = inputs.postSpacing;
+        let totalPanelH = 0, maxOverallW = 0;
         let frameCutDesc: string[] = [];
         let totalSkinSqIn = 0;
 
@@ -45,57 +45,62 @@ Deno.serve(async (req) => {
             let area = (p.w * p.h) / 144 * inputs.qty;
             totalPanelSqFt += area;
             totalPanelH += p.h;
-            maxOverallW = Math.max(maxOverallW, p.w);
 
-            let isTopFlush = aboveGroundInches === (p.h + inputs.clearance);
-            let miterTop = p.mountStyle === 'Flush' && isTopFlush && isSameMaterial;
+            // Geometry: Overall Width is derived from Mount Style
+            let pOverallW = p.mountStyle === 'Between' ? p.w + (postSizeInches * 2) : p.w;
+            if (pOverallW > maxOverallW) maxOverallW = pOverallW;
 
-            let pLF = 0, pBandCuts = 0, pMiterCuts = 0;
+            let pLF = 0, pCuts = 0;
             let pDesc = [];
 
             if (p.mountStyle === 'Between') {
-                let wInside = p.w - (postSizeInches * 2);
-                let topBotLF = Math.ceil(wInside / 12);
-                let vertLF = Math.ceil((p.h - (fThick * 2)) / 12);
-                pLF += (topBotLF * 2) + (vertLF * 2);
-                pBandCuts += 4;
-                pDesc.push(`(x2) ${wInside}" Horiz`, `(x2) ${p.h - (fThick*2)}" Verts`);
-            } else {
-                // Flush Mount
-                let topLen = miterTop ? p.w : p.w - (postSizeInches * 2);
-                let botLen = p.w - (postSizeInches * 2);
+                // Outer perimeter frame based on panel size. 
+                // E.g., 36x24 face with 2" frame -> 36" horizontals, 20" verticals.
+                let topBotLF = Math.ceil((p.w * 2) / 12);
+                let vertLen = p.h - (fThick * 2);
+                let leftRightLF = Math.ceil((vertLen * 2) / 12);
                 
-                pLF += Math.ceil(topLen / 12);
-                pLF += Math.ceil(botLen / 12);
-
-                if (miterTop) {
-                    pMiterCuts += 4; // 2 for top bar, 2 for the posts
-                    pBandCuts += 2; // 2 for bottom bar
-                    pDesc.push(`(x1) ${topLen}" Top (Mitered)`, `(x1) ${botLen}" Bot`);
+                pLF += topBotLF + leftRightLF;
+                pCuts += 4;
+                pDesc.push(`(x2) ${p.w}" Horiz, (x2) ${vertLen}" Verts`);
+            } else {
+                // Flush Mount: Posts act as the vertical frame.
+                // Horizontals span between the posts.
+                let topBotLen = p.w - (postSizeInches * 2);
+                if (topBotLen > 0) {
+                    pLF += Math.ceil((topBotLen * 2) / 12);
+                    pCuts += 2;
+                    pDesc.push(`(x2) ${topBotLen}" Horiz (Top/Bot)`);
                 } else {
-                    pBandCuts += 4;
-                    pDesc.push(`(x1) ${topLen}" Top`, `(x1) ${botLen}" Bot`);
+                    pDesc.push(`Solid Posts (No Crossbars)`);
                 }
 
-                // Add Skinning Material for Angle Iron
-                if (isAngle) {
-                    totalSkinSqIn += (p.w * postSizeInches * 2) * inputs.qty; // Top & Bottom skins
+                // Add Skinning Material if the frame is thinner than the posts, or is open angle iron.
+                if (isAngle || fThick < postSizeInches) {
+                    if (topBotLen > 0) totalSkinSqIn += (topBotLen * postSizeInches * 2) * inputs.qty; 
                 }
             }
 
             let fMult = (p.sides === 2 && isAngle) ? 2 : 1; 
             totalFrameLF += (pLF * fMult) * inputs.qty;
-            bandSawCuts += (pBandCuts * fMult) * inputs.qty;
-            miterSawCuts += (pMiterCuts * fMult) * inputs.qty;
-            frameCutDesc.push(`Panel ${idx+1}: ` + pDesc.join(', '));
+            
+            // Saw Routing (Strictly based on > 4" thickness limit)
+            if (fThick > 4) bandSawCuts += (pCuts * fMult) * inputs.qty;
+            else miterSawCuts += (pCuts * fMult) * inputs.qty;
+
+            frameCutDesc.push(`Panel ${idx+1}: ` + pDesc.join(' | '));
         });
+
+        // Add Posts to Saw Logic
+        if (postSizeInches > 4) bandSawCuts += (2 * inputs.qty);
+        else miterSawCuts += (2 * inputs.qty);
 
         // 1. POSTS & METALS
         const postKey = `Cost_Post_${inputs.postType}_${inputs.postSize}_${inputs.postType === 'Aluminum' ? '1/8' : '3/16'}`;
         if(!config[postKey]) config[postKey] = FALLBACK_METALS[postKey] || 8.84;
         
         const postCostLF = parseFloat(config[postKey]);
-        L(`Structural Posts (${inputs.postType} ${postSizeInches}")`, totalPoleLF * postCostLF * wastePct, `${billedPostFt} LF/Post * 2 * Qty * $${postCostLF.toFixed(2)}/LF [${V(postKey)}] * ${wastePct} Waste`, 'posts', 'struct_mat', { cut: `${(exactPostInches/12).toFixed(2)}' L (x${inputs.qty*2})` });
+        L(`Structural Posts (${inputs.postType} ${postSizeInches}")`, totalPoleLF * postCostLF * wastePct, `${billedPostFt} LF/Post * 2 * Qty * $${postCostLF.toFixed(2)}/LF * Waste`, 'posts', 'struct_mat', { cut: `${(exactPostInches/12).toFixed(2)}' L (x${inputs.qty*2})` });
 
         // 2. CONCRETE
         if(inputs.hasConcrete) {
@@ -109,17 +114,14 @@ Deno.serve(async (req) => {
         // 3. FRAMES
         const frameKey = `Cost_Frame_${inputs.frameMat}`;
         if(!config[frameKey]) config[frameKey] = FALLBACK_METALS[frameKey] || 1.85;
-        L(`Internal Frame (${inputs.frameMat.replace(/[^a-zA-Z]/g, '')} ${fThick}")`, totalFrameLF * parseFloat(config[frameKey]) * wastePct, `${totalFrameLF.toFixed(1)} LF (Yield Billed) * $${parseFloat(config[frameKey]).toFixed(2)}/LF [${V(frameKey)}] * ${wastePct} Waste`, 'posts', 'struct_mat');
+        L(`Internal Frame (${inputs.frameMat.replace(/[^a-zA-Z0-9.]/g, ' ')} ${fThick}")`, totalFrameLF * parseFloat(config[frameKey]) * wastePct, `${totalFrameLF.toFixed(1)} LF * $${parseFloat(config[frameKey]).toFixed(2)}/LF * Waste`, 'posts', 'struct_mat');
 
         // 4. FABRICATION LABOR
         const rateShop = parseFloat(config.Rate_Shop_Labor || "150");
         L(`Gather Materials`, (parseFloat(config.Time_Gather_Mats || "10") * inputs.qty / 60) * rateShop, `10 Mins/Sign * Qty * $${rateShop}/hr`, 'finish', 'struct_lab');
 
-        // Add 2 Post cuts to Band Saw if not mitered
-        if (miterSawCuts === 0) bandSawCuts += (2 * inputs.qty);
-
-        if (miterSawCuts > 0) L(`Miter Saw Cuts (45-Deg)`, (miterSawCuts * parseFloat(config.Time_Saw_Miter || "5") / 60) * rateShop, `${miterSawCuts} Mins/Cut * $${rateShop}/hr`, 'finish', 'struct_lab');
-        if (bandSawCuts > 0) L(`Band Saw Cuts (90-Deg)`, (bandSawCuts * parseFloat(config.Time_Saw_Band || "10") / 60) * rateShop, `${bandSawCuts} Mins/Cut * $${rateShop}/hr`, 'finish', 'struct_lab');
+        if (miterSawCuts > 0) L(`Miter Saw Cuts (<= 4")`, (miterSawCuts * parseFloat(config.Time_Saw_Miter || "5") / 60) * rateShop, `${miterSawCuts} Cuts * 5 Mins * $${rateShop}/hr`, 'finish', 'struct_lab');
+        if (bandSawCuts > 0) L(`Band Saw Cuts (> 4")`, (bandSawCuts * parseFloat(config.Time_Saw_Band || "10") / 60) * rateShop, `${bandSawCuts} Cuts * 10 Mins * $${rateShop}/hr`, 'finish', 'struct_lab');
 
         const weldLocs = bandSawCuts + miterSawCuts;
         L(`Tack Welding`, ((weldLocs * parseFloat(config.Time_Weld_Per_Loc || "1.5")) / 60) * rateShop, `${weldLocs} Locs * 1.5 Mins * $${rateShop}/hr`, 'finish', 'struct_lab');
@@ -146,8 +148,8 @@ Deno.serve(async (req) => {
         });
 
         for(const [key, m] of Object.entries(matCache) as any) {
-            L(`Face Substrate (${m.name})`, m.sqft * m.cost * wastePct, `${m.sqft.toFixed(1)} SF * $${m.cost.toFixed(2)}/SF [${V(key)}] * ${wastePct} Waste`, 'faces', 'struct_mat');
-            if (totalSkinSqIn > 0) L(`Top/Bot Skinning (${m.name})`, (totalSkinSqIn / 144) * m.cost * wastePct, `${(totalSkinSqIn/144).toFixed(1)} SF * $${m.cost.toFixed(2)}/SF * Waste`, 'faces', 'struct_mat');
+            L(`Face Substrate (${m.name})`, m.sqft * m.cost * wastePct, `${m.sqft.toFixed(1)} SF * $${m.cost.toFixed(2)}/SF * Waste`, 'faces', 'struct_mat');
+            if (totalSkinSqIn > 0) L(`Top/Bot Skinning (${m.name})`, (totalSkinSqIn / 144) * m.cost * wastePct, `${(totalSkinSqIn/144).toFixed(1)} SF Skin * $${m.cost.toFixed(2)}/SF * Waste`, 'faces', 'struct_mat');
         }
 
         const rateOp = parseFloat(config.Rate_Operator || "150");
@@ -183,7 +185,7 @@ Deno.serve(async (req) => {
         if (isMinApplied) retBreakdown.push({ label: 'Shop Minimum Surcharge', total: minOrder - grandTotalRaw, formula: 'Minimum order difference' });
 
         const geometry = {
-            panels: inputs.panels, postSpacing: inputs.postSpacing, post: postSizeInches,
+            panels: inputs.panels, post: postSizeInches,
             clearance: inputs.clearance, hasConcrete: inputs.hasConcrete,
             above: aboveGroundInches, under: undergroundInches, totalPanelH: totalPanelH,
             overallW: maxOverallW, frameThick: fThick, cutList: frameCutDesc
