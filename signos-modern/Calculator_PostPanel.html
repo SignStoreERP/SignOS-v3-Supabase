@@ -18,15 +18,11 @@
         /* 3D Rendering Engine Classes */
         #preview-wrapper { perspective: 1200px; cursor: grab; }
         #preview-wrapper:active { cursor: grabbing; }
-        #svg-preview-container { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
         
-        /* FIXED: Target the container itself, removing the space in the selector */
-        #svg-preview-container.isometric-view { transform: rotateX(82deg) rotateZ(-25deg); }
-        #svg-preview-container.front-view { transform: rotateX(90deg) rotateZ(0deg); }
-        
-        /* Lowered camera angle from 60deg to 82deg to fix the "Top Down" view */
-        .isometric-view #svg-preview-container { transform: rotateX(82deg) rotateZ(-25deg); }
-        .front-view #svg-preview-container { transform: rotateX(90deg) rotateZ(0deg); }
+        /* Apply transform-style directly to the SVG to preserve the layered 3D math */
+        .drawing-svg { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        .isometric-view .drawing-svg { transform: rotateX(60deg) rotateZ(-35deg); }
+        .front-view .drawing-svg { transform: rotateX(0deg) rotateZ(0deg); }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
@@ -64,7 +60,7 @@
                 <div class="w-full h-80 bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
                     <div class="absolute top-3 left-3 z-30 flex gap-1.5 pointer-events-auto">
                         <button onclick="toggle3D()" id="btn-3d" class="bg-white/90 hover:bg-gray-50 text-blue-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">3D Isometric View</button>
-                        <button onclick="toggleExplode()" id="btn-explode" class="bg-white/90 hover:bg-gray-50 text-indigo-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Explode View</button>
+                        <button onclick="toggleExplode()" id="btn-explode" class="hidden bg-white/90 hover:bg-gray-50 text-indigo-600 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Explode View</button>
                         <button onclick="SignOS_UI.Camera3D.reset()" class="bg-white/80 hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition backdrop-blur-sm focus:outline-none">Reset Camera</button>
                     </div>
                     <span class="absolute top-3 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10 pointer-events-none">Live Structural Physics</span>
@@ -73,7 +69,7 @@
                     <div id="preview-wrapper" class="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
                         <div id="zoom-stage" class="w-full h-full flex items-center justify-center origin-center">
                             <!-- Defaulted to Front View! -->
-                            <div id="svg-preview-container" class="front-view relative transition-transform duration-700 ease-in-out" style="transform-style: preserve-3d; width: 0; height: 0;"></div>
+                            <div id="svg-preview-container" class="front-view relative w-full h-full p-8 flex items-center justify-center"></div>
                         </div>
                     </div>
                 </div>
@@ -92,18 +88,18 @@
                         </div>
                         <div class="col-span-3 grid grid-cols-3 gap-3 bg-blue-50/50 p-2 rounded border border-blue-100 shadow-sm">
                             <div class="col-span-2">
-                                <label class="block text-[9px] font-bold text-blue-700 uppercase mb-1">System Width (in)</label>
+                                <label class="block text-[9px] font-bold text-blue-700 uppercase mb-1">Panel / System Width (in)</label>
                                 <div class="flex">
-                                    <input type="number" id="systemWidth" value="48" min="12" step="1" class="w-16 border border-gray-300 p-2 rounded-l text-sm font-black text-center focus:border-blue-500 outline-none shadow-inner bg-white" oninput="runCalc()">
-                                    <select id="widthMode" class="flex-1 border-y border-r border-gray-300 p-2 rounded-r text-xs font-bold text-gray-700 outline-none focus:border-blue-500 bg-white" onchange="runCalc()">
-                                        <option value="Overall">Overall Width (O.A.W)</option>
-                                        <option value="Inside">Inside Distance (I.D)</option>
+                                    <input type="number" id="systemWidth" value="36" min="12" step="1" class="w-16 border border-gray-300 p-2 rounded-l text-sm font-black text-center focus:border-blue-500 outline-none shadow-inner bg-white" oninput="runCalc()">
+                                    <select id="widthMode" class="flex-1 border-y border-r border-gray-300 p-2 rounded-r text-[11px] font-bold text-gray-700 outline-none focus:border-blue-500 bg-white" onchange="runCalc()">
+                                        <option value="Overall" selected>Overall Width (O.A.W)</option>
+                                        <option value="Inside">Inside Distance (Between Posts)</option>
                                     </select>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-[9px] font-bold text-blue-700 uppercase mb-1" title="Total Height Above Grade">THAG (in)</label>
-                                <input type="number" id="thag" value="84" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-sm font-black text-center focus:border-blue-500 outline-none shadow-inner bg-white" oninput="runCalc()">
+                                <label class="block text-[9px] font-bold text-blue-700 uppercase mb-1" title="Overall Height Above Grade">Overall Height (in)</label>
+                                <input type="number" id="thag" value="60" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-sm font-black text-center focus:border-blue-500 outline-none shadow-inner bg-white" oninput="runCalc()">
                             </div>
                         </div>
                     </div>
@@ -127,9 +123,9 @@
                                     <option value="Steel">Steel Post</option>
                                 </select>
                                 <select id="postSize" class="w-1/2 border-y border-r border-gray-300 p-2 rounded-r text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm bg-white" onchange="runCalc()">
-                                    <option value="2">2" Square</option>
+                                    <option value="2" selected>2" Square</option>
                                     <option value="3">3" Square</option>
-                                    <option value="4" selected>4" Square</option>
+                                    <option value="4">4" Square</option>
                                     <option value="6">6" Square</option>
                                 </select>
                             </div>
@@ -137,12 +133,25 @@
                                 <select id="frameMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm bg-white" onchange="runCalc()">
                                     <option value="AlumAngle_1.5_1/8">1.5" Aluminum Angle</option>
                                     <option value="AlumAngle_2_1/8">2" Aluminum Angle</option>
+                                    <option value="AlumAngle_3_1/8">3" Aluminum Angle</option>
+                                    <option value="AlumAngle_4_1/8">4" Aluminum Angle</option>
+                                    
                                     <option value="AlumTube_1.5_1/8">1.5" Aluminum Square Tube</option>
                                     <option value="AlumTube_2_1/8" selected>2" Aluminum Square Tube</option>
+                                    <option value="AlumTube_3_1/8">3" Aluminum Square Tube</option>
+                                    <option value="AlumTube_4_1/8">4" Aluminum Square Tube</option>
+                                    <option value="AlumTube_6_1/4">6" Aluminum Square Tube</option>
+                                    
                                     <option value="SteelAngle_1.5_1/8">1.5" Steel Angle</option>
                                     <option value="SteelAngle_2_1/8">2" Steel Angle</option>
+                                    <option value="SteelAngle_3_1/8">3" Steel Angle</option>
+                                    <option value="SteelAngle_4_3/16">4" Steel Angle</option>
+                                    
                                     <option value="SteelTube_1.5_1/8">1.5" Steel Tube</option>
                                     <option value="SteelTube_2_1/8">2" Steel Tube</option>
+                                    <option value="SteelTube_3_1/8">3" Steel Tube</option>
+                                    <option value="SteelTube_4_3/16">4" Steel Tube</option>
+                                    <option value="SteelTube_6_3/16">6" Steel Tube</option>
                                 </select>
                             </div>
                         </div>
@@ -228,12 +237,16 @@
                 { key: 'Cost_Post_Steel_6_3/16', label: '6" Steel Post ($/LF)' },
                 { key: 'Cost_Frame_AlumAngle_1.5_1/8', label: '1.5" Alum Angle ($/LF)' },
                 { key: 'Cost_Frame_AlumAngle_2_1/8', label: '2.0" Alum Angle ($/LF)' },
+                { key: 'Cost_Frame_AlumAngle_3_1/8', label: '3.0" Alum Angle ($/LF)' },
                 { key: 'Cost_Frame_AlumTube_1.5_1/8', label: '1.5" Alum Tube ($/LF)' },
                 { key: 'Cost_Frame_AlumTube_2_1/8', label: '2.0" Alum Tube ($/LF)' },
+                { key: 'Cost_Frame_AlumTube_3_1/8', label: '3.0" Alum Tube ($/LF)' },
+                { key: 'Cost_Frame_AlumTube_4_1/8', label: '4.0" Alum Tube ($/LF)' },
                 { key: 'Cost_Frame_SteelAngle_1.5_1/8', label: '1.5" Steel Angle ($/LF)' },
                 { key: 'Cost_Frame_SteelAngle_2_1/8', label: '2.0" Steel Angle ($/LF)' },
                 { key: 'Cost_Frame_SteelTube_1.5_1/8', label: '1.5" Steel Tube ($/LF)' },
                 { key: 'Cost_Frame_SteelTube_2_1/8', label: '2.0" Steel Tube ($/LF)' },
+                { key: 'Cost_Frame_SteelTube_3_1/8', label: '3.0" Steel Tube ($/LF)' },
                 { key: 'Cost_Stock_040_4x8', label: '.040 Alum Sht ($)' },
                 { key: 'Cost_Stock_063_4x8', label: '.063 Alum Sht ($)' },
                 { key: 'Cost_Stock_080_4x8', label: '.080 Alum Sht ($)' },
@@ -260,7 +273,8 @@
         };
 
         let backendData = {};
-        let panels = [{ id: Date.now(), h: 48, mountStyle: 'Flush', faceMat: '3mm ACM', sides: 2, gap: 0 }];
+        // Adjusted UI Default to your exact specifications: 36W x 24H, 2-Sided, Flush Mount, 063 Alum.
+        let panels = [{ id: Date.now(), h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 2, gap: 0 }];
         
         let is3D = false; // Defaulted to Flat Front View
         let isExploded = false;
@@ -311,7 +325,7 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[8px] font-bold text-gray-500 uppercase mb-0.5 text-center">Height (in)</label>
+                            <label class="block text-[8px] font-bold text-gray-500 uppercase mb-0.5 text-center">Panel Height (in)</label>
                             <input type="number" value="${p.h}" oninput="updateDim(${p.id}, 'h', this.value)" class="w-full border border-gray-300 p-1.5 rounded text-xs font-bold text-center outline-none focus:border-blue-500 bg-white shadow-inner">
                         </div>
                         <div>
@@ -349,7 +363,7 @@
             if(p) { p[field] = parseFloat(val) || 0; runCalc(); }
         }
         function addPanel() {
-            panels.push({ id: Date.now(), h: 12, mountStyle: 'Between', faceMat: '3mm ACM', sides: 2, gap: 2 });
+            panels.push({ id: Date.now(), h: 12, mountStyle: 'Between', faceMat: '063 Alum', sides: 2, gap: 2 });
             renderPanels();
         }
         function removePanel(id) {
@@ -378,27 +392,23 @@
             let didClamp = false;
             let msg = "";
 
-            // 1. Force Offset to 0 if Primary Panel is Flush
             if (panels && panels && panels.mountStyle === 'Flush' && offset > 0) {
                 offset = 0; offsetEl.value = 0;
                 didClamp = true; msg = "Top Offset must be 0 when Primary Panel is Flush Mount.";
             }
 
-            // 2. Height Guard: Panels + Gaps + Offset cannot exceed THAG
             let totalStack = offset + panels.reduce((sum, p, i) => sum + p.h + (i > 0 ? p.gap : 0), 0);
             if (thag < totalStack) {
                 thag = totalStack; thagEl.value = thag;
-                didClamp = true; msg = "THAG automatically increased to support total panel stack height.";
+                didClamp = true; msg = "Overall Height automatically increased to support total panel stack height.";
             }
 
-            // 3. Parent Stock Limit Guard (Steel: 20', Alum: 24')
             let maxInches = pType === 'Steel' ? 240 : 288;
             if ((thag + under) > maxInches) {
                 thag = maxInches - under; thagEl.value = thag;
-                didClamp = true; msg = `Max stock limit (${maxInches/12}') reached. THAG clamped to ${thag}".`;
+                didClamp = true; msg = `Max stock limit (${maxInches/12}') reached. Overall Height clamped to ${thag}".`;
             }
 
-            // 4. Internal Frame Depth Collision Guard
             panels.forEach(p => {
                 let internalFrameDepth = (isAngle && p.sides === 2) ? fThick * 2 : fThick;
                 if (p.mountStyle === 'Flush' && internalFrameDepth > pSize) {
@@ -415,111 +425,87 @@
             }
         }
 
-        // --- 3D ISOMETRIC / 2D FRONT RENDER ENGINE ---
+        // --- PURE 2D/3D SVG RENDER ENGINE ---
         function renderIsometric(geom) {
             const cont = document.getElementById('svg-preview-container');
             if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
 
-            const scale = Math.min(2.5, 300 / geom.overallW); 
-            let html = '';
+            const oaw = geom.overallW;
+            const thag = geom.above;
+            const under = geom.under;
+            const postD = geom.post;
+
+            const totalH = thag + under;
+            // Provide scalable breathing room inside the viewport
+            const pad = Math.max(20, oaw * 0.15); 
             
-            const pSize = geom.post * scale;
-            const oaw = geom.overallW * scale;
-            const thag = geom.above * scale;
-            const under = geom.under * scale;
-            
-            // Adjust X/Y to center the structural group in the view wrapper
-            const cx = -oaw/2;
-            const cy = -pSize/2;
-            
-            // Materials 
+            // Note: SVG viewBox inherently scales perfectly to whatever its container size is
+            let html = `<svg class="drawing-svg w-full h-full" viewBox="${-pad} ${-pad} ${oaw + pad*2} ${totalH + pad*2}" style="overflow: visible; width: 100%; height: 100%;" xmlns="http://www.w3.org/2000/svg">`;
+
+            // MATERIALS & STROKES (Stroke scaled so lines don't get massive on small signs)
             const isAlum = document.getElementById('postType').value === 'Aluminum';
             const postColor = isAlum ? '#cbd5e1' : '#94a3b8'; 
             const frameColor = '#64748b';
             const faceColor = '#3b82f6';
-            
-            // 1. GRADE LINE & UNDERGROUND DIRT
-            // A 3D block representing the dirt underground (Opacity 0.15 for X-Ray effect)
-            html += draw3DBox(cx - (oaw*0.5), cy - pSize, -under, oaw * 2, pSize * 3, under, '#22c55e', true, 0.15);
-            // A solid green physical strip exactly at Z=0 to act as the undeniable grade line
-            html += draw3DBox(cx - (oaw*0.5), cy - pSize/2, -1.5, oaw * 2, pSize * 2, 3, '#16a34a', false, 0.9);
-            
-            // Posts (Extending from -under up to thag)
-            html += draw3DBox(cx, cy, -under, pSize, pSize, thag+under, postColor); // Left Post
-            html += draw3DBox(cx + oaw - pSize, cy, -under, pSize, pSize, thag+under, postColor); // Right Post
-            
-            // Panels
-            let currentZ = thag - (geom.topOffset * scale); // Top starts at thag - offset
-            geom.panels.forEach((p, idx) => {
-                let sGap = (parseFloat(p.gap) || 0) * scale;
-                if (idx > 0) currentZ -= sGap;
-                
-                const isBetween = p.mountStyle === 'Between';
-                const pw = isBetween ? oaw - (pSize*2) : oaw;
-                const px = isBetween ? cx + pSize : cx;
-                
-                const ph = p.h * scale;
-                currentZ -= ph; // Advance Z downwards to the bottom of the current panel
-                const pz = currentZ; 
-                
-                const pd = geom.frameThick * scale;
-                const frameY = cy + (pSize - pd) / 2; // Frame is centered between the front and back of the posts
-                
-                // Exploded View Y-Translation Variables (Depth)
-                const faceD = 2; // 2px visual thickness
-                const explodeY = isExploded ? 40 : 0;
-                
-                let frontFaceY, backFaceY;
-                if (isBetween) {
-                    frontFaceY = frameY + pd; 
-                    backFaceY = frameY - faceD;
-                } else {
-                    // Flush mount goes on the outside of the posts
-                    frontFaceY = cy + pSize; 
-                    backFaceY = cy - faceD; 
-                }
+            const sw = Math.max(0.5, oaw * 0.005); 
 
-                // Frames
-                let shareTop = (idx > 0 && sGap === 0);
-                let crossbarW = isBetween ? pw : oaw - (pSize*2);
-                let crossbarX = isBetween ? px : cx + pSize;
+            // LAYER 1: DIRT & GRADE LINE (Z = 0)
+            html += `<g style="transform: translateZ(0px); transition: transform 0.8s;">`;
+            html += `<rect x="${-pad}" y="${thag}" width="${oaw + pad*2}" height="${under + pad}" fill="#22c55e" fill-opacity="0.1" />`;
+            html += `<line x1="${-pad}" y1="${thag}" x2="${oaw + pad}" y2="${thag}" stroke="#16a34a" stroke-width="${sw * 3}" stroke-dasharray="${sw*4},${sw*4}"/>`;
+            html += `</g>`;
 
-                if (!shareTop) html += draw3DBox(crossbarX, frameY, pz + ph - pd, crossbarW, pd, pd, frameColor); // Top Frame
-                html += draw3DBox(crossbarX, frameY, pz, crossbarW, pd, pd, frameColor); // Bottom Frame
-                
-                if (isBetween) {
-                    html += draw3DBox(px, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); // Left Vertical
-                    html += draw3DBox(px + pw - pd, frameY, pz + pd, pd, pd, ph - (pd*2), frameColor); // Right Vertical
-                }
-                
-                // Faces
-                html += draw3DBox(px, frontFaceY + explodeY, pz, pw, faceD, ph, faceColor, false); // Front Face
-                if (p.sides === 2) {
-                    html += draw3DBox(px, backFaceY - explodeY, pz, pw, faceD, ph, faceColor, false); // Back Face
+            // Exploded View Push Depth
+            const zOffset = postD; 
+            const explodeFactor = isExploded ? 20 : 0; 
+
+            // LAYER 2: BACK FACES (Z = -Offset)
+            html += `<g style="transform: translateZ(${-zOffset - explodeFactor}px); transition: transform 0.8s;">`;
+            geom.panels.forEach(p => {
+                if(p.sides === 2) {
+                    let pW = p.mountStyle === 'Between' ? oaw - (postD*2) : oaw;
+                    let pX = p.mountStyle === 'Between' ? postD : 0;
+                    html += `<rect x="${pX}" y="${p.y}" width="${pW}" height="${p.h}" fill="#1e3a8a" opacity="0.95" rx="${sw*2}"/>`;
                 }
             });
-            
-            cont.innerHTML = html;
-        }
+            html += `</g>`;
 
-        // Helper: Generates a 6-sided 3D CSS Box using Absolute XYZ. Added customOpacity support.
-        function draw3DBox(x, y, z, w, d, h, baseColor, isGhost = false, customOpacity = null) {
-            const adjustColor = (hex, amt) => '#' + hex.replace(/^#/, '').replace(/../g, c => ('0'+Math.min(255, Math.max(0, parseInt(c, 16) + amt)).toString(16)).substr(-2));
-            const cTop = baseColor;
-            const cFront = adjustColor(baseColor, -25);
-            const cSide = adjustColor(baseColor, -40);
+            // LAYER 3: STRUCTURAL POSTS & INTERNAL FRAMES (Z = 0)
+            html += `<g style="transform: translateZ(0px); transition: transform 0.8s;">`;
             
-            const op = customOpacity !== null ? customOpacity : (isGhost ? 0.8 : 1);
-            const border = isGhost ? 'border: 1px solid rgba(255,255,255,0.4);' : '';
-            
-            return `
-            <div style="position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${d}px; background:${cTop}; opacity:${op}; transform: translateZ(${z+h}px); ${border}"></div>
-            <div style="position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${d}px; background:${cTop}; opacity:${op}; transform: translateZ(${z}px); ${border}"></div>
-            <div style="position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; background:${cFront}; opacity:${op}; transform-origin: top left; transform: translateY(${d}px) translateZ(${z}px) rotateX(-90deg); ${border}"></div>
-            <div style="position:absolute; left:${x}px; top:${y}px; width:${w}px; height:${h}px; background:${cFront}; opacity:${op}; transform-origin: top left; transform: translateZ(${z}px) rotateX(-90deg); ${border}"></div>
-            <div style="position:absolute; left:${x}px; top:${y}px; width:${d}px; height:${h}px; background:${cSide}; opacity:${op}; transform-origin: top left; transform: translateX(${w}px) translateZ(${z}px) rotateZ(90deg) rotateX(-90deg); ${border}"></div>
-            <div style="position:absolute; left:${x}px; top:${y}px; width:${d}px; height:${h}px; background:${cSide}; opacity:${op}; transform-origin: top left; transform: translateZ(${z}px) rotateZ(90deg) rotateX(-90deg); ${border}"></div>
-            `;
+            // Posts
+            html += `<rect x="0" y="0" width="${postD}" height="${totalH}" fill="${postColor}" stroke="#475569" stroke-width="${sw}"/>`;
+            html += `<rect x="${oaw - postD}" y="0" width="${postD}" height="${totalH}" fill="${postColor}" stroke="#475569" stroke-width="${sw}"/>`;
+
+            // Internal Frames
+            geom.panels.forEach(p => {
+                let fThick = geom.frameThick;
+                let fW = p.mountStyle === 'Between' ? oaw - (postD*2) : oaw;
+                let fX = p.mountStyle === 'Between' ? postD : 0;
+
+                html += `<rect x="${fX}" y="${p.y}" width="${fW}" height="${fThick}" fill="${frameColor}" stroke="#334155" stroke-width="${sw}"/>`; // Top
+                html += `<rect x="${fX}" y="${p.y + p.h - fThick}" width="${fW}" height="${fThick}" fill="${frameColor}" stroke="#334155" stroke-width="${sw}"/>`; // Bot
+                
+                if (p.mountStyle === 'Between') {
+                    html += `<rect x="${fX}" y="${p.y + fThick}" width="${fThick}" height="${p.h - fThick*2}" fill="${frameColor}" stroke="#334155" stroke-width="${sw}"/>`; // L
+                    html += `<rect x="${fX + fW - fThick}" y="${p.y + fThick}" width="${fThick}" height="${p.h - fThick*2}" fill="${frameColor}" stroke="#334155" stroke-width="${sw}"/>`; // R
+                }
+            });
+            html += `</g>`;
+
+            // LAYER 4: FRONT FACES (Z = +Offset)
+            html += `<g style="transform: translateZ(${zOffset + explodeFactor}px); transition: transform 0.8s;">`;
+            geom.panels.forEach(p => {
+                let pW = p.mountStyle === 'Between' ? oaw - (postD*2) : oaw;
+                let pX = p.mountStyle === 'Between' ? postD : 0;
+                
+                html += `<rect x="${pX}" y="${p.y}" width="${pW}" height="${p.h}" fill="${faceColor}" opacity="0.95" rx="${sw*2}"/>`;
+                html += `<text x="${pX + pW/2}" y="${p.y + p.h/2}" font-family="sans-serif" font-weight="900" font-size="${p.h/3.5}" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" opacity="0.8">LOGO</text>`;
+            });
+            html += `</g>`;
+
+            html += `</svg>`;
+            cont.innerHTML = html;
         }
 
         async function runCalc() {
@@ -528,9 +514,9 @@
 
             const inputs = {
                 qty: parseInt(document.getElementById('qty').value) || 1,
-                systemWidth: parseFloat(document.getElementById('systemWidth').value) || 48,
+                systemWidth: parseFloat(document.getElementById('systemWidth').value) || 36,
                 widthMode: document.getElementById('widthMode').value,
-                thag: parseFloat(document.getElementById('thag').value) || 84,
+                thag: parseFloat(document.getElementById('thag').value) || 60,
                 topOffset: parseFloat(document.getElementById('topOffset').value) || 0,
                 belowGrade: parseFloat(document.getElementById('underground').value) || 36,
                 postType: document.getElementById('postType').value,
@@ -578,10 +564,9 @@
         window.addEventListener('load', async () => {
             if (typeof injectHeader === 'function') injectHeader("Post & Panel Fabrication");
             
-            // Force Camera3D to initialize so pan/zoom works on both Flat 2D and Isometric 3D views
             if (typeof SignOS_UI !== 'undefined' && SignOS_UI.Camera3D) {
                 SignOS_UI.Camera3D.init('zoom-stage');
-                SignOS_UI.Camera3D.toggle(true); // Toggle to ensure default rendering matches Front View layout logic
+                SignOS_UI.Camera3D.toggle(false); // Default to flat view initially
             }
 
             const btnSandbox = document.getElementById('btn-sandbox');

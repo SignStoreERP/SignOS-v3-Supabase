@@ -17,8 +17,10 @@ Deno.serve(async (req) => {
         const FALLBACK_METALS: any = {
             'Cost_Post_Aluminum_2_1/8': 4.28, 'Cost_Post_Aluminum_3_1/8': 6.56, 'Cost_Post_Aluminum_4_1/8': 8.84, 'Cost_Post_Aluminum_6_1/4': 26.22,
             'Cost_Post_Steel_2_1/8': 2.88, 'Cost_Post_Steel_3_1/8': 3.88, 'Cost_Post_Steel_4_3/16': 9.25, 'Cost_Post_Steel_6_3/16': 13.85,
-            'Cost_Frame_AlumAngle_1.5_1/8': 1.65, 'Cost_Frame_AlumAngle_2_1/8': 2.24, 'Cost_Frame_AlumTube_1.5_1/8': 1.65, 'Cost_Frame_AlumTube_2_1/8': 2.24,
-            'Cost_Frame_SteelAngle_1.5_1/8': 1.20, 'Cost_Frame_SteelAngle_2_1/8': 1.45, 'Cost_Frame_SteelTube_1.5_1/8': 1.20, 'Cost_Frame_SteelTube_2_1/8': 1.45
+            'Cost_Frame_AlumAngle_1.5_1/8': 1.65, 'Cost_Frame_AlumAngle_2_1/8': 2.24, 'Cost_Frame_AlumAngle_3_1/8': 3.50, 'Cost_Frame_AlumAngle_4_1/8': 4.50,
+            'Cost_Frame_AlumTube_1.5_1/8': 1.65, 'Cost_Frame_AlumTube_2_1/8': 2.24, 'Cost_Frame_AlumTube_3_1/8': 6.56, 'Cost_Frame_AlumTube_4_1/8': 8.84, 'Cost_Frame_AlumTube_6_1/4': 26.22,
+            'Cost_Frame_SteelAngle_1.5_1/8': 1.20, 'Cost_Frame_SteelAngle_2_1/8': 1.45, 'Cost_Frame_SteelAngle_3_1/8': 2.20, 'Cost_Frame_SteelAngle_4_3/16': 3.50,
+            'Cost_Frame_SteelTube_1.5_1/8': 1.20, 'Cost_Frame_SteelTube_2_1/8': 1.45, 'Cost_Frame_SteelTube_3_1/8': 3.88, 'Cost_Frame_SteelTube_4_3/16': 9.25, 'Cost_Frame_SteelTube_6_3/16': 13.85
         };
 
         const wastePct = parseFloat(config.Waste_Factor || "1.15");
@@ -30,13 +32,12 @@ Deno.serve(async (req) => {
         const isAngle = String(inputs.frameMat).includes('Angle');
         const isSameMaterial = (inputs.postType === 'Aluminum' && inputs.frameMat.includes('Alum')) || (inputs.postType === 'Steel' && inputs.frameMat.includes('Steel'));
 
-        // Core Geometry Base
-        let sysW = parseFloat(inputs.systemWidth) || 48;
+        let sysW = parseFloat(inputs.systemWidth) || 36;
         let oaw = inputs.widthMode === 'Inside' ? sysW + (postSizeInches * 2) : sysW;
         let idWidth = oaw - (postSizeInches * 2);
 
         let topOffset = parseFloat(inputs.topOffset) || 0;
-        let thag = parseFloat(inputs.thag) || 84;
+        let thag = parseFloat(inputs.thag) || 60;
         let undergroundInches = parseFloat(inputs.belowGrade) || 36;
         let exactPostInches = thag + undergroundInches;
 
@@ -45,18 +46,20 @@ Deno.serve(async (req) => {
 
         let totalPanelSqFt = 0, totalFrameLF = 0;
         let miterSawCuts = 0, bandSawCuts = 0;
-        let frameCutsRaw = 0, postCutsRaw = 2; // Bottom post cuts
+        let frameCutsRaw = 0, postCutsRaw = 2; 
         let miterTopApplies = false;
         
         let totalSkinSqIn = 0;
         let currentY = topOffset;
         let frameCutDesc: string[] = [];
 
+        // Map Y coordinates and yield metrics directly into the panels object for the UI
         inputs.panels.forEach((p: any, idx: number) => {
             let gap = parseFloat(p.gap) || 0;
             if (idx > 0) currentY += gap;
             
-            // If gap is 0, they share a crossbar (saving 1 top horizontal cut for this panel)
+            p.y = currentY; // Crucial for 3D/2D visualization!
+
             let shareTop = (idx > 0 && gap === 0);
             let pLF = 0, pCuts = 0;
             let pDesc = [];
@@ -74,7 +77,7 @@ Deno.serve(async (req) => {
                 if (!shareTop) {
                     if (idx === 0 && currentY === 0 && isSameMaterial) {
                         pLF += oaw / 12;
-                        pCuts += 2; // Miter cuts on frame
+                        pCuts += 2; 
                         miterTopApplies = true;
                         pDesc.push(`(x1) ${oaw}" Top (Mitered)`);
                     } else {
@@ -101,9 +104,8 @@ Deno.serve(async (req) => {
             frameCutDesc.push(`P${idx+1} [${p.mountStyle}]: ` + pDesc.join(' | '));
         });
 
-        // Resolve Saws (<= 4" = Miter | > 4" = BandSaw)
-        if (miterTopApplies) postCutsRaw += 2; // Adds top miters to posts
-        else postCutsRaw += 2; // Flat 90-deg cuts to post tops
+        if (miterTopApplies) postCutsRaw += 2;
+        else postCutsRaw += 2; 
 
         if (fThick > 4) bandSawCuts += frameCutsRaw;
         else miterSawCuts += frameCutsRaw;
@@ -111,14 +113,12 @@ Deno.serve(async (req) => {
         if (postSizeInches > 4) bandSawCuts += postCutsRaw * inputs.qty;
         else miterSawCuts += postCutsRaw * inputs.qty;
 
-        // 1. POSTS & METALS
         const postKey = `Cost_Post_${inputs.postType}_${inputs.postSize}_${inputs.postType === 'Aluminum' ? '1/8' : '3/16'}`;
         if(!config[postKey]) config[postKey] = FALLBACK_METALS[postKey] || 8.84;
         
         const postCostLF = parseFloat(config[postKey]);
         L(`Structural Posts (${inputs.postType} ${postSizeInches}")`, totalPoleLF * postCostLF * wastePct, `${billedPostFt} LF/Post * 2 * Qty * $${postCostLF.toFixed(2)}/LF * Waste`, 'posts', 'struct_mat', { cut: `${(exactPostInches/12).toFixed(2)}' L (x${inputs.qty*2})` });
 
-        // 2. CONCRETE
         if(inputs.hasConcrete) {
             const holeRadiusFt = (parseFloat(config.Hole_Diameter_Inches || "12") / 2) / 12;
             const postRadiusFt = (postSizeInches / 2) / 12;
@@ -127,12 +127,10 @@ Deno.serve(async (req) => {
             L(`Concrete Foundation (80lb Bags)`, bagsReq * parseFloat(config.Cost_Concrete_Bag || "4.50"), `${bagsReq} Bags * $${parseFloat(config.Cost_Concrete_Bag || "4.50").toFixed(2)}/ea`, 'posts', 'concrete');
         }
 
-        // 3. FRAMES
         const frameKey = `Cost_Frame_${inputs.frameMat}`;
         if(!config[frameKey]) config[frameKey] = FALLBACK_METALS[frameKey] || 1.85;
         L(`Internal Frame (${inputs.frameMat.replace(/[^a-zA-Z0-9.]/g, ' ')} ${fThick}")`, totalFrameLF * parseFloat(config[frameKey]) * wastePct, `${totalFrameLF.toFixed(1)} LF * $${parseFloat(config[frameKey]).toFixed(2)}/LF * Waste`, 'posts', 'struct_mat');
 
-        // 4. FABRICATION LABOR
         const rateShop = parseFloat(config.Rate_Shop_Labor || "150");
         L(`Gather Materials`, (parseFloat(config.Time_Gather_Mats || "10") * inputs.qty / 60) * rateShop, `10 Mins/Sign * Qty * $${rateShop}/hr`, 'finish', 'struct_lab');
 
@@ -149,11 +147,11 @@ Deno.serve(async (req) => {
         let adhMins = inputs.panels.reduce((sum: number, p: any) => sum + (p.sides * inputs.qty), 0) * parseFloat(config.Time_Adhesive_Per_Face || "7");
         L(`Adhesive Application`, (adhMins / 60) * rateShop, `${adhMins} Mins * $${rateShop}/hr`, 'finish', 'struct_lab');
 
-        // 5. FACES & GRAPHICS
         const matCache: any = {};
         inputs.panels.forEach((p: any) => {
             let subCost = 1.50, subKey = 'Cost_Stock_063_4x8';
             if (p.faceMat === '040 Alum') { subCost = parseFloat(config.Cost_Stock_040_4x8 || "84.44") / 32; subKey = 'Cost_Stock_040_4x8'; }
+            else if (p.faceMat === '063 Alum') { subCost = parseFloat(config.Cost_Stock_063_4x8 || "98.12") / 32; subKey = 'Cost_Stock_063_4x8'; }
             else if (p.faceMat === '080 Alum') { subCost = parseFloat(config.Cost_Stock_080_4x8 || "124.57") / 32; subKey = 'Cost_Stock_080_4x8'; }
             else if (p.faceMat === '3mm ACM') { subCost = parseFloat(config.Cost_Stock_3mm_4x8 || "52.09") / 32; subKey = 'Cost_Stock_3mm_4x8'; }
             else if (p.faceMat === '6mm ACM') { subCost = parseFloat(config.Cost_Stock_6mm_4x8 || "72.10") / 32; subKey = 'Cost_Stock_6mm_4x8'; }
@@ -182,7 +180,6 @@ Deno.serve(async (req) => {
         L(`Overlaminate Media`, totalPanelSqFt * parseFloat(config.Cost_Lam_Cast || "0.96") * wastePct, `${totalPanelSqFt.toFixed(1)} SF * $0.96/SF * Waste`, 'graphics', 'graphics');
         L(`Vinyl Mount Labor`, ((totalPanelSqFt * parseFloat(config.Time_Mount_Flat_SqFt || "0.25")) / 60) * rateShop, `${totalPanelSqFt.toFixed(1)} SF * 0.25 Mins/SF * $${rateShop}/hr`, 'graphics', 'graphics');
 
-        // 6. PAINT
         const ratePaint = parseFloat(config.Rate_Paint_Labor || "150");
         let totalPaintSqFt = ((postSizeInches / 12) * 4 * totalPoleLF) + (inputs.panels.reduce((sum: number, p: any) => sum + ((p.mountStyle === 'Between' ? idWidth : oaw) * p.h)/144 * p.sides * inputs.qty, 0));
         
