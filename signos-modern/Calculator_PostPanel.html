@@ -21,12 +21,6 @@
             linear-gradient(90deg, rgba(59, 130, 246, 0.2) 1px, transparent 1px);
             background-size: 20px 20px;
         }
-        .highlight-var {
-            background-color: #fef08a !important; color: #854d0e !important;
-            border-color: #eab308 !important; border-style: solid !important;
-            border-width: 1px !important; border-radius: 4px; padding: 0 4px;
-            box-shadow: 0 0 8px rgba(234, 179, 8, 0.5); text-decoration: none !important;
-        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10 overflow-x-hidden">
@@ -42,18 +36,19 @@
                     </div>
                     <button onclick="SignOS_Sandbox.toggle()" class="text-gray-400 hover:text-red-500 transition font-bold text-lg focus:outline-none">✕</button>
                 </div>
-                <div id="ledger-interactive-header" class="bg-white p-3 rounded border border-gray-200 shadow-sm">
-                    <!-- Interactive Margin HTML Injected Here -->
+                <div class="flex justify-between items-center bg-white p-3 rounded border border-gray-200 shadow-sm">
+                    <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Simulated Margin:</span>
+                    <span id="glb-sbx-margin" class="text-2xl font-black text-gray-400 tracking-tight leading-none">--</span>
                 </div>
             </div>
             <div class="p-5 space-y-6">
                 <div>
                     <h3 class="text-[11px] font-black text-blue-700 uppercase tracking-widest border-b-2 border-blue-100 pb-2 mb-3">Market Logic (Retail)</h3>
-                    <div id="sbx-retail-breakdown" class="space-y-3 mb-4"></div>
+                    <div id="glb-sbx-retail-breakdown" class="space-y-3 mb-4 text-xs italic text-gray-400">Run simulation...</div>
                 </div>
                 <div>
                     <h3 class="text-[11px] font-black text-red-700 uppercase tracking-widest border-b-2 border-red-100 pb-2 mb-3">Physics Engine (Hard Cost)</h3>
-                    <div id="sbx-cost-breakdown" class="space-y-3"></div>
+                    <div id="glb-sbx-cost-breakdown" class="space-y-3 text-xs italic text-gray-400">Run simulation...</div>
                 </div>
             </div>
         </div>
@@ -61,18 +56,15 @@
         <!-- CENTER: MAIN CALCULATOR ISLAND -->
         <div class="flex flex-col gap-4 w-full max-w-lg shrink-0 z-20">
             <div id="main-card" class="w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200 transition-all duration-300 relative">
-                <div id="sim-badge" class="hidden bg-yellow-400 text-yellow-900 text-[10px] font-black text-center py-1 uppercase tracking-widest animate-pulse">Simulation Active</div>
                 
                 <!-- 2D ARCHITECTURAL SHOP DRAWINGS -->
                 <div class="w-full h-64 bg-slate-800 border-b border-gray-200 flex flex-col relative">
                     <span class="absolute top-2 right-3 text-[8px] font-bold text-slate-400 uppercase tracking-widest z-10">Live Shop Drawings</span>
                     <div class="flex flex-1 w-full h-full p-4 gap-4">
-                        <!-- Front Elevation -->
                         <div class="flex-1 flex flex-col h-full">
                             <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 text-center">Front Elevation</span>
                             <div class="flex-1 blueprint-bg border border-slate-600 rounded bg-slate-900 overflow-hidden flex items-center justify-center p-2" id="svg-front-container"></div>
                         </div>
-                        <!-- Side Elevation -->
                         <div class="w-32 flex flex-col h-full shrink-0">
                             <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 text-center">Side View</span>
                             <div class="flex-1 blueprint-bg border border-slate-600 rounded bg-slate-900 overflow-hidden flex items-center justify-center p-2" id="svg-side-container"></div>
@@ -99,10 +91,10 @@
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Panel Mounting Style</label>
                         <div class="flex gap-4">
                             <label class="flex-1 flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer bg-gray-50 p-2 rounded border border-gray-200 hover:border-blue-400 transition">
-                                <input type="radio" name="mountStyle" value="Between" onchange="toggleInsetUI(); runCalc()" class="w-4 h-4 text-blue-600"> Between Posts
+                                <input type="radio" name="mountStyle" value="Between" onchange="runCalc()" class="w-4 h-4 text-blue-600"> Between Posts
                             </label>
                             <label class="flex-1 flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer bg-gray-50 p-2 rounded border border-gray-200 hover:border-blue-400 transition">
-                                <input type="radio" name="mountStyle" value="Flush" checked onchange="toggleInsetUI(); runCalc()" class="w-4 h-4 text-blue-600"> Flush Mount
+                                <input type="radio" name="mountStyle" value="Flush" checked onchange="runCalc()" class="w-4 h-4 text-blue-600"> Flush Mount
                             </label>
                         </div>
                     </div>
@@ -120,14 +112,15 @@
                             <div>
                                 <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Size</label>
                                 <select id="postSize" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 h-[38px] shadow-sm" onchange="runCalc()">
+                                    <option value="2">2" Square</option>
                                     <option value="3">3" Square</option>
                                     <option value="4" selected>4" Square</option>
                                     <option value="6">6" Square</option>
                                 </select>
                             </div>
-                            <div id="wrap-inset" class="transition-opacity duration-300">
-                                <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Inset (in)</label>
-                                <input type="number" id="postInset" value="0" min="0" step="0.5" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-center focus:border-blue-500 outline-none shadow-sm h-[38px]" oninput="runCalc()">
+                            <div>
+                                <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Post Above Grade (in)</label>
+                                <input type="number" id="postAbove" value="84" min="12" step="1" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-center focus:border-blue-500 outline-none shadow-sm h-[38px] bg-green-50 text-green-800" oninput="runCalc()" title="Total height of post above the dirt. Will auto-adjust to Panel+Clearance if too short.">
                             </div>
                         </div>
                         <div>
@@ -183,11 +176,6 @@
                         Launch Cost Sandbox
                     </button>
                 </div>
-                
-                <div class="bg-gray-50 p-4 border-t border-gray-200">
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
-                    <textarea id="job-desc" class="w-full text-xs p-3 border border-gray-300 rounded bg-white h-24 text-gray-700 font-mono outline-none leading-snug shadow-inner custom-scroll" readonly></textarea>
-                </div>
             </div>
         </div>
 
@@ -200,8 +188,14 @@
                 </div>
             </div>
             <div class="p-5 space-y-6 overflow-y-auto custom-scroll max-h-[60vh]">
-                <div id="sbx-retail-inputs" class="space-y-2 mb-6"></div>
-                <div id="sbx-cost-inputs" class="space-y-2"></div>
+                <div>
+                    <span class="text-[10px] font-black text-blue-700 uppercase tracking-widest border-b border-blue-200 pb-1 mb-2 block">Market Overrides</span>
+                    <div id="glb-sbx-retail-inputs" class="space-y-2 mb-6"></div>
+                </div>
+                <div>
+                    <span class="text-[10px] font-black text-red-700 uppercase tracking-widest border-b border-red-200 pb-1 mb-3 block">Physics Overrides</span>
+                    <div id="glb-sbx-cost-inputs" class="space-y-2"></div>
+                </div>
             </div>
             <div class="p-4 bg-slate-50 border-t border-gray-200 shrink-0 space-y-2 rounded-b-xl z-20">
                 <button onclick="SignOS_Sandbox.apply()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded shadow text-xs uppercase tracking-widest transition">Apply & Simulate</button>
@@ -214,17 +208,17 @@
     </div>
 
     <script>
-        // EXPANDED SCHEMA: Maps all database variables into the Sandbox UI
         const POSTPANEL_UI_SCHEMA = {
             retails: [
                 { key: 'Target_Margin_Pct', label: 'Target Margin (%)' },
                 { key: 'Override_Retail_Total', label: 'Override Price ($)' }
             ],
             costs: [
-                // Metals
+                { key: 'Cost_Post_Aluminum_2_1/8', label: '2" Alum Post ($/LF)' },
                 { key: 'Cost_Post_Aluminum_3_1/8', label: '3" Alum Post ($/LF)' },
                 { key: 'Cost_Post_Aluminum_4_1/8', label: '4" Alum Post ($/LF)' },
                 { key: 'Cost_Post_Aluminum_6_1/4', label: '6" Alum Post ($/LF)' },
+                { key: 'Cost_Post_Steel_2_1/8', label: '2" Steel Post ($/LF)' },
                 { key: 'Cost_Post_Steel_3_1/8', label: '3" Steel Post ($/LF)' },
                 { key: 'Cost_Post_Steel_4_3/16', label: '4" Steel Post ($/LF)' },
                 { key: 'Cost_Post_Steel_6_3/16', label: '6" Steel Post ($/LF)' },
@@ -232,117 +226,84 @@
                 { key: 'Cost_Frame_Angle20', label: '2.0" Angle ($/LF)' },
                 { key: 'Cost_Frame_Tube10', label: '1" Tube ($/LF)' },
                 { key: 'Cost_Frame_Tube20', label: '2" Tube ($/LF)' },
-
-                // Substrates
                 { key: 'Cost_Stock_040_4x8', label: '.040 Alum Sht ($)' },
                 { key: 'Cost_Stock_063_4x8', label: '.063 Alum Sht ($)' },
                 { key: 'Cost_Stock_080_4x8', label: '.080 Alum Sht ($)' },
                 { key: 'Cost_Stock_3mm_4x8', label: '3mm ACM Sht ($)' },
                 { key: 'Cost_Stock_6mm_4x8', label: '6mm ACM Sht ($)' },
-
-                // Consumables & Print
                 { key: 'Cost_Concrete_Bag', label: 'Concrete Bag ($)' },
                 { key: 'Cost_Adhesive_Tube', label: 'Lord\'s Glue ($/Tube)' },
                 { key: 'Cost_Vin_Cast', label: 'Cast Vinyl ($/SF)' },
                 { key: 'Cost_Lam_Cast', label: 'Cast Lam ($/SF)' },
                 { key: 'Cost_Ink_Latex', label: 'Latex Ink ($/SF)' },
                 { key: 'Cost_Paint_SqFt', label: 'Paint Cost ($/SF)' },
-
-                // Labor & Overhead Rates
                 { key: 'Rate_Shop_Labor', label: 'Shop Rate ($/Hr)' },
                 { key: 'Rate_Paint_Labor', label: 'Paint Rate ($/Hr)' },
                 { key: 'Rate_Operator', label: 'Print Op ($/Hr)' },
                 { key: 'Rate_Machine_Print', label: 'Print Mach ($/Hr)' },
-                { key: 'Rate_Machine_CNC', label: 'Router Mach ($/Hr)' },
-
-                // Times
                 { key: 'Time_Saw_Band', label: 'Band Saw (Mins/Cut)' },
                 { key: 'Time_Saw_Miter', label: 'Miter Saw (Mins/Cut)' },
                 { key: 'Time_Weld_Per_Loc', label: 'Weld (Mins/Loc)' },
                 { key: 'Time_Clean_Weld_Loc', label: 'Clean Weld (Mins/Loc)' },
                 { key: 'Time_Paint_Setup', label: 'Paint Prep (Mins)' },
-                { key: 'Time_Setup_Job', label: 'File RIP (Mins)' },
-
-                // Multipliers
                 { key: 'Waste_Factor', label: 'Waste Multiplier' },
                 { key: 'Factor_Risk', label: 'Risk Multiplier' }
             ]
         };
 
         let backendData = {};
-
-        function toggleInsetUI() {
-            const style = document.querySelector('input[name="mountStyle"]:checked').value;
-            const insetWrap = document.getElementById('wrap-inset');
-            if (style === 'Flush') {
-                insetWrap.classList.remove('opacity-50', 'pointer-events-none');
-            } else {
-                insetWrap.classList.add('opacity-50', 'pointer-events-none');
-                document.getElementById('postInset').value = 0;
-            }
-        }
         
         // --- PHYSICS ENFORCEMENT ENGINE ---
         function enforcePhysics() {
-            let wEl = document.getElementById('w');
             let hEl = document.getElementById('h');
             let clrEl = document.getElementById('clearance');
-            let insetEl = document.getElementById('postInset');
+            let aboveEl = document.getElementById('postAbove');
             let pSize = parseFloat(document.getElementById('postSize').value) || 4;
-            let pType = document.getElementById('postType').value;
+            let fThick = parseFloat(document.getElementById('frameMat').value.replace(/[^0-9.]/g, '')) / 10 || 2;
+            let isAngle = document.getElementById('frameMat').value.includes('Angle');
+            let sides = parseInt(document.getElementById('sides').value) || 2;
             let warnEl = document.getElementById('physics-warn');
             let warnMsg = document.getElementById('physics-warn-msg');
 
-            let w = parseFloat(wEl.value) || 12;
             let h = parseFloat(hEl.value) || 12;
             let clr = parseFloat(clrEl.value) || 0;
-            let inset = parseFloat(insetEl.value) || 0;
-            
+            let pAbove = parseFloat(aboveEl.value) || (h + clr);
             let didClamp = false;
             let msg = "";
 
-            // 1. Collision Guard: Prevent posts from colliding in the center of the sign
-            let maxInset = (w / 2) - pSize;
-            if (inset > maxInset && document.querySelector('input[name="mountStyle"]:checked').value === 'Flush') {
-                inset = Math.max(0, maxInset);
-                insetEl.value = inset;
+            // 1. Post Height Auto-Clamp (Posts can't be shorter than the panel + clearance)
+            if (pAbove < (h + clr)) {
+                aboveEl.value = (h + clr);
                 didClamp = true;
-                msg = "Inset constrained to prevent structural posts from colliding.";
+                msg = "Post height adjusted to support Panel Height + Ground Clearance.";
             }
 
-            // 2. Maximum Stick Yield Rule
-            // Steel typically maxes at 20' (240"), Aluminum at 24' (288")
-            let maxStockInches = (pType === 'Steel') ? 240 : 288;
-            let currentPostInches = h + clr + 36; // 36 is default underground
-            if (currentPostInches > maxStockInches) {
-                let overage = currentPostInches - maxStockInches;
-                if (clr >= overage) {
-                    clr -= overage;
-                    clrEl.value = clr;
-                } else {
-                    h -= (overage - clr);
-                    clr = 0;
-                    clrEl.value = clr;
-                    hEl.value = h;
-                }
+            // 2. Internal Frame Depth Collision Guard
+            let internalFrameDepth = (isAngle && sides === 2) ? fThick * 2 : fThick;
+            if (document.querySelector('input[name="mountStyle"]:checked').value === 'Flush' && internalFrameDepth > pSize) {
+                // Force frame down to Tube10 (1") to resolve the physics overlap instantly
+                document.getElementById('frameMat').value = 'Tube10'; 
                 didClamp = true;
-                msg = `Max material stock length (${maxStockInches / 12}') reached. Ground clearance reduced.`;
+                msg = `Structural collision: Frame depth (${internalFrameDepth}") exceeded Post size (${pSize}"). Frame reduced to 1" Tube.`;
             }
 
             if (didClamp) {
                 warnEl.classList.remove('hidden');
                 warnMsg.innerText = msg;
                 clearTimeout(warnEl.timeoutId);
-                warnEl.timeoutId = setTimeout(() => warnEl.classList.add('hidden'), 4500);
+                warnEl.timeoutId = setTimeout(() => warnEl.classList.add('hidden'), 5000);
             }
         }
 
-        // --- FIXED 2D DRAWING ALGORITHM ---
+        // --- FIXED 2D DRAWING ALGORITHM (No Text Dimensions) ---
         function drawShopDrawings(geom) {
             const frontCont = document.getElementById('svg-front-container');
             const sideCont = document.getElementById('svg-side-container');
-            // Ensure geom.panels exists and is an array before we try to loop through it
             if (!frontCont || !sideCont || !geom || !geom.panels || geom.panels.length === 0) return;
+
+            const pW = geom.panels.w;
+            const pH = geom.panels.h;
+            const mountStyle = geom.panels.mountStyle;
 
             const maxH = 150; const maxW = 350;
             const th = geom.above + geom.under;
@@ -357,8 +318,9 @@
             const sUnder = geom.under * scale;
             const sHoleD = geom.holeD * scale;
 
-            let p1X = (sOw - (geom.postSpacing * scale + 2*sPostD)) / 2;
-            let p2X = p1X + sPostD + (geom.postSpacing * scale);
+            let p1X = mountStyle === 'Between' ? 0 : sPostD;
+            let p2X = mountStyle === 'Between' ? sOw - sPostD : sOw - (sPostD * 2);
+            if(mountStyle === 'Flush') { p1X = 0; p2X = sOw - sPostD; }
 
             // 1. Background Grade
             let bgLayer = `<rect x="-${padX}" y="${sTh - sUnder}" width="${sOw + (padX*2)}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
@@ -381,41 +343,26 @@
             // ----- FRONT SOLID RENDER -----
             let svgFrontSolid = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sOw + padX*2} ${sTh + padY*2}" style="overflow: visible;">` + bgLayer;
 
-            let currY = sTh - sUnder - sClr - (geom.totalPanelH * scale);
+            let currY = sTh - sUnder - sClr - (pH * scale);
+            let sPw = mountStyle === 'Between' ? (sOw - (sPostD * 2)) : sOw;
+            let sPh = pH * scale;
+            let panelX = mountStyle === 'Between' ? sPostD : 0;
+            const ft = geom.frameThick * scale;
 
-            geom.panels.forEach((p, i) => {
-                let pW_real = p.mountStyle === 'Between' ? geom.postSpacing : p.w;
-                let sPw = pW_real * scale;
-                let sPh = p.h * scale;
-                let panelX = p.mountStyle === 'Between' ? p1X + sPostD : (sOw - sPw) / 2;
-                if (i > 0) currY += (p.gap * scale);
+            // Frame Visuals
+            if(mountStyle === 'Between') {
+                svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${ft}" fill="#94a3b8"/>`; // Top
+                svgFrontSolid += `<rect x="${panelX}" y="${currY + sPh - ft}" width="${sPw}" height="${ft}" fill="#94a3b8"/>`; // Bot
+                svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${ft}" height="${sPh}" fill="#94a3b8"/>`; // Left
+                svgFrontSolid += `<rect x="${panelX + sPw - ft}" y="${currY}" width="${ft}" height="${sPh}" fill="#94a3b8"/>`; // Right
+            } else {
+                svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${ft}" fill="#94a3b8"/>`; // Top
+                svgFrontSolid += `<rect x="${panelX}" y="${currY + sPh - ft}" width="${sPw}" height="${ft}" fill="#94a3b8"/>`; // Bot
+            }
 
-                // Frame
-                let frameW_real = Math.max(pW_real, geom.postSpacing);
-                let sFw = frameW_real * scale;
-                let fX = (sOw - sFw) / 2;
-                const ft = geom.frameThick * scale;
-                let shareTop = (i > 0 && p.gap === 0 && p.mountStyle === geom.panels[i-1].mountStyle);
-
-                svgFrontSolid += `<rect x="${fX}" y="${currY + sPh - ft}" width="${sFw}" height="${ft}" fill="#94a3b8"/>`;
-                if (!shareTop) svgFrontSolid += `<rect x="${fX}" y="${currY}" width="${sFw}" height="${ft}" fill="#94a3b8"/>`;
-
-                let isFlushSealed = p.mountStyle === 'Flush' && Math.abs(p.w - (geom.postSpacing + geom.post*2)) < 0.01;
-                let vHeight = sPh - (shareTop ? ft : ft*2);
-                let vY = currY + (shareTop ? 0 : ft);
-
-                if (!isFlushSealed) {
-                    svgFrontSolid += `<rect x="${panelX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#94a3b8"/>`;
-                    svgFrontSolid += `<rect x="${panelX + sPw - ft}" y="${vY}" width="${ft}" height="${vHeight}" fill="#94a3b8"/>`;
-                }
-
-                // Substrate Face
-                let faceOpacity = p.mountStyle === 'Between' ? 0.8 : 0.95;
-                svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="${faceOpacity}"/>`;
-                svgFrontSolid += `<text x="${panelX + (sPw / 2)}" y="${currY + (sPh / 2)}" font-family="sans-serif" font-weight="900" font-size="${sPh / 4}" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">LOGO</text>`;
-
-                currY += sPh;
-            });
+            // Substrate Face (Semi-Transparent)
+            let faceOpacity = mountStyle === 'Between' ? 0.8 : 0.95;
+            svgFrontSolid += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="${faceOpacity}"/>`;
 
             svgFrontSolid += `</svg>`;
 
@@ -427,7 +374,7 @@
 
             let svgSide = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sSideW + padX*2} ${sTh + padY*2}" style="overflow: visible;">`;
             svgSide += `<rect x="-${padX}" y="${sTh - sUnder}" width="${sSideW + padX*2}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
-            svgSide += `<line x1="-${padX}" y1="${sTh - sUnder}" x2="${sSideW + padX}" y2="${sTh - sUnder}" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+            svgSide += `<line x1="-${padX}" y1="${sTh - sUnder}" x2="${sSideW+padX}" y2="${sTh - sUnder}" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="3,2"/>`;
 
             if (geom.hasConcrete) {
                 const footerH = sUnder * 0.66;
@@ -437,18 +384,13 @@
 
             svgSide += `<rect x="${px}" y="${postCutThick}" width="${sPostD}" height="${postDrawH}" fill="#64748b" />`;
 
-            let sy = sTh - sUnder - sClr - (geom.totalPanelH * scale);
-            geom.panels.forEach((p, i) => {
-                let sPh = p.h * scale;
-                if (i > 0) sy += (p.gap * scale);
-                if (p.mountStyle === 'Between') {
-                    svgSide += `<rect x="${px + (sPostD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#1e40af"/>`;
-                } else {
-                    svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
-                    if(p.sides === 2) svgSide += `<rect x="${px + sPostD}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
-                }
-                sy += sPh;
-            });
+            let sy = sTh - sUnder - sClr - (pH * scale);
+            if (mountStyle === 'Between') {
+                svgSide += `<rect x="${px + (sPostD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#1e40af"/>`;
+            } else {
+                svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
+                if(geom.panels.sides === 2) svgSide += `<rect x="${px + sPostD}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6"/>`;
+            }
 
             svgSide += `</svg>`;
 
@@ -460,31 +402,37 @@
             if(!backendData.Retail_Min_Order) return;
             enforcePhysics(); 
             
+            const mountStyleStr = document.querySelector('input[name="mountStyle"]:checked').value;
+            const wInput = parseFloat(document.getElementById('w').value) || 48;
+            const postSizeStr = document.getElementById('postSize').value;
+
+            // In Flush Mount, W is Overall Width. In Between Posts, it is Panel Width.
             const panelArray = [{
-                w: parseFloat(document.getElementById('w').value) || 48,
+                w: wInput,
                 h: parseFloat(document.getElementById('h').value) || 48,
                 sides: parseInt(document.getElementById('sides').value) || 2,
                 faceMat: document.getElementById('faceMat').value,
-                mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
+                mountStyle: mountStyleStr,
                 gap: 0, isCNC: false, graphicMethod: 'Printed'
             }];
 
+            let overallSpacing = mountStyleStr === 'Between' ? wInput : (wInput - (parseFloat(postSizeStr)*2));
+
             const inputs = {
                 qty: parseInt(document.getElementById('qty').value) || 1,
-                w: parseFloat(document.getElementById('w').value) || 48,
+                w: wInput,
                 h: parseFloat(document.getElementById('h').value) || 48,
                 clearance: parseFloat(document.getElementById('clearance').value) || 36,
-                mountStyle: document.querySelector('input[name="mountStyle"]:checked').value,
+                postAbove: parseFloat(document.getElementById('postAbove').value),
+                mountStyle: mountStyleStr,
                 postType: document.getElementById('postType').value,
-                postSize: document.getElementById('postSize').value,
-                postInset: parseFloat(document.getElementById('postInset').value) || 0,
+                postSize: postSizeStr,
                 frameMat: document.getElementById('frameMat').value,
                 faceMat: document.getElementById('faceMat').value,
                 sides: parseInt(document.getElementById('sides').value) || 2,
                 panels: panelArray,
-                aboveGrade: (parseFloat(document.getElementById('h').value) || 48) + (parseFloat(document.getElementById('clearance').value) || 36),
                 belowGrade: 36, hasConcrete: true, finishType: 'Printed', isCutVinyl: false,
-                postSpacing: (parseFloat(document.getElementById('w').value) || 48) - (parseFloat(document.getElementById('postInset').value) || 0) * 2
+                postSpacing: overallSpacing
             };
 
             try {
@@ -509,9 +457,9 @@
                 document.getElementById('min-badge').classList.toggle('hidden', !ret.isMinApplied);
 
                 const sideTxt = inputs.sides === 2 ? "Double Sided" : "Single Sided";
-                const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount (${inputs.postInset}" Inset)`;
+                const mountTxt = inputs.mountStyle === 'Between' ? 'Between Posts' : `Flush Mount`;
                 const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
-                document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" x ${inputs.h}" Post & Panel Sign.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})`;
+                document.getElementById('job-desc').value = `(x${inputs.qty}) ${result.geom.overallW}" O.A.W x ${inputs.h}" Panel.\nStructure: 2x ${inputs.postType} ${inputs.postSize}" Posts. (${inputs.clearance}" Ground Clearance)\nFrame: ${frameTxt} (${mountTxt})\nPanel: ${inputs.faceMat} (${sideTxt})`;
 
                 if(result.geom) drawShopDrawings(result.geom);
 
@@ -548,7 +496,6 @@
                     }
                 }
 
-                toggleInsetUI();
                 runCalc();
             } catch(e) {
                 console.error("API Error:", e);
