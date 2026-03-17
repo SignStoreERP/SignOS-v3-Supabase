@@ -56,45 +56,48 @@ Deno.serve(async (req) => {
         let frameCutDesc: string[] = [];
 
         inputs.panels.forEach((p: any, idx: number) => {
-            let gap = parseFloat(p.gap) || 0;
             let pw = parseFloat(p.w) || 36;
             let ph = parseFloat(p.h) || 24;
             
-            if (idx > 0) currentY += gap;
-            p.y = currentY; 
+            if (idx > 0) currentY += parseFloat(p.gap) || 0;
+            p.y = currentY;
 
             let pLF = 0, pCuts = 0;
-            let pDesc = [];
+            let pDesc: string[] = [];
 
             if (p.mountStyle === 'Between') {
+                // BETWEEN: Frame is a full 4-piece box. Horizontals span full width, Verticals span between them.
                 let vLen = ph - (fThick * 2);
-                pLF += (vLen * 2) / 12;
-                pLF += (pw * 2) / 12;
+                pLF += (pw * 2) / 12; // Top & Bot
+                pLF += (vLen * 2) / 12; // Left & Right
                 pCuts += 4;
                 pDesc.push(`(x2) ${pw}" Horizontals | (x2) ${vLen}" Verticals`);
+                
                 if (isAngle) totalSkinSqIn += (pw * postSizeInches * 2) * inputs.qty;
+                
             } else {
-                // Flush Mount
-                pLF += (pw * 2) / 12; // Top & Bottom
-                pLF += (ph * 2) / 12; // Sides
-                pCuts += 4;
-                pDesc.push(`(x2) ${pw}" Horizontals | (x2) ${ph}" Verticals`);
+                // FLUSH: Posts align to outer edge of panel. Frame is ONLY Top & Bottom horizontals spanning the Inner Distance.
+                let innerDist = Math.max(1, pw - (postSizeInches * 2));
+                pLF += (innerDist * 2) / 12; // Top & Bot only
+                pCuts += 2;
+                pDesc.push(`(x2) ${innerDist}" Horizontals`);
+                
                 if (isAngle || fThick < postSizeInches) {
                     totalSkinSqIn += (pw * postSizeInches * 2) * inputs.qty;
                 }
             }
 
-            let fMult = (p.sides === 2 && isAngle) ? 2 : 1; 
+            let fMult = (p.sides === 2 && isAngle) ? 2 : 1;
             totalFrameLF += (pLF * fMult) * inputs.qty;
             frameCutsRaw += (pCuts * fMult) * inputs.qty;
-            
+
             let pArea = (pw * ph) / 144 * inputs.qty * (p.sides === 2 ? 2 : 1);
             totalPanelSqFt += pArea;
 
             currentY += ph;
             frameCutDesc.push(`P${idx+1} [${p.mountStyle}]: ` + pDesc.join(''));
         });
-
+        
         postCutsRaw += 2; 
         if (fThick > 4) bandSawCuts += frameCutsRaw;
         else miterSawCuts += frameCutsRaw;
