@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero-Variance Simulator v5.1 | SignOS Admin</title>
+    <title>Zero-Variance Simulator v5.2 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="signos-core.js"></script>
@@ -22,7 +22,7 @@
         <div class="bg-gray-900 px-6 py-4 flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v5.1</span>
+                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v5.2</span>
                 </h1>
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Cloud Edge Function Live Auditing (Zero Client-Side Math)</p>
             </div>
@@ -33,35 +33,36 @@
         <div class="p-6 bg-slate-50 border-b border-gray-200 grid grid-cols-1 md:grid-cols-6 gap-4 items-end shrink-0">
             <div class="md:col-span-2">
                 <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Target Edge Function</label>
-<select id="sim-endpoint" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white custom-scroll">
-    <optgroup label="Rigid Signs">
-        <option value="calculate-yard">calculate-yard (Yard Signs)</option>
-        <option value="calculate-coro">calculate-coro (Custom Coroplast)</option>
-        <option value="calculate-acm">calculate-acm (ACM / Metal)</option>
-        <option value="calculate-pvc">calculate-pvc (PVC Signs)</option>
-        <option value="calculate-foam">calculate-foam (Foam Core)</option>
-        <option value="calculate-acrylic">calculate-acrylic (Acrylic Signs)</option>
-    </optgroup>
-    <optgroup label="Roll Media">
-        <option value="calculate-banner">calculate-banner (Vinyl Banners)</option>
-        <option value="calculate-cut">calculate-cut (Cut Vinyl)</option>
-        <option value="calculate-decal">calculate-decal (Decals & Stickers)</option>
-        <option value="calculate-wrap">calculate-wrap (Vehicle Wraps)</option>
-        <option value="calculate-wall">calculate-wall (Interior Wall Wraps)</option>
-    </optgroup>
-    <optgroup label="Architectural & Fabrication">
-        <option value="calculate-ada">calculate-ada (ADA Signs)</option>
-        <option value="calculate-nameplate">calculate-nameplate (Bulk Nameplates)</option>
-        <option value="calculate-post-panel">calculate-post-panel (Post & Panel)</option>
-        <option value="calculate-channel-letters">calculate-channel-letters (Channel Letters)</option>
-    </optgroup>
-</select>
+                <!-- ADDED: onchange event to trigger the dynamic legacy filter -->
+                <select id="sim-endpoint" onchange="filterLegacyBenchmarks()" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white custom-scroll">
+                    <optgroup label="Rigid Signs">
+                        <option value="calculate-yard">calculate-yard (Yard Signs)</option>
+                        <option value="calculate-coro">calculate-coro (Custom Coroplast)</option>
+                        <option value="calculate-acm">calculate-acm (ACM / Metal)</option>
+                        <option value="calculate-pvc">calculate-pvc (PVC Signs)</option>
+                        <option value="calculate-foam">calculate-foam (Foam Core)</option>
+                        <option value="calculate-acrylic">calculate-acrylic (Acrylic Signs)</option>
+                    </optgroup>
+                    <optgroup label="Roll Media">
+                        <option value="calculate-banner">calculate-banner (Vinyl Banners)</option>
+                        <option value="calculate-cut">calculate-cut (Cut Vinyl)</option>
+                        <option value="calculate-decal">calculate-decal (Decals & Stickers)</option>
+                        <option value="calculate-wrap">calculate-wrap (Vehicle Wraps)</option>
+                        <option value="calculate-wall">calculate-wall (Interior Wall Wraps)</option>
+                    </optgroup>
+                    <optgroup label="Architectural & Fabrication">
+                        <option value="calculate-ada">calculate-ada (ADA Signs)</option>
+                        <option value="calculate-nameplate">calculate-nameplate (Bulk Nameplates)</option>
+                        <option value="calculate-post-panel">calculate-post-panel (Post & Panel)</option>
+                        <option value="calculate-channel-letters">calculate-channel-letters (Channel Letters)</option>
+                    </optgroup>
+                </select>
             </div>
             <div class="md:col-span-2">
                 <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Legacy Benchmark (Ghost Line)</label>
                 <select id="sim-legacy" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
                     <option value="">None (Live Curves Only)</option>
-                    <!-- Injected via Supabase fetch on load -->
+                    <!-- Injected dynamically based on Target Edge Function -->
                 </select>
             </div>
             <div class="md:col-span-1">
@@ -103,6 +104,7 @@
 
     <script>
     let auditChart = null;
+    let allLegacyData = []; // Store the full ledger in memory
 
     // Security Gate & Initialization
     window.onload = async () => {
@@ -115,7 +117,7 @@
         await loadLegacyBenchmarks();
     };
 
-    // Safely retrieve the historical offline ledger directly from Supabase
+    // Safely retrieve the historical offline ledger directly from Supabase ONCE
     async function loadLegacyBenchmarks() {
         try {
             const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=product_line.asc`, {
@@ -123,19 +125,55 @@
             });
             if (!res.ok) throw new Error("Failed to fetch legacy ledger");
             
-            const data = await res.json();
-            const sel = document.getElementById('sim-legacy');
+            allLegacyData = await res.json();
+            logMsg("Legacy Blue Sheet benchmarks loaded to memory.", "system");
             
-            data.forEach(item => {
-                const opt = document.createElement('option');
-                opt.value = item.legacy_price;
-                opt.innerText = `[${item.category}] ${item.product_line} (${item.dimensions} ${item.sides}) - $${item.legacy_price.toFixed(2)}`;
-                sel.appendChild(opt);
-            });
-            logMsg("Legacy Blue Sheet benchmarks loaded.", "system");
+            // Auto-filter for the currently selected dropdown option on page load
+            filterLegacyBenchmarks(); 
+            
         } catch(e) {
             logMsg(`Warning: ${e.message}`, "warn");
         }
+    }
+
+    // DYNAMIC FILTERING ENGINE
+    function filterLegacyBenchmarks() {
+        const endpoint = document.getElementById('sim-endpoint').value;
+        const sel = document.getElementById('sim-legacy');
+        
+        // Reset the dropdown
+        sel.innerHTML = '<option value="">None (Live Curves Only)</option>';
+
+        let filteredData = [];
+
+        // Route the data logically based on the target Edge Function
+        switch(endpoint) {
+            case 'calculate-yard':
+                // Yard Signs strictly look at 4mm Coro in exactly 18x24 dimension
+                filteredData = allLegacyData.filter(item => item.product_line === '4mm Coroplast' && item.dimensions === '18x24');
+                break;
+            case 'calculate-coro':
+                // Custom Coro looks at all Coroplast sizes
+                filteredData = allLegacyData.filter(item => item.product_line === '4mm Coroplast' || item.product_line === '10mm Coroplast');
+                break;
+            case 'calculate-foam':
+                // Foam looks strictly at Foam Core
+                filteredData = allLegacyData.filter(item => item.product_line === '3/16" Foam Core');
+                break;
+            case 'calculate-banner':
+                // Banners looks strictly at Banners
+                filteredData = allLegacyData.filter(item => item.product_line === '13oz Banner');
+                break;
+            // Additional module mappings can be added here as we ingest more legacy data
+        }
+
+        // Populate the dropdown with the filtered results
+        filteredData.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.legacy_price;
+            opt.innerText = `[${item.category}] ${item.product_line} (${item.dimensions} ${item.sides}) - $${item.legacy_price.toFixed(2)}`;
+            sel.appendChild(opt);
+        });
     }
 
     function logMsg(msg, type = 'info') {
