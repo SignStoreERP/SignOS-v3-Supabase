@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retail Price Auditor v1.2 | SignOS Admin</title>
+    <title>Retail Price Auditor v2.0 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <style>
@@ -21,7 +21,7 @@
         <div class="bg-gray-900 px-6 py-4 flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                    📊 Retail Price Auditor <span class="text-xs text-gray-500">v1.2</span>
+                    📊 Retail Price Auditor <span class="text-xs text-gray-500">v2.0</span>
                 </h1>
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Automated Edge Function vs. Legacy Blue Sheet Validation</p>
             </div>
@@ -34,17 +34,35 @@
         </div>
 
         <!-- CONTROLS & SUMMARY -->
-        <div class="p-6 bg-slate-50 border-b border-gray-200 flex justify-between items-end shrink-0">
-            <div>
-                <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">1. Select Comparison Source</h2>
-                <select id="audit-source" class="w-72 border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
-                    <option value="ALL">All Available Records</option>
-                </select>
+        <div class="p-6 bg-slate-50 border-b border-gray-200 flex flex-col gap-4 shrink-0">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">1. Comparison Source</label>
+                    <select id="audit-source" onchange="updateProductDropdown()" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
+                        <option value="ALL">All Available Records</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">2. Target Product Line</label>
+                    <select id="audit-product" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
+                        <option value="ALL">All Products</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">3. Permutations</label>
+                    <select id="audit-hardware" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
+                        <option value="none">Standard (No Hardware)</option>
+                        <option value="stakes">Audit With & Without H-Stakes</option>
+                    </select>
+                </div>
             </div>
-            <button onclick="runGlobalAudit()" id="btn-run" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-3 rounded shadow-md text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 w-48">
-                <span id="btn-text">Execute Audit</span>
-                <div id="loader" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            </button>
+            
+            <div class="flex justify-end pt-2">
+                <button onclick="runGlobalAudit()" id="btn-run" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-3 rounded shadow-md text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 w-48">
+                    <span id="btn-text">Execute Audit</span>
+                    <div id="loader" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </button>
+            </div>
         </div>
 
         <!-- RESULTS TABLE -->
@@ -74,206 +92,234 @@
     </div>
 
     <script>
-    let auditResults = [];
+        let globalHistory = [];
+        let auditResults = [];
 
-    // Security Gate & Initialization
-    window.onload = async () => {
-        const role = sessionStorage.getItem('signos_role');
-        if (role !== 'ADMIN' && role !== 'SUPER') {
-            alert("ACCESS DENIED: Restricted to Administrators.");
-            window.location.href = 'menu.html';
-            return;
-        }
-        await loadSources();
-    };
-
-    async function loadSources() {
-        try {
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=source_document`, {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            if (!res.ok) throw new Error("Failed to load sources");
-            
-            const data = await res.json();
-            const uniqueSources = [...new Set(data.map(item => item.source_document))].filter(Boolean);
-            
-            const sel = document.getElementById('audit-source');
-            uniqueSources.forEach(src => {
-                sel.innerHTML += `<option value="${src}">${src}</option>`;
-            });
-        } catch(e) {
-            console.error("Error loading sources:", e);
-        }
-    }
-
-    async function runGlobalAudit() {
-        const btn = document.getElementById('btn-run');
-        const btnText = document.getElementById('btn-text');
-        const loader = document.getElementById('loader');
-        const tbody = document.getElementById('audit-table');
-        const btnExport = document.getElementById('btn-export');
-        const sourceDoc = document.getElementById('audit-source').value;
-        
-        btn.disabled = true;
-        btnText.innerText = "Auditing...";
-        loader.classList.remove('hidden');
-        btnExport.classList.add('hidden');
-        auditResults = [];
-        
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-blue-500 font-bold animate-pulse uppercase tracking-widest">Fetching Legacy Ledger...</td></tr>`;
-
-        try {
-            // 1. Fetch Legacy Baseline (Filter by selected source if not "ALL")
-            let query = `${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=category.asc,product_line.asc`;
-            if (sourceDoc !== 'ALL') {
-                query += `&source_document=eq.${encodeURIComponent(sourceDoc)}`;
-            }
-
-            const res = await fetch(query, {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            if (!res.ok) throw new Error("Failed to fetch legacy ledger");
-            const legacyData = await res.json();
-
-            if(legacyData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500 font-bold uppercase tracking-widest">No records found for this source.</td></tr>`;
+        // Security Gate & Initialization
+        window.onload = async () => {
+            const role = sessionStorage.getItem('signos_role');
+            if (role !== 'ADMIN' && role !== 'SUPER') {
+                alert("ACCESS DENIED: Restricted to Administrators.");
+                window.location.href = 'menu.html';
                 return;
             }
+            await loadSources();
+        };
 
-            tbody.innerHTML = '';
-
-            // Universal Base Payload preventing Edge Function undefined crashes
-            const baseInputs = {
-                shape: 'Rectangle', mountStyle: 'Flush', faceMat: '063 Alum',
-                panels: [{ id: 1, w: 48, h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 1, gap: 0 }],
-                postType: 'Aluminum', postSize: '2', frameMat: 'AlumTube_2_1/8',
-                belowGrade: 36, topOffset: 0, thag: 60
-            };
-
-            // 2. Loop Through Each Legacy Item and Ping the Live Cloud Engine
-            for (let item of legacyData) {
-                // Hardware isn't calculated via Edge Functions currently, skip them
-                if (item.category === 'Hardware') continue;
-
-                let endpoint = '';
-                const pLine = (item.product_line || '').toLowerCase();
+        async function loadSources() {
+            try {
+                // Fetch ALL historical records so we can dynamically filter the dropdowns
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=category.asc,product_line.asc`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
                 
-                if (pLine.includes('banner')) endpoint = 'calculate-banner';
-                else if (pLine.includes('coroplast') || pLine.includes('coro')) endpoint = 'calculate-coro';
-                else if (pLine.includes('foam')) endpoint = 'calculate-foam';
-                else if (pLine.includes('acm')) endpoint = 'calculate-acm';
-                else if (pLine.includes('pvc')) endpoint = 'calculate-pvc';
-                else if (pLine.includes('yard')) endpoint = 'calculate-yard';
+                if (!res.ok) throw new Error("Failed to load sources");
+                globalHistory = await res.json();
 
-                if (!endpoint) continue;
-
-                // Smart Dimensional Parsing (Rolls are listed in Feet, Rigid in Inches)
-                let w = 24, h = 24;
-                if (item.dimensions && item.dimensions.includes('x')) {
-                    let parts = item.dimensions.toLowerCase().split('x');
-                    let multiplier = (item.category === 'Roll') ? 12 : 1; 
-                    w = parseFloat(parts) * multiplier;
-                    h = parseFloat(parts[4]) * multiplier;
-                }
-
-                let sides = (item.sides === 'Double' || item.sides === '2') ? 2 : 1;
-
-                const payload = {
-                    inputs: { ...baseInputs, w: w, h: h, sides: sides, qty: 1 },
-                    config: {}
-                };
-
-                // Ping the specific Edge Function
-                let livePrice = 0;
-                let status = 'ERROR';
+                const uniqueSources = [...new Set(globalHistory.map(item => item.source_document))].filter(Boolean);
+                const sel = document.getElementById('audit-source');
                 
-                try {
-                    const fnUrl = `${EDGE_URL}/functions/v1/${endpoint}`;
-                    const edgeRes = await fetch(fnUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (edgeRes.ok) {
-                        const result = await edgeRes.json();
-                        livePrice = result.retail?.total || result.retail?.grandTotal || result.retail?.quoteTotal || result.retail?.unitPrice || 0;
-                        status = 'SUCCESS';
-                    }
-                } catch(e) {
-                    console.error("Edge Ping Failed", e);
-                }
-
-                let variance = livePrice - item.legacy_price;
-                
-                // Formatting rendering variables
-                let varianceColor = 'text-green-500';
-                let varianceText = variance === 0 ? 'MATCH' : (variance > 0 ? `+$${variance.toFixed(2)}` : `-$${Math.abs(variance).toFixed(2)}`);
-                if (variance > 0) varianceColor = 'text-blue-500'; // Cloud is charging more
-                if (variance < 0) varianceColor = 'text-red-500';  // Cloud is charging less (Margin loss risk)
-
-                let badge = `<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">ERR</span>`;
-                if (status === 'SUCCESS') {
-                    if (Math.abs(variance) < 0.05) badge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-green-200">PASS</span>`;
-                    else if (variance < 0) badge = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-red-200">LOSS</span>`;
-                    else badge = `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-blue-200">GAIN</span>`;
-                }
-
-                // Add to results for CSV
-                auditResults.push({
-                    category: item.category,
-                    product: item.product_line,
-                    dimensions: item.dimensions,
-                    sides: item.sides,
-                    legacy: item.legacy_price,
-                    live: livePrice,
-                    variance: variance
+                uniqueSources.forEach(src => {
+                    sel.innerHTML += `<option value="${src}">${src}</option>`;
                 });
 
-                // Append to Table
-                tbody.innerHTML += `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">${item.category}</td>
-                        <td class="p-4 font-bold text-gray-800">${item.product_line}</td>
-                        <td class="p-4 text-gray-600">${item.dimensions}</td>
-                        <td class="p-4 text-gray-600">${item.sides}</td>
-                        <td class="p-4 text-right font-mono text-gray-500">$${item.legacy_price.toFixed(2)}</td>
-                        <td class="p-4 text-right font-mono font-bold text-blue-600">$${livePrice.toFixed(2)}</td>
-                        <td class="p-4 text-right font-mono font-bold ${varianceColor}">${varianceText}</td>
-                        <td class="p-4 text-center">${badge}</td>
-                    </tr>
-                `;
+                updateProductDropdown();
+
+            } catch(e) {
+                console.error("Error loading sources:", e);
             }
-
-            btnExport.classList.remove('hidden');
-
-        } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-red-500 font-bold uppercase">System Error: ${e.message}</td></tr>`;
-        } finally {
-            btn.disabled = false;
-            btnText.innerText = "Execute Audit";
-            loader.classList.add('hidden');
         }
-    }
 
-    function exportCSV() {
-        if (auditResults.length === 0) return;
-        
-        let csvContent = "data:text/csv;charset=utf-8,Category,Product Line,Dimensions,Sides,Legacy Price,Live Cloud Price,Variance\n";
-        
-        auditResults.forEach(r => {
-            let row = `${r.category},"${r.product}",${r.dimensions},${r.sides},${r.legacy.toFixed(2)},${r.live.toFixed(2)},${r.variance.toFixed(2)}`;
-            csvContent += row + "\n";
-        });
+        function updateProductDropdown() {
+            const sourceDoc = document.getElementById('audit-source').value;
+            let filteredData = sourceDoc === 'ALL' ? globalHistory : globalHistory.filter(i => i.source_document === sourceDoc);
+            
+            const uniqueProducts = [...new Set(filteredData.map(item => item.product_line))].filter(Boolean).sort();
+            
+            const prodSel = document.getElementById('audit-product');
+            prodSel.innerHTML = '<option value="ALL">All Products</option>';
+            uniqueProducts.forEach(p => {
+                prodSel.innerHTML += `<option value="${p}">${p}</option>`;
+            });
+        }
 
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `SignOS_Price_Audit_${Date.now()}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+        async function runGlobalAudit() {
+            const btn = document.getElementById('btn-run');
+            const btnText = document.getElementById('btn-text');
+            const loader = document.getElementById('loader');
+            const tbody = document.getElementById('audit-table');
+            const btnExport = document.getElementById('btn-export');
+            
+            const sourceDoc = document.getElementById('audit-source').value;
+            const targetProd = document.getElementById('audit-product').value;
+            const testStakes = document.getElementById('audit-hardware').value === 'stakes';
+
+            btn.disabled = true;
+            btnText.innerText = "Auditing...";
+            loader.classList.remove('hidden');
+            btnExport.classList.add('hidden');
+            auditResults = [];
+            
+            tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-blue-500 font-bold animate-pulse uppercase tracking-widest">Running Simulation Loop...</td></tr>`;
+
+            try {
+                // 1. Filter Data Based on User Selection
+                let auditData = globalHistory;
+                if (sourceDoc !== 'ALL') auditData = auditData.filter(i => i.source_document === sourceDoc);
+                if (targetProd !== 'ALL') auditData = auditData.filter(i => i.product_line === targetProd);
+
+                if (auditData.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = '';
+
+                // Universal Base Payload preventing Edge Function undefined crashes
+                const baseInputs = {
+                    shape: 'Rectangle', mountStyle: 'Flush', faceMat: '063 Alum',
+                    panels: [{ id: 1, w: 48, h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 1, gap: 0 }],
+                    postType: 'Aluminum', postSize: '2', frameMat: 'AlumTube_2_1/8',
+                    belowGrade: 36, topOffset: 0, thag: 60
+                };
+
+                // 2. Execute Loop
+                for (let item of auditData) {
+                    
+                    // Route to the correct physics engine
+                    let endpoint = '';
+                    let pLine = item.product_line.toLowerCase();
+                    if (pLine.includes('banner')) endpoint = 'calculate-banner';
+                    else if (pLine.includes('foam')) endpoint = 'calculate-foam';
+                    else if (pLine.includes('acm')) endpoint = 'calculate-acm';
+                    else if (pLine.includes('pvc')) endpoint = 'calculate-pvc';
+                    else if (pLine.includes('coro') || pLine.includes('yard')) endpoint = 'calculate-coro';
+                    
+                    if (!endpoint) continue;
+
+                    // Smart Dimensional Parsing
+                    let w = 24, h = 24;
+                    if (item.dimensions && item.dimensions.includes('x')) {
+                        let parts = item.dimensions.toLowerCase().split('x');
+                        let multiplier = (item.category === 'Roll') ? 12 : 1;
+                        w = parseFloat(parts) * multiplier;
+                        h = parseFloat(parts[1]) * multiplier;
+                    }
+
+                    let sides = (item.sides === 'Double' || item.sides === '2') ? 2 : 1;
+                    
+                    // 3. Dynamic Permutation Generation
+                    let permutations = [ { hasStakes: false, hardwareName: '', legacyAdd: 0 } ];
+                    
+                    if (testStakes && (pLine.includes('coro') || pLine.includes('yard'))) {
+                        // Dynamically tests the sign WITH an H-Stake. 
+                        // Adds the $2.00 historical benchmark for the stake to keep variance math perfectly aligned
+                        permutations.push({ hasStakes: true, hardwareName: ' w/ H-Stakes', legacyAdd: 2.00 }); 
+                    }
+
+                    for (let perm of permutations) {
+                        const payload = {
+                            inputs: { ...baseInputs, w: w, h: h, sides: sides, qty: 1, hasStakes: perm.hasStakes },
+                            config: {}
+                        };
+
+                        const response = await fetch(`${EDGE_URL}/functions/v1/${endpoint}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (!response.ok) {
+                            console.error(`Failed ${endpoint} for ${item.product_line}`);
+                            continue;
+                        }
+
+                        const result = await response.json();
+                        if (!result || !result.retail) continue;
+
+                        let livePrice = result.retail.grandTotal;
+                        
+                        // Because calculate-coro focuses natively on the sign, we manually simulate the hardware 
+                        // addition for the audit payload if the stake permutation is toggled
+                        if (perm.hasStakes && endpoint === 'calculate-coro') {
+                            livePrice += 2.00;
+                        }
+
+                        const expectedPrice = item.legacy_price + perm.legacyAdd;
+                        const variance = livePrice - expectedPrice;
+                        
+                        const displayProduct = item.product_line + perm.hardwareName;
+
+                        // Formatting rendering variables
+                        let varianceColor = 'text-green-500';
+                        let varianceText = variance === 0 ? 'MATCH' : (variance > 0 ? `+$${variance.toFixed(2)}` : `-$${Math.abs(variance).toFixed(2)}`);
+
+                        if (variance > 0) varianceColor = 'text-blue-500'; // Cloud is charging more
+                        if (variance < 0) varianceColor = 'text-red-500';  // Cloud is charging less (Margin loss risk)
+
+                        let badge = `<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">ERR</span>`;
+                        if (variance === 0) badge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">EXACT</span>`;
+                        else if (Math.abs(variance) < 2) badge = `<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">MINOR</span>`;
+                        else if (Math.abs(variance) >= 2) badge = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">DRIFT</span>`;
+
+                        // Add to results for CSV
+                        auditResults.push({
+                            category: item.category,
+                            product: displayProduct,
+                            dimensions: item.dimensions,
+                            sides: item.sides,
+                            legacy: expectedPrice,
+                            live: livePrice,
+                            variance: variance
+                        });
+
+                        // Append to Table
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="p-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">${item.category}</td>
+                                <td class="p-4 font-bold text-gray-800">${displayProduct}</td>
+                                <td class="p-4 text-gray-600">${item.dimensions}</td>
+                                <td class="p-4 text-gray-600">${item.sides}</td>
+                                <td class="p-4 text-right font-mono text-gray-500">$${expectedPrice.toFixed(2)}</td>
+                                <td class="p-4 text-right font-mono font-bold text-blue-600">$${livePrice.toFixed(2)}</td>
+                                <td class="p-4 text-right font-mono font-bold ${varianceColor}">${varianceText}</td>
+                                <td class="p-4 text-center">${badge}</td>
+                            </tr>
+                        `;
+                    }
+                }
+
+                btnExport.classList.remove('hidden');
+
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-red-500 font-bold uppercase">System Error: ${e.message}</td></tr>`;
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = "Execute Audit";
+                loader.classList.add('hidden');
+            }
+        }
+
+        function exportCSV() {
+            if (auditResults.length === 0) return;
+
+            let csvContent = "data:text/csv;charset=utf-8,Category,Product Line,Dimensions,Sides,Legacy Price,Live Cloud Price,Variance\n";
+
+            auditResults.forEach(r => {
+                // Wrap product name in quotes to prevent CSV breakage from commas
+                let row = `${r.category},"${r.product}",${r.dimensions},${r.sides},${r.legacy.toFixed(2)},${r.live.toFixed(2)},${r.variance.toFixed(2)}`;
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `SignOS_Price_Audit_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            
+            link.click();
+            document.body.removeChild(link);
+        }
     </script>
 </body>
 </html>
