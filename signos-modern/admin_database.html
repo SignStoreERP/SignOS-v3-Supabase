@@ -143,6 +143,8 @@
     </div>
 
     <script>
+        const AVAILABLE_TAGS = ['SALES', 'PROD', 'ADMIN', 'SUPER', 'DEPT_SALES', 'DEPT_VINYL', 'DEPT_CNC', 'DEPT_DESIGN', 'DEPT_FAB_MTL', 'DEPT_INSTALL', 'RANK_1', 'RANK_2', 'RANK_3'];
+        
         let tableData = [];
         let activeTable = 'global_variables';
         let activeFilterGroup = 'Material';
@@ -309,11 +311,22 @@
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Module Info</th>
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Dev Status</th>
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Active Commit</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-left">Access Tags (JSON)</th>
+                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-left">Access Tags</th>
                     <th class="p-3 text-center">Action</th>
                 </tr>`;
 
                 filteredData.forEach(row => {
+                    const activeTags = row.access_tags || [];
+                    const mergedTags = [...new Set([...AVAILABLE_TAGS, ...activeTags])];
+                    
+                    let tagsHtml = `<div class="flex flex-wrap gap-1" id="sm-tags-${row.id}">`;
+                    mergedTags.forEach(tag => {
+                        const isActive = activeTags.includes(tag);
+                        const bgClass = isActive ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-400 border-gray-200';
+                        tagsHtml += `<button onclick="toggleTag(this, '${row.id}', '${tag}')" data-active="${isActive}" class="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition ${bgClass}">${tag}</button>`;
+                    });
+                    tagsHtml += `</div>`;
+
                     html += `<tr class="hover:bg-blue-50/50 transition">
                         <td class="p-3">
                             <div class="font-bold text-gray-800 text-sm flex items-center gap-2">
@@ -335,9 +348,7 @@
                                 ${row.active_commit ? '#' + row.active_commit.substring(0,7) : 'Auto via CI/CD'}
                             </span>
                         </td>
-                        <td class="p-3">
-                            <input type="text" id="sm-tags-${row.id}" value='${JSON.stringify(row.access_tags || [])}' class="w-full text-[10px] font-mono border border-gray-300 rounded p-2 outline-none focus:border-blue-500 bg-gray-50" placeholder='["SILO_SALES", "RANK_2"]' oninput="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')">
-                        </td>
+                        <td class="p-3">${tagsHtml}</td>
                         <td class="p-3 text-center">
                             <button id="btn-sm-${row.id}" onclick="saveSystemModule('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-3 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">
                                 Update
@@ -348,6 +359,19 @@
             }
 
             tbody.innerHTML = html;
+        }
+
+        // --- TAG TOGGLE HELPER ---
+        function toggleTag(btn, rowId, tag) {
+            const isActive = btn.getAttribute('data-active') === 'true';
+            if (isActive) {
+                btn.setAttribute('data-active', 'false');
+                btn.className = "px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition bg-gray-50 text-gray-400 border-gray-200";
+            } else {
+                btn.setAttribute('data-active', 'true');
+                btn.className = "px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition bg-blue-100 text-blue-700 border-blue-300";
+            }
+            document.getElementById(`btn-sm-${rowId}`).classList.remove('hidden');
         }
 
         // --- SAVING LOGIC (Retail Curves) ---
@@ -416,14 +440,9 @@
             btn.innerText = "SAVING..."; btn.disabled = true;
 
             let parsedTags = [];
-            try {
-                parsedTags = JSON.parse(document.getElementById(`sm-tags-${id}`).value || '[]');
-            } catch(e) {
-                alert("Invalid JSON format in Access Tags. Please use valid array format like [\"SILO_SALES\"].");
-                btn.innerText = "ERROR"; btn.classList.replace('bg-blue-600', 'bg-red-500');
-                setTimeout(() => { btn.innerText = "UPDATE"; btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.disabled = false; }, 2000);
-                return;
-            }
+            document.querySelectorAll(`#sm-tags-${id} button`).forEach(b => {
+                if(b.getAttribute('data-active') === 'true') parsedTags.push(b.innerText);
+            });
 
             const payload = {
                 dev_status: document.getElementById(`sm-status-${id}`).value,

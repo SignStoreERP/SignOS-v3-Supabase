@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Workforce Manager v1.0 | SignOS Admin</title>
+    <title>Workforce Manager v2.0 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <style>
@@ -19,7 +19,7 @@
     <div class="bg-gray-900 text-white border-b border-gray-800 px-6 py-4 flex justify-between items-center shadow-lg z-30 shrink-0">
         <div>
             <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
-                <span class="text-blue-400">👥</span> Workforce Manager <span class="text-gray-500 text-xs font-normal">v1.0</span>
+                <span class="text-blue-400">👥</span> Workforce Manager <span class="text-gray-500 text-xs font-normal">v2.0</span>
             </h1>
             <div class="text-[10px] font-bold text-gray-400 mt-0.5 tracking-wider uppercase">
                 VIR_AGENT_ADMN | Access Control
@@ -38,13 +38,12 @@
 
     <!-- MAIN CONTENT -->
     <div class="w-full max-w-5xl mx-auto px-4 py-8 flex-1 flex flex-col overflow-hidden">
-        
         <div class="mb-6 flex justify-between items-end border-b border-gray-200 pb-4 shrink-0">
             <div>
                 <h2 class="text-2xl font-black text-gray-800 tracking-tight">Staff Registry</h2>
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mt-1">Manage Roles, Departments, and System Access</p>
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mt-1">Manage Roles, Departments, and Tool Access</p>
             </div>
-            <button onclick="fetchStaff()" class="text-[10px] font-black bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded hover:bg-gray-50 shadow-sm transition uppercase">
+            <button onclick="fetchStaffAndModules()" class="text-[10px] font-black bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded hover:bg-gray-50 shadow-sm transition uppercase">
                 Refresh Data
             </button>
         </div>
@@ -71,11 +70,30 @@
         </div>
     </div>
 
+    <!-- GRANULAR ACCESS MODAL -->
+    <div id="access-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="p-5 bg-indigo-50 border-b border-indigo-200 flex justify-between items-center shrink-0">
+                <div>
+                    <h3 class="font-black text-indigo-800 uppercase tracking-widest text-xs">Granular Feature Access</h3>
+                    <div class="text-[10px] text-indigo-600 font-bold mt-1 uppercase tracking-widest">
+                        Target User: <span id="modal-target-name" class="text-gray-900 font-black">---</span>
+                    </div>
+                </div>
+                <button onclick="closeAccessModal()" class="text-indigo-400 hover:text-red-500 font-bold transition text-xl focus:outline-none">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scroll p-6 bg-gray-50 space-y-3" id="modules-list">
+                <!-- Modules Injected Here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         let staffData = [];
+        let allModules = [];
         let callerId = null;
 
-        // 1. SECURITY GATE: Ensure only ADMIN or SUPER can load this page
+        // 1. SECURITY GATE
         window.onload = async function() {
             const role = sessionStorage.getItem('signos_role');
             if (role !== 'ADMIN' && role !== 'SUPER') {
@@ -83,16 +101,14 @@
                 window.location.href = 'menu.html';
                 return;
             }
-            
             document.getElementById('auth-user').innerText = sessionStorage.getItem('signos_user') || 'ADMIN';
             
-            // We need the caller's true database ID to pass to the RPC for verification
             await fetchCallerId();
-            fetchStaff();
+            fetchStaffAndModules();
         };
 
         async function fetchCallerId() {
-            const email = sessionStorage.getItem('signos_email'); // Assuming email is stored, or we match via Name
+            const email = sessionStorage.getItem('signos_email');
             if(!email) return;
             try {
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/staff?email=eq.${encodeURIComponent(email)}&select=id`, {
@@ -103,23 +119,29 @@
             } catch(e) { console.error("Could not fetch caller ID"); }
         }
 
-        async function fetchStaff() {
+        // 2. FETCH STAFF & MODULES SIMULTANEOUSLY
+        async function fetchStaffAndModules() {
             try {
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/staff?select=*&order=first_name.asc`, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                });
-                if(!res.ok) throw new Error("Failed to fetch staff.");
-                staffData = await res.json();
+                const [resStaff, resMods] = await Promise.all([
+                    fetch(`${SUPABASE_URL}/rest/v1/staff?select=*&order=first_name.asc`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }),
+                    fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=*`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } })
+                ]);
+                
+                if(!resStaff.ok || !resMods.ok) throw new Error("Failed to fetch backend tables.");
+                
+                staffData = await resStaff.json();
+                allModules = await resMods.json();
                 renderTable();
             } catch(e) {
                 document.getElementById('staff-table').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold text-xs uppercase tracking-widest">Error Loading Data</td></tr>`;
             }
         }
 
+        // 3. RENDER WORKFORCE TABLE
         function renderTable() {
             const tbody = document.getElementById('staff-table');
             let html = '';
-
+            
             staffData.forEach(user => {
                 const roleColors = {
                     'SUPER': 'bg-purple-100 text-purple-800 border-purple-200',
@@ -128,7 +150,8 @@
                     'PROD': 'bg-green-100 text-green-800 border-green-200'
                 };
                 const rColor = roleColors[user.role] || 'bg-gray-100 text-gray-800 border-gray-200';
-                
+                const safeName = `${user.first_name} ${user.last_name || ''}`.replace(/'/g, "\\'");
+
                 html += `
                 <tr class="hover:bg-slate-50 transition group">
                     <td class="p-4">
@@ -151,14 +174,12 @@
                             <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
                         </label>
                     </td>
-                    <td class="p-4 text-right">
-                        <button id="btn-${user.id}" onclick="saveUser('${user.id}')" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded shadow-sm text-[10px] font-black uppercase tracking-widest transition">
-                            Save
-                        </button>
+                    <td class="p-4 text-right flex justify-end gap-2">
+                        <button id="btn-${user.id}" onclick="saveUser('${user.id}')" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded shadow-sm text-[10px] font-black uppercase tracking-widest transition">Save</button>
+                        <button onclick="openAccessModal('${user.id}', '${safeName}', '${user.department_id}', '${user.role}')" class="bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 px-3 py-1.5 rounded shadow-sm text-[10px] font-black uppercase tracking-widest transition flex items-center gap-1">Access ↗</button>
                     </td>
                 </tr>`;
             });
-
             tbody.innerHTML = html;
         }
 
@@ -166,6 +187,107 @@
             document.getElementById(`btn-${id}`).classList.remove('hidden');
         }
 
+        // 4. GRANULAR ACCESS OVERWATCH
+        function openAccessModal(userId, name, deptId, role) {
+            document.getElementById('modal-target-name').innerText = name;
+            const list = document.getElementById('modules-list');
+            list.innerHTML = '';
+
+            // Group modules by category for clean UI
+            const cats = [...new Set(allModules.map(m => m.category || 'General'))].sort();
+
+            cats.forEach(cat => {
+                list.innerHTML += `<h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-4 mb-2 ml-1 border-b border-gray-200 pb-1">${cat}</h4>`;
+                
+                const modsInCat = allModules.filter(m => (m.category || 'General') === cat);
+                modsInCat.forEach(mod => {
+                    const tags = mod.access_tags || [];
+                    
+                    // Logic Check: Does the user have access?
+                    const hasDirect = tags.includes(userId);
+                    const hasDept = tags.includes(deptId);
+                    const hasRole = tags.includes(role);
+                    const isSuper = role === 'SUPER'; // Supers bypass arrays completely
+                    
+                    const isActive = hasDirect || hasDept || hasRole || isSuper;
+                    const inherited = (hasDept || hasRole || isSuper) && !hasDirect; 
+
+                    let toggleHtml = '';
+                    if (inherited) {
+                        let reason = isSuper ? 'SUPER ROLE' : (hasRole ? `ROLE: ${role}` : `DEPT: ${deptId.replace('DEPT_','')}`);
+                        toggleHtml = `<span class="text-[9px] font-black text-indigo-600 bg-indigo-100 border border-indigo-200 px-2 py-1 rounded uppercase shadow-inner" title="To revoke this, you must change their department/role or modify the module's global tags.">Inherited via ${reason}</span>`;
+                    } else {
+                        toggleHtml = `
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" ${isActive ? 'checked' : ''} onchange="toggleModuleAccess('${mod.id}', '${userId}', this.checked)">
+                            <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 shadow-inner"></div>
+                        </label>`;
+                    }
+
+                    list.innerHTML += `
+                        <div class="bg-white border border-gray-200 p-4 rounded-xl flex justify-between items-center shadow-sm hover:border-indigo-300 transition">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-sm shadow-inner">${mod.icon || '⚡'}</div>
+                                <div>
+                                    <div class="font-black text-gray-800 text-sm tracking-tight">${mod.display_name}</div>
+                                    <div class="text-[9px] text-gray-400 font-mono mt-0.5 uppercase">${mod.id}</div>
+                                </div>
+                            </div>
+                            <div>${toggleHtml}</div>
+                        </div>
+                    `;
+                });
+            });
+
+            document.getElementById('access-modal').classList.remove('hidden');
+        }
+
+        function closeAccessModal() {
+            document.getElementById('access-modal').classList.add('hidden');
+        }
+
+        async function toggleModuleAccess(modId, userId, isGranted) {
+            const mod = allModules.find(m => m.id === modId);
+            if (!mod) return;
+
+            let tags = mod.access_tags || [];
+            
+            // Push or prune the user's specific ID from the access array
+            if (isGranted && !tags.includes(userId)) {
+                tags.push(userId);
+            } else if (!isGranted && tags.includes(userId)) {
+                tags = tags.filter(t => t !== userId);
+            }
+
+            mod.access_tags = tags; // Update local memory immediately
+
+            try {
+                // Patch to Supabase
+                await fetch(`${SUPABASE_URL}/rest/v1/system_modules?id=eq.${modId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify({ access_tags: tags })
+                });
+
+                // Standard telemetry logging
+                await fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify({
+                        user_id: sessionStorage.getItem('signos_user') || 'Admin',
+                        role: sessionStorage.getItem('signos_role') || 'ADMIN',
+                        action: isGranted ? 'GRANT_ACCESS' : 'REVOKE_ACCESS',
+                        target: modId,
+                        meta_data: { target_user: userId }
+                    })
+                });
+
+            } catch(e) {
+                alert('Failed to sync access to database: ' + e.message);
+            }
+        }
+
+        // 5. SAVE USER ROLES
         async function saveUser(targetId) {
             const btn = document.getElementById(`btn-${targetId}`);
             const newRole = document.getElementById(`role-${targetId}`).value;
@@ -175,50 +297,37 @@
             btn.disabled = true;
 
             try {
-                // If callerId wasn't found via email, fallback to a hardcoded SUPER override for safety in this demo, 
-                // but in production callerId secures the RPC.
                 const payload = {
                     p_target_id: targetId,
                     p_new_role: newRole,
                     p_new_active: newActive,
-                    p_caller_id: callerId || targetId // Fallback if caller ID fetch fails
+                    p_caller_id: callerId || targetId // Fallback to bypass RPC lock in demo mode if ID fetch failed
                 };
 
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_staff_role`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
                     body: JSON.stringify(payload)
                 });
 
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.message || "Failed to update");
-                }
+                if (!response.ok) throw new Error("Failed to update role");
 
                 btn.innerText = "SAVED";
                 btn.classList.replace('bg-blue-600', 'bg-green-500');
-                
+
                 setTimeout(() => {
                     btn.classList.add('hidden');
                     btn.classList.replace('bg-green-500', 'bg-blue-600');
                     btn.innerText = "SAVE";
                     btn.disabled = false;
-                    fetchStaff(); // Refresh color coding
+                    fetchStaffAndModules(); // Refresh entirely
                 }, 1500);
 
             } catch(e) {
                 alert(`Error: ${e.message}`);
                 btn.innerText = "ERROR";
                 btn.classList.replace('bg-blue-600', 'bg-red-500');
-                setTimeout(() => {
-                    btn.classList.replace('bg-red-500', 'bg-blue-600');
-                    btn.innerText = "SAVE";
-                    btn.disabled = false;
-                }, 2000);
+                setTimeout(() => { btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.innerText = "SAVE"; btn.disabled = false; }, 2000);
             }
         }
     </script>
