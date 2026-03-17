@@ -176,6 +176,10 @@
                     </td>
                     <td class="p-4 text-right flex justify-end gap-2">
                         <button id="btn-${user.id}" onclick="saveUser('${user.id}')" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded shadow-sm text-[10px] font-black uppercase tracking-widest transition">Save</button>
+                        
+                        <!-- SIMULATE BUTTON -->
+                        <button onclick="simulateLogin('${user.id}', '${safeName}', '${user.department_id}', '${user.role}')" class="bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-600 hover:text-white px-3 py-1.5 rounded shadow-sm text-[10px] font-black uppercase tracking-widest transition flex items-center gap-1">Simulate 🎭</button>
+                        
                         <button onclick="openAccessModal('${user.id}', '${safeName}', '${user.department_id}', '${user.role}')" class="bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 px-3 py-1.5 rounded shadow-sm text-[10px] font-black uppercase tracking-widest transition flex items-center gap-1">Access ↗</button>
                     </td>
                 </tr>`;
@@ -329,6 +333,25 @@
                 btn.classList.replace('bg-blue-600', 'bg-red-500');
                 setTimeout(() => { btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.innerText = "SAVE"; btn.disabled = false; }, 2000);
             }
+        }
+
+        // 6. SIMULATE USER SESSION
+        function simulateLogin(id, name, deptId, role) {
+            if (!confirm(`Activate Simulation Protocol?\n\nYou are about to hijack the UI session of ${name}. To return to the Admin Command Center, you will need to log out and log back in.`)) {
+                return;
+            }
+
+            // Overwrite local memory with the target's identity
+            sessionStorage.setItem("signos_user", name);
+            sessionStorage.setItem("signos_user_id", id);
+            sessionStorage.setItem("signos_dept", deptId || 'Unassigned');
+            sessionStorage.setItem("signos_role", role);
+
+            // Calculate correct routing mode
+            let mode = (role === 'PROD') ? 'production' : (role === 'ADMIN' || role === 'SUPER' ? 'admin' : 'sales');
+            
+            // Execute the jump
+            window.location.href = `menu.html?mode=${mode}`;
         }
     </script>
 </body>
