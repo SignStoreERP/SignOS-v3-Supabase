@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retail Price Auditor v1.0 | SignOS Admin</title>
+    <title>Retail Price Auditor v1.2 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <style>
@@ -21,7 +21,7 @@
         <div class="bg-gray-900 px-6 py-4 flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                    📊 Retail Price Auditor <span class="text-xs text-gray-500">v1.0</span>
+                    📊 Retail Price Auditor <span class="text-xs text-gray-500">v1.2</span>
                 </h1>
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Automated Edge Function vs. Legacy Blue Sheet Validation</p>
             </div>
@@ -36,8 +36,10 @@
         <!-- CONTROLS & SUMMARY -->
         <div class="p-6 bg-slate-50 border-b border-gray-200 flex justify-between items-end shrink-0">
             <div>
-                <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">Global Audit Sequence</h2>
-                <p class="text-[10px] text-gray-400 max-w-xl">This tool pulls the immutable legacy prices from <code>ref_retail_history</code> and pings the live Supabase Edge Functions to detect pricing drift across your catalog.</p>
+                <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">1. Select Comparison Source</h2>
+                <select id="audit-source" class="w-72 border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
+                    <option value="ALL">All Available Records</option>
+                </select>
             </div>
             <button onclick="runGlobalAudit()" id="btn-run" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-3 rounded shadow-md text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 w-48">
                 <span id="btn-text">Execute Audit</span>
@@ -63,7 +65,7 @@
                 <tbody id="audit-table" class="divide-y divide-gray-100 text-xs font-medium">
                     <tr>
                         <td colspan="8" class="p-12 text-center text-gray-400 font-bold uppercase tracking-widest border-dashed border-2 border-gray-200 m-4">
-                            System Ready. Click Execute Audit to begin.
+                            System Ready. Select a source and click Execute Audit.
                         </td>
                     </tr>
                 </tbody>
@@ -75,13 +77,34 @@
     let auditResults = [];
 
     // Security Gate & Initialization
-    window.onload = () => {
+    window.onload = async () => {
         const role = sessionStorage.getItem('signos_role');
         if (role !== 'ADMIN' && role !== 'SUPER') {
             alert("ACCESS DENIED: Restricted to Administrators.");
             window.location.href = 'menu.html';
+            return;
         }
+        await loadSources();
     };
+
+    async function loadSources() {
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=source_document`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            if (!res.ok) throw new Error("Failed to load sources");
+            
+            const data = await res.json();
+            const uniqueSources = [...new Set(data.map(item => item.source_document))].filter(Boolean);
+            
+            const sel = document.getElementById('audit-source');
+            uniqueSources.forEach(src => {
+                sel.innerHTML += `<option value="${src}">${src}</option>`;
+            });
+        } catch(e) {
+            console.error("Error loading sources:", e);
+        }
+    }
 
     async function runGlobalAudit() {
         const btn = document.getElementById('btn-run');
@@ -89,6 +112,7 @@
         const loader = document.getElementById('loader');
         const tbody = document.getElementById('audit-table');
         const btnExport = document.getElementById('btn-export');
+        const sourceDoc = document.getElementById('audit-source').value;
         
         btn.disabled = true;
         btnText.innerText = "Auditing...";
@@ -99,12 +123,22 @@
         tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-blue-500 font-bold animate-pulse uppercase tracking-widest">Fetching Legacy Ledger...</td></tr>`;
 
         try {
-            // 1. Fetch Legacy Baseline
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=category.asc,product_line.asc`, {
+            // 1. Fetch Legacy Baseline (Filter by selected source if not "ALL")
+            let query = `${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=category.asc,product_line.asc`;
+            if (sourceDoc !== 'ALL') {
+                query += `&source_document=eq.${encodeURIComponent(sourceDoc)}`;
+            }
+
+            const res = await fetch(query, {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
             });
             if (!res.ok) throw new Error("Failed to fetch legacy ledger");
             const legacyData = await res.json();
+
+            if(legacyData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500 font-bold uppercase tracking-widest">No records found for this source.</td></tr>`;
+                return;
+            }
 
             tbody.innerHTML = '';
 
@@ -122,23 +156,27 @@
                 if (item.category === 'Hardware') continue;
 
                 let endpoint = '';
-                if (item.product_line.includes('Banner')) endpoint = 'calculate-banner';
-                else if (item.product_line.includes('Coroplast')) endpoint = 'calculate-coro';
-                else if (item.product_line.includes('Foam Core')) endpoint = 'calculate-foam';
-                else if (item.product_line.includes('ACM')) endpoint = 'calculate-acm';
+                const pLine = (item.product_line || '').toLowerCase();
+                
+                if (pLine.includes('banner')) endpoint = 'calculate-banner';
+                else if (pLine.includes('coroplast') || pLine.includes('coro')) endpoint = 'calculate-coro';
+                else if (pLine.includes('foam')) endpoint = 'calculate-foam';
+                else if (pLine.includes('acm')) endpoint = 'calculate-acm';
+                else if (pLine.includes('pvc')) endpoint = 'calculate-pvc';
+                else if (pLine.includes('yard')) endpoint = 'calculate-yard';
 
                 if (!endpoint) continue;
 
                 // Smart Dimensional Parsing (Rolls are listed in Feet, Rigid in Inches)
                 let w = 24, h = 24;
                 if (item.dimensions && item.dimensions.includes('x')) {
-                    let parts = item.dimensions.split('x');
+                    let parts = item.dimensions.toLowerCase().split('x');
                     let multiplier = (item.category === 'Roll') ? 12 : 1; 
                     w = parseFloat(parts) * multiplier;
                     h = parseFloat(parts[4]) * multiplier;
                 }
 
-                let sides = item.sides === 'Double' ? 2 : 1;
+                let sides = (item.sides === 'Double' || item.sides === '2') ? 2 : 1;
 
                 const payload = {
                     inputs: { ...baseInputs, w: w, h: h, sides: sides, qty: 1 },
