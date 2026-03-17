@@ -1,4 +1,3 @@
-// Tells VS Code to stop looking for Deno configurations and accept it globally
 declare const Deno: any;
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 
@@ -24,34 +23,29 @@ Deno.serve(async (req: any) => {
     let mappedBox = "";
 
     if (supabaseUrl && supabaseKey) {
-        // Fetch all standard prices for this material and thickness
         const pQuery = thk.includes('10') ? '*10mm*Coro*' : '*4mm*Coro*';
-        const res = await fetch(`${supabaseUrl}/rest/v1/retail_fixed_prices?product_line=ilike.${pQuery}&select=*`, {
+        // FIXED: Querying the exact legacy blue sheet table
+        const res = await fetch(`${supabaseUrl}/rest/v1/master_retail_blue_sheet?product_line=ilike.${pQuery}&select=*`, {
             headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
         });
         
         if (res.ok) {
             const fixedPrices = await res.json();
-            
-            // Use Infinity so any found area is smaller
             let bestArea = Infinity; 
             let selectedRow: any = null;
             
             for (const row of fixedPrices) {
                 if (!row.dimensions || !row.dimensions.includes('x')) continue;
                 
-                // Parse standard sizes (e.g., "18x24")
                 const parts = row.dimensions.toLowerCase().split('x');
                 const sw = parseFloat(parts); 
-                const sh = parseFloat(parts[1]); 
+                const sh = parseFloat(parts[13]); 
 
-                // Check both orientations (Portrait vs Landscape)
                 const fitsStandard = (sw >= reqW && sh >= reqH);
                 const fitsRotated = (sh >= reqW && sw >= reqH);
                 
                 if (fitsStandard || fitsRotated) {
                     const area = sw * sh;
-                    // We want the smallest standard sign that fits the request
                     if (area < bestArea) {
                         bestArea = area; 
                         selectedRow = row;
@@ -62,21 +56,18 @@ Deno.serve(async (req: any) => {
             if (selectedRow) {
                 mappedBox = selectedRow.dimensions;
                 const sidesStr = reqSides === 2 ? 'Double' : 'Single';
-                
-                // Find the exact pricing row for this specific box and sides combination
                 let match = fixedPrices.find((r: any) => r.dimensions === mappedBox && r.sides === sidesStr);
 
                 if (match) {
                     matrixPrice = parseFloat(match.price_qty_1 || "0");
-                    let bulk = match.price_qty_10; 
+                    let bulk = match.price_qty_10_plus; // FIXED: Exact column name from master schema
                     if (qty >= 10 && bulk) matrixPrice = parseFloat(bulk);
-                    else if (qty >= 10) matrixPrice *= 0.95; // 5% standard fallback discount
+                    else if (qty >= 10) matrixPrice *= 0.95; 
                 } else {
-                    // If Double-Sided isn't listed, find Single-Sided and calculate it
                     let single = fixedPrices.find((r: any) => r.dimensions === mappedBox && r.sides === 'Single');
                     if (single) {
                         let base = parseFloat(single.price_qty_1 || "0");
-                        let bulk = single.price_qty_10;
+                        let bulk = single.price_qty_10_plus;
                         if (qty >= 10 && bulk) base = parseFloat(bulk);
                         else if (qty >= 10) base *= 0.95;
                         matrixPrice = reqSides === 2 ? base * (1 + parseFloat(config.Retail_Adder_DS_Mult || "0.5")) : base;
@@ -92,10 +83,9 @@ Deno.serve(async (req: any) => {
     let unitPrintTotal = 0;
     if (matrixPrice > 0) {
         unitPrintTotal = matrixPrice * qty;
-        // Pipe the exact Matrix Lookup hit to the UI Ledger
         R(`Sign Print (${thk} Rounded to ${mappedBox})`, unitPrintTotal, `${qty}x Signs @ $${matrixPrice.toFixed(2)}/ea (Matrix Lookup)`);
     } else {
-        // --- 2. FALLBACK ENGINE (Only triggers if size is LARGER than any standard box) ---
+        // FALLBACK TO AREA MATH FOR OVERSIZED SIGNS ONLY
         const billedW = Math.ceil(reqW / 12) * 12;
         const billedH = Math.ceil(reqH / 12) * 12;
         const billedSqFt = (billedW * billedH) / 144;
@@ -128,7 +118,6 @@ Deno.serve(async (req: any) => {
         }
     }
 
-    // --- RETAIL ADD ONS ---
     let lamTotal = 0;
     if (inputs.laminate && inputs.laminate !== 'None') {
         const lamAdder = parseFloat(config.Retail_Price_Gloss || "8");
@@ -151,7 +140,6 @@ Deno.serve(async (req: any) => {
     const minOrder = parseFloat(config.Retail_Min_Order || "50");
     let isMinApplied = false; let grandTotal = grandTotalRaw;
 
-    // Execute Global Shop Minimum Gate
     if (grandTotalRaw < minOrder) {
         R(`Shop Minimum Surcharge`, minOrder - grandTotalRaw, `Minimum order difference`);
         grandTotal = minOrder; isMinApplied = true;
@@ -160,7 +148,6 @@ Deno.serve(async (req: any) => {
     const printTotal = unitPrintTotal + lamTotal;
 
     // --- 3. COST ENGINE (PHYSICS & BOM) ---
-    // (Physical calculation engine remains entirely untouched)
     const cst: any[] = [];
     const L = (label: string, total: number, formula: string) => { if(total > 0) cst.push({label, total, formula}); return total; };
     const sheetCost = thk === '10mm' ? parseFloat(config.Cost_Stock_10mm_4x8 || "33.49") : parseFloat(config.Cost_Stock_4mm_4x8 || "8.40");
