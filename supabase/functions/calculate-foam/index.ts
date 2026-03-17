@@ -1,26 +1,55 @@
+declare const Deno: any;
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: any) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   try {
-    const { inputs, config } = await req.json()
-    const sqft = (inputs.w * inputs.h) / 144;
-    const totalSqFt = sqft * inputs.qty;
+    const requestData = await req.json();
+    const inputs = requestData.inputs || {};
+    const config = requestData.config || {};
+
+    const actualSqFt = (inputs.w * inputs.h) / 144;
+    const totalActualSqFt = actualSqFt * inputs.qty;
     const multDS = inputs.sides === 2 ? 2 : 1;
-    const ret: any[] = []; const cst: any[] = [];
+
+    // BILLED BRACKET LOGIC
+    const getBracket = (val: number) => {
+        const brackets = [1-15];
+        for (let b of brackets) { if (val <= b) return b; }
+        return Math.ceil(val / 12) * 12;
+    };
+    const billedW = getBracket(inputs.w);
+    const billedH = getBracket(inputs.h);
+    const billedSqFt = (billedW * billedH) / 144;
+    const totalBilledSqFt = billedSqFt * inputs.qty;
+
+    const ret: any[] = [];
     const R = (label: string, total: number, formula: string) => { if(total > 0) ret.push({label, total, formula}); return total; };
-    const L = (label: string, total: number, formula: string) => { if(total > 0) cst.push({label, total, formula}); return total; };
 
     let baseSqFtRate = 0;
-    if (sqft <= 3.99) baseSqFtRate = parseFloat(config.FOM3_T1_Rate || "8.33");
-    else if (sqft <= 15.99) baseSqFtRate = parseFloat(config.FOM3_T2_Rate || "8");
-    else if (sqft <= 31.99) baseSqFtRate = parseFloat(config.FOM3_T3_Rate || "7");
+    if (billedSqFt < 4) baseSqFtRate = parseFloat(config.FOM3_T1_Rate || "8.33");
+    else if (billedSqFt < 16) baseSqFtRate = parseFloat(config.FOM3_T2_Rate || "8");
+    else if (billedSqFt < 32) baseSqFtRate = parseFloat(config.FOM3_T3_Rate || "7");
     else baseSqFtRate = parseFloat(config.FOM3_T4_Rate || "6");
 
-    let retailPrint = baseSqFtRate * totalSqFt;
-    R(`Base Print (3/16")`, retailPrint, `${totalSqFt.toFixed(1)} SF @ $${baseSqFtRate}`);
+    let rawUnitPrint = baseSqFtRate * billedSqFt;
+    let rawUnitDS = inputs.sides === 2 ? rawUnitPrint * parseFloat(config.Retail_Adder_DS_Mult || "0.5") : 0;
+    let combinedUnit = rawUnitPrint + rawUnitDS;
+    
+    const minSignPrice = parseFloat(config.FOM3_T1_Min || "25");
+    let unitPrintTotal = 0;
 
-    if (inputs.sides === 2) R(`Double Sided Adder`, (totalSqFt * parseFloat(config.Retail_Adder_DS_Mult || "0.5") * baseSqFtRate), `+50% Side 2 Markup`);
+    if (combinedUnit < minSignPrice) {
+        unitPrintTotal = minSignPrice * inputs.qty;
+        R(`Sign Print (Billed at ${billedW}"x${billedH}")`, unitPrintTotal, `${inputs.qty}x Signs @ $${minSignPrice.toFixed(2)} (Unit Minimum)`);
+    } else {
+        unitPrintTotal = rawUnitPrint * inputs.qty;
+        R(`Base Print (Billed at ${billedW}"x${billedH}")`, unitPrintTotal, `${inputs.qty}x Signs (${billedSqFt} SF) @ $${baseSqFtRate.toFixed(2)}/sf`);
+        if (inputs.sides === 2) {
+            R(`Double Sided Adder`, rawUnitDS * inputs.qty, `${totalBilledSqFt.toFixed(1)} Billed SF @ +50% Base Rate`);
+            unitPrintTotal += (rawUnitDS * inputs.qty);
+        }
+    }
 
     let routerFee = 0;
     if (inputs.shape !== 'Rectangle') {
@@ -31,36 +60,21 @@ Deno.serve(async (req) => {
     let grandTotalRaw = ret.reduce((sum, i) => sum + i.total, 0);
     const minOrder = parseFloat(config.Retail_Min_Order || "50");
     let isMinApplied = false; let grandTotal = grandTotalRaw;
-    if (grandTotalRaw < minOrder) { R(`Shop Minimum`, minOrder - grandTotalRaw, `Difference`); grandTotal = minOrder; isMinApplied = true; }
 
-    const printTotal = retailPrint + (inputs.sides === 2 ? (totalSqFt * parseFloat(config.Retail_Adder_DS_Mult || "0.5") * baseSqFtRate) : 0);
-
-    const sheetCost = parseFloat(config.Cost_Stock_316_4x8 || "18.50");
-    const wastePct = parseFloat(config.Waste_Factor || "1.15");
-    const riskFactor = parseFloat(config.Factor_Risk || "1.05");
-    const rateOp = parseFloat(config.Rate_Operator || "25");
-
-    const rawBlanks = L(`Foam Core (3/16")`, (totalSqFt / 32) * sheetCost, `(${totalSqFt.toFixed(1)} SF / 32) * $${sheetCost.toFixed(2)}/sht`);
-    L(`Material Waste Buffer`, rawBlanks * (wastePct - 1), `Substrate Cost * ${(wastePct-1)*100}%`);
-
-    L(`Flatbed Ink`, totalSqFt * parseFloat(config.Cost_Ink_Latex || "0.16") * multDS, `${totalSqFt.toFixed(1)} SF * $0.16/SF * ${multDS} Sides`);
-    L(`Job Setup (File RIP)`, (parseFloat(config.Time_Setup_Job || "15") / 60) * rateOp, `15 Mins * $${rateOp}/hr`);
-    L(`Material Handling`, (parseFloat(config.Time_Handling || "5") * multDS / 60) * rateOp, `5 Mins * $${rateOp}/hr * ${multDS} Sides`);
-
-    const printHrs = ((inputs.h / 12) * inputs.qty / parseFloat(config.Machine_Speed_LF_Hr || "18")) * multDS;
-    L(`Flatbed Op (Attn Ratio)`, printHrs * rateOp * parseFloat(config.Labor_Attendance_Ratio || "0.10"), `${printHrs.toFixed(2)} Hrs * $${rateOp}/hr * 10%`);
-    L(`Flatbed Machine Run`, printHrs * parseFloat(config.Rate_Machine_Flatbed || "10"), `${printHrs.toFixed(2)} Hrs * $10/hr`);
-
-    if (inputs.shape !== 'Rectangle') {
-        const cncTime = inputs.shape === 'CNC Simple' ? parseFloat(config.Time_CNC_Easy_SqFt || "1") : parseFloat(config.Time_CNC_Complex_SqFt || "2");
-        const cutHrs = (totalSqFt * cncTime) / 60;
-        L(`CNC Router Run`, cutHrs * parseFloat(config.Rate_Machine_CNC || "10"), `${cutHrs.toFixed(2)} Hrs * $10/hr`);
-        L(`CNC Op (Attn Ratio)`, cutHrs * parseFloat(config.Rate_CNC_Labor || "25"), `${cutHrs.toFixed(2)} Hrs * $25/hr`);
+    if (grandTotalRaw < minOrder) {
+        R(`Shop Minimum Surcharge`, minOrder - grandTotalRaw, `Difference`);
+        grandTotal = minOrder; isMinApplied = true;
     }
 
-    const hardCostRaw = cst.reduce((sum, i) => sum + i.total, 0);
-    const totalCost = hardCostRaw * riskFactor;
-    const payload = { retail: { unitPrice: grandTotal / inputs.qty, grandTotal, breakdown: ret, isMinApplied, printTotal, routerFee }, cost: { total: totalCost, breakdown: cst }, metrics: { margin: (grandTotal - totalCost) / grandTotal } };
+    const cst: any[] = [];
+    const L = (label: string, total: number, formula: string) => { if(total > 0) cst.push({label, total, formula}); return total; };
+    const sheetCost = parseFloat(config.Cost_Stock_316_4x8 || "13.86");
+    
+    L(`Foam Core (3/16")`, (totalActualSqFt / 32) * sheetCost * 1.15, `(${totalActualSqFt.toFixed(1)} SF / 32) * $${sheetCost.toFixed(2)}/sht * Waste`);
+    L(`Flatbed Ink`, totalActualSqFt * 0.16 * multDS, `${totalActualSqFt.toFixed(1)} SF * $0.16/SF`);
+
+    const totalCost = cst.reduce((sum, i) => sum + i.total, 0) * parseFloat(config.Factor_Risk || "1.05");
+    const payload = { retail: { unitPrice: grandTotal / inputs.qty, grandTotal, breakdown: ret, isMinApplied, printTotal: unitPrintTotal, routerFee }, cost: { total: totalCost, breakdown: cst }, metrics: { margin: (grandTotal - totalCost) / grandTotal } };
     return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-  } catch (e: any) { return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: corsHeaders }) }
+  } catch (error: any) { return new Response(JSON.stringify({ error: error.message }), { headers: corsHeaders, status: 400 }) }
 })
