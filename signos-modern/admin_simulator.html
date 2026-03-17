@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero-Variance Simulator v5.2 | SignOS Admin</title>
+    <title>Zero-Variance Simulator v6.0 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="signos-core.js"></script>
@@ -22,9 +22,9 @@
         <div class="bg-gray-900 px-6 py-4 flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v5.2</span>
+                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v6.0</span>
                 </h1>
-                <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Cloud Edge Function Live Auditing (Zero Client-Side Math)</p>
+                <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Dynamic UI Injection & Custom Curve Auditing</p>
             </div>
             <a href="menu.html" class="text-[10px] font-black text-gray-300 border border-gray-600 px-4 py-2 rounded hover:bg-gray-800 transition uppercase tracking-widest">Exit to Menu</a>
         </div>
@@ -32,65 +32,56 @@
         <!-- CONTROLS -->
         <div class="p-6 bg-slate-50 border-b border-gray-200 grid grid-cols-1 md:grid-cols-6 gap-4 items-end shrink-0">
             <div class="md:col-span-2">
-                <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Target Edge Function</label>
-                <!-- ADDED: onchange event to trigger the dynamic legacy filter -->
-                <select id="sim-endpoint" onchange="filterLegacyBenchmarks()" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white custom-scroll">
-                    <optgroup label="Rigid Signs">
-                        <option value="calculate-yard">calculate-yard (Yard Signs)</option>
-                        <option value="calculate-coro">calculate-coro (Custom Coroplast)</option>
-                        <option value="calculate-acm">calculate-acm (ACM / Metal)</option>
-                        <option value="calculate-pvc">calculate-pvc (PVC Signs)</option>
-                        <option value="calculate-foam">calculate-foam (Foam Core)</option>
-                        <option value="calculate-acrylic">calculate-acrylic (Acrylic Signs)</option>
-                    </optgroup>
-                    <optgroup label="Roll Media">
-                        <option value="calculate-banner">calculate-banner (Vinyl Banners)</option>
-                        <option value="calculate-cut">calculate-cut (Cut Vinyl)</option>
-                        <option value="calculate-decal">calculate-decal (Decals & Stickers)</option>
-                        <option value="calculate-wrap">calculate-wrap (Vehicle Wraps)</option>
-                        <option value="calculate-wall">calculate-wall (Interior Wall Wraps)</option>
-                    </optgroup>
-                    <optgroup label="Architectural & Fabrication">
-                        <option value="calculate-ada">calculate-ada (ADA Signs)</option>
-                        <option value="calculate-nameplate">calculate-nameplate (Bulk Nameplates)</option>
-                        <option value="calculate-post-panel">calculate-post-panel (Post & Panel)</option>
-                        <option value="calculate-channel-letters">calculate-channel-letters (Channel Letters)</option>
-                    </optgroup>
+                <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Target Product</label>
+                <select id="sim-product" onchange="loadProductUI()" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
+                    <option value="" disabled selected>Loading Products...</option>
                 </select>
             </div>
+
             <div class="md:col-span-2">
                 <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Legacy Benchmark (Ghost Line)</label>
                 <select id="sim-legacy" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
                     <option value="">None (Live Curves Only)</option>
-                    <!-- Injected dynamically based on Target Edge Function -->
+                    <!-- Injected via Supabase fetch on load -->
                 </select>
             </div>
+
             <div class="md:col-span-1">
-                <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Max Qty</label>
+                <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Max Qty Limit</label>
                 <input type="number" id="sim-max" value="100" min="10" max="1000" step="10" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-800 text-center outline-none focus:border-blue-500 shadow-sm bg-white">
             </div>
+
             <div class="md:col-span-1 flex gap-2">
                 <button onclick="runAudit()" id="btn-run" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 rounded shadow-md text-[10px] uppercase tracking-widest transition flex items-center justify-center gap-2">
-                    <span id="btn-text">Execute</span>
+                    <span id="btn-text">Simulate</span>
                     <div id="loader" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 </button>
             </div>
         </div>
 
+        <!-- NEW: DYNAMIC CUSTOM INPUTS -->
+        <div id="custom-inputs-section" class="p-6 bg-white border-b border-gray-200 shrink-0 hidden">
+            <h2 class="text-[10px] font-black text-blue-800 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Custom Calculator Inputs</h2>
+            <div id="dynamic-inputs" class="grid grid-cols-2 md:grid-cols-6 gap-4">
+                <!-- Dynamically injected based on DB Schema -->
+            </div>
+        </div>
+
         <!-- TWO COLUMN LAYOUT: CHART & EXHAUST LOG -->
-        <div class="flex flex-col lg:flex-row flex-1 min-h-[500px]">
+        <div class="flex flex-col lg:flex-row flex-1 overflow-hidden bg-gray-50">
             
             <!-- LEFT: CHART -->
-            <div class="w-full lg:w-3/4 p-6 flex flex-col">
-                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Margin Curve Analysis (Unit Price vs Unit Cost)</h2>
-                <div class="relative flex-1 w-full min-h-[400px]">
+            <!-- FIXED: Height strictly bounded so it never grows out of the viewport -->
+            <div class="w-full lg:w-3/4 p-6 flex flex-col h-[400px] shrink-0">
+                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Unit Dollars vs. Quantity Curve</h2>
+                <div class="relative w-full h-full">
                     <canvas id="auditChart"></canvas>
                 </div>
             </div>
 
             <!-- RIGHT: TERMINAL EXHAUST -->
-            <div class="w-full lg:w-1/4 bg-gray-900 border-l border-gray-800 flex flex-col shrink-0">
-                <div class="bg-black p-3 border-b border-gray-800 flex justify-between items-center">
+            <div class="w-full lg:w-1/4 bg-gray-900 border-l border-gray-800 flex flex-col shrink-0 h-[400px]">
+                <div class="bg-black p-3 border-b border-gray-800 flex justify-between items-center shrink-0">
                     <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Network Exhaust</span>
                     <span id="api-status" class="text-[9px] font-black text-gray-600 uppercase tracking-widest">IDLE</span>
                 </div>
@@ -99,260 +90,327 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     <script>
-    let auditChart = null;
-    let allLegacyData = []; // Store the full ledger in memory
+        let auditChart = null;
+        let activeConfig = null;
 
-    // Security Gate & Initialization
-    window.onload = async () => {
-        const role = sessionStorage.getItem('signos_role');
-        if (role !== 'ADMIN' && role !== 'SUPER') {
-            alert("ACCESS DENIED: Restricted to Administrators.");
-            window.location.href = 'menu.html';
-            return;
-        }
-        await loadLegacyBenchmarks();
-    };
-
-    // Safely retrieve the historical offline ledger directly from Supabase ONCE
-    async function loadLegacyBenchmarks() {
-        try {
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=product_line.asc`, {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            if (!res.ok) throw new Error("Failed to fetch legacy ledger");
-            
-            allLegacyData = await res.json();
-            logMsg("Legacy Blue Sheet benchmarks loaded to memory.", "system");
-            
-            // Auto-filter for the currently selected dropdown option on page load
-            filterLegacyBenchmarks(); 
-            
-        } catch(e) {
-            logMsg(`Warning: ${e.message}`, "warn");
-        }
-    }
-
-    // DYNAMIC FILTERING ENGINE
-    function filterLegacyBenchmarks() {
-        const endpoint = document.getElementById('sim-endpoint').value;
-        const sel = document.getElementById('sim-legacy');
-        
-        // Reset the dropdown
-        sel.innerHTML = '<option value="">None (Live Curves Only)</option>';
-
-        let filteredData = [];
-
-        // Route the data logically based on the target Edge Function
-        switch(endpoint) {
-            case 'calculate-yard':
-                // Yard Signs strictly look at 4mm Coro in exactly 18x24 dimension
-                filteredData = allLegacyData.filter(item => item.product_line === '4mm Coroplast' && item.dimensions === '18x24');
-                break;
-            case 'calculate-coro':
-                // Custom Coro looks at all Coroplast sizes
-                filteredData = allLegacyData.filter(item => item.product_line === '4mm Coroplast' || item.product_line === '10mm Coroplast');
-                break;
-            case 'calculate-foam':
-                // Foam looks strictly at Foam Core
-                filteredData = allLegacyData.filter(item => item.product_line === '3/16" Foam Core');
-                break;
-            case 'calculate-banner':
-                // Banners looks strictly at Banners
-                filteredData = allLegacyData.filter(item => item.product_line === '13oz Banner');
-                break;
-            // Additional module mappings can be added here as we ingest more legacy data
-        }
-
-        // Populate the dropdown with the filtered results
-        filteredData.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = item.legacy_price;
-            opt.innerText = `[${item.category}] ${item.product_line} (${item.dimensions} ${item.sides}) - $${item.legacy_price.toFixed(2)}`;
-            sel.appendChild(opt);
-        });
-    }
-
-    function logMsg(msg, type = 'info') {
-        const logEl = document.getElementById('audit-log');
-        let colorClass = 'text-green-400';
-        if (type === 'error') colorClass = 'text-red-400';
-        if (type === 'warn') colorClass = 'text-yellow-400';
-        if (type === 'system') colorClass = 'text-blue-400';
-
-        logEl.innerHTML += `<div class="${colorClass}">> ${msg}</div>`;
-        logEl.scrollTop = logEl.scrollHeight;
-    }
-
-    async function runAudit() {
-        const btn = document.getElementById('btn-run');
-        const btnText = document.getElementById('btn-text');
-        const loader = document.getElementById('loader');
-        const status = document.getElementById('api-status');
-        const endpoint = document.getElementById('sim-endpoint').value;
-        const maxQty = parseInt(document.getElementById('sim-max').value) || 100;
-        
-        const legacyVal = document.getElementById('sim-legacy').value;
-        const ghostPrice = legacyVal ? parseFloat(legacyVal) : null;
-
-        btn.disabled = true;
-        btnText.innerText = "Pinging...";
-        loader.classList.remove('hidden');
-        status.innerText = "TESTING ACTIVE";
-        status.classList.add('text-blue-500', 'animate-pulse');
-        
-        document.getElementById('audit-log').innerHTML = '';
-        logMsg(`Target Locked: [${endpoint}]`, 'system');
-        logMsg(`Initiating Cloud Loop: 1 to ${maxQty} Units...`, 'system');
-
-        const labels = [];
-        const retailData = [];
-        const costData = [];
-        const legacyData = [];
-
-        // Universal Base Payload - Prevents undefined crashes in multi-module Edge Functions
-        const baseInputs = {
-            w: 48, h: 24, sides: 1, shape: 'Rectangle', mountStyle: 'Flush', faceMat: '063 Alum',
-            panels: [{ id: 1, w: 48, h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 1, gap: 0 }],
-            postType: 'Aluminum', postSize: '2', frameMat: 'AlumTube_2_1/8',
-            belowGrade: 36, topOffset: 0, thag: 60
+        // Map UI Products to their matching backend endpoints
+        const ROUTER_MAP = {
+            'PROD_Yard_Signs': 'calculate-yard',
+            'PROD_Coroplast_Signs': 'calculate-coro',
+            'PROD_ACM': 'calculate-acm',
+            'PROD_PVC': 'calculate-pvc',
+            'PROD_Foam': 'calculate-foam',
+            'PROD_Acr': 'calculate-acrylic',
+            'PROD_Vinyl_Banners': 'calculate-banner',
+            'PROD_Decals': 'calculate-decal',
+            'PROD_Cut': 'calculate-cut',
+            'PROD_Wrap': 'calculate-wrap',
+            'PROD_Wall': 'calculate-wall',
+            'PROD_Post_Panel': 'calculate-post-panel',
+            'PROD_ADA_Signs': 'calculate-ada',
+            'PROD_Nameplates': 'calculate-nameplate'
         };
 
-        try {
-            // Intelligent Data Stepping (Avoids hitting API 1,000 times sequentially and timing out)
-            let testQuantities = [];
-            for(let i=1; i<=10; i++) testQuantities.push(i);
-            if (maxQty > 10) { for(let i=15; i<=Math.min(maxQty, 50); i+=5) testQuantities.push(i); }
-            if (maxQty > 50) { for(let i=60; i<=maxQty; i+=10) testQuantities.push(i); }
-            if (!testQuantities.includes(maxQty)) testQuantities.push(maxQty);
+        window.onload = async () => {
+            const role = sessionStorage.getItem('signos_role');
+            if (role !== 'ADMIN' && role !== 'SUPER') {
+                alert("ACCESS DENIED: Restricted to Administrators.");
+                window.location.href = 'menu.html';
+                return;
+            }
+            await loadProducts();
+            await loadLegacyBenchmarks();
+        };
 
-            for (let qty of testQuantities) {
-                const payload = {
-                    inputs: { ...baseInputs, qty: qty },
-                    config: {} // Allow Edge Function to fallback natively to its internal Data Engine defaults
-                };
-
-                const fnUrl = `${EDGE_URL}/functions/v1/${endpoint}`;
-                const res = await fetch(fnUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                    body: JSON.stringify(payload)
+        // 1. DYNAMICALLY LOAD AVAILABLE PRODUCTS
+        async function loadProducts() {
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=id,display_name,category&order=category.asc`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
                 });
+                const data = await res.json();
+                const sel = document.getElementById('sim-product');
+                sel.innerHTML = ''; 
 
-                if (!res.ok) throw new Error(`API Error ${res.status} at Qty ${qty}`);
-                const result = await res.json();
-
-                // Safely extract standardized Data Contract
-                let rTotal = result.retail?.total || result.retail?.grandTotal || result.retail?.quoteTotal || 0;
-                let cTotal = result.cost?.total || 0;
-
-                let rUnit = rTotal / qty;
-                let cUnit = cTotal / qty;
-                let margin = rUnit > 0 ? ((1 - (cUnit/rUnit)) * 100).toFixed(1) : 0;
-
-                labels.push(qty);
-                retailData.push(rUnit);
-                costData.push(cUnit);
-                legacyData.push(ghostPrice); // Push the flat legacy price for every coordinate
-
-                let logColor = 'info';
-                if (margin < 30) logColor = 'warn';
-                if (margin < 0) logColor = 'error';
-
-                logMsg(`QTY ${qty} | Sell: $${rUnit.toFixed(2)} | Cost: $${cUnit.toFixed(2)} | Margin: ${margin}%`, logColor);
+                data.forEach(mod => {
+                    if(ROUTER_MAP[mod.id]) {
+                        const opt = document.createElement('option');
+                        opt.value = mod.id;
+                        opt.innerText = `[${mod.category}] ${mod.display_name}`;
+                        sel.appendChild(opt);
+                    }
+                });
+                // Trigger first load
+                loadProductUI();
+            } catch(e) {
+                console.error(e);
             }
-
-            renderChart(labels, retailData, costData, legacyData);
-            logMsg(`[SUCCESS] Simulation loop completed successfully. Zero NaN/Null crashes detected.`, 'system');
-            
-            status.innerText = "PASSED";
-            status.classList.remove('text-blue-500', 'animate-pulse');
-            status.classList.add('text-green-500');
-
-        } catch (e) {
-            logMsg(`[FATAL CRASH] ${e.message}`, 'error');
-            status.innerText = "FAILED";
-            status.classList.remove('text-blue-500', 'animate-pulse');
-            status.classList.add('text-red-500');
-        } finally {
-            btn.disabled = false;
-            btnText.innerText = "Execute";
-            loader.classList.add('hidden');
         }
-    }
 
-    function renderChart(labels, retailData, costData, legacyData) {
-        const ctx = document.getElementById('auditChart').getContext('2d');
-        if (auditChart) auditChart.destroy();
+        // 2. FETCH SPECIFIC PRODUCT SCHEMA TO BUILD INPUTS
+        async function loadProductUI() {
+            const prodId = document.getElementById('sim-product').value;
+            if (!prodId) return;
 
-        const datasets = [
-            {
-                label: 'Live Retail Curve ($/Unit)',
-                data: retailData,
-                borderColor: '#2563eb', // blue-600
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                borderWidth: 3,
-                pointBackgroundColor: '#1d4ed8',
-                pointRadius: 4,
-                fill: true,
-                tension: 0.1
-            },
-            {
-                label: 'Live Physics Ledger ($/Unit)',
-                data: costData,
-                borderColor: '#dc2626', // red-600
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                pointBackgroundColor: '#b91c1c',
-                pointRadius: 3,
-                fill: false,
-                tension: 0.1
+            try {
+                const res = await SignOS.fetchProductData(prodId);
+                activeConfig = res.config;
+
+                const inputSec = document.getElementById('custom-inputs-section');
+                const container = document.getElementById('dynamic-inputs');
+                
+                // Always provide standard dimensions
+                let html = `
+                    <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width (in)</label><input type="number" id="dyn_w" value="24" class="w-full border border-gray-300 p-2 rounded text-sm font-bold bg-gray-50 outline-none focus:border-blue-500 shadow-inner"></div>
+                    <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height (in)</label><input type="number" id="dyn_h" value="18" class="w-full border border-gray-300 p-2 rounded text-sm font-bold bg-gray-50 outline-none focus:border-blue-500 shadow-inner"></div>
+                `;
+
+                if (activeConfig.ui_schema && activeConfig.ui_schema.controls) {
+                    activeConfig.ui_schema.controls.forEach(c => {
+                        if (c.id === 'qty' || c.id === 'w' || c.id === 'h') return;
+                        
+                        html += `<div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${c.label}</label>`;
+                        if (c.type === 'select') {
+                            html += `<select id="dyn_${c.id}" class="w-full border border-gray-300 p-2 rounded text-sm font-bold bg-white outline-none focus:border-blue-500 shadow-sm h-[38px]">`;
+                            c.opts.forEach(o => html += `<option value="${o.v}">${o.t}</option>`);
+                            html += `</select></div>`;
+                        } else if (c.type === 'toggle') {
+                            html += `<select id="dyn_${c.id}" class="w-full border border-gray-300 p-2 rounded text-sm font-bold bg-white outline-none focus:border-blue-500 shadow-sm h-[38px]">
+                                     <option value="true" ${c.def ? 'selected' : ''}>Yes</option>
+                                     <option value="false" ${!c.def ? 'selected' : ''}>No</option>
+                                     </select></div>`;
+                        }
+                    });
+                }
+                
+                container.innerHTML = html;
+                inputSec.classList.remove('hidden');
+
+            } catch (e) {
+                console.error("Failed to load schema for UI", e);
             }
-        ];
+        }
 
-        // Only inject the Ghost Line if a Legacy Benchmark was selected
-        if (legacyData.some(d => d !== null)) {
-            datasets.push({
-                label: 'Legacy Blue Sheet Target (Ghost Line)',
-                data: legacyData,
-                borderColor: '#94a3b8', // slate-400
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                borderDash: [1], // Creates the dotted "Ghost" effect
-                pointRadius: 0, // Hides the dots to emphasize it's a flat baseline
-                fill: false,
-                tension: 0
+        async function loadLegacyBenchmarks() {
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=product_line.asc`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                if (!res.ok) throw new Error("Failed to fetch legacy ledger");
+                
+                const data = await res.json();
+                const sel = document.getElementById('sim-legacy');
+                
+                data.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.legacy_price;
+                    opt.innerText = `[${item.category}] ${item.product_line} (${item.dimensions} ${item.sides}) - $${item.legacy_price.toFixed(2)}`;
+                    sel.appendChild(opt);
+                });
+                logMsg("Legacy Blue Sheet benchmarks loaded.", "system");
+            } catch(e) {
+                logMsg(`Warning: ${e.message}`, "warn");
+            }
+        }
+
+        function logMsg(msg, type = 'info') {
+            const logEl = document.getElementById('audit-log');
+            let colorClass = 'text-green-400';
+            if (type === 'error') colorClass = 'text-red-400';
+            if (type === 'warn') colorClass = 'text-yellow-400';
+            if (type === 'system') colorClass = 'text-blue-400';
+            
+            logEl.innerHTML += `<div class="${colorClass}">> ${msg}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function runAudit() {
+            const btn = document.getElementById('btn-run');
+            const btnText = document.getElementById('btn-text');
+            const loader = document.getElementById('loader');
+            const status = document.getElementById('api-status');
+            
+            const prodId = document.getElementById('sim-product').value;
+            const endpoint = ROUTER_MAP[prodId];
+            if (!endpoint) return alert("Product endpoint routing not mapped!");
+
+            const maxQty = parseInt(document.getElementById('sim-max').value) || 100;
+            const legacyVal = document.getElementById('sim-legacy').value;
+            const ghostPrice = legacyVal ? parseFloat(legacyVal) : null;
+
+            btn.disabled = true;
+            btnText.innerText = "Simulating...";
+            loader.classList.remove('hidden');
+            status.innerText = "TESTING ACTIVE";
+            status.classList.add('text-blue-500', 'animate-pulse');
+            
+            document.getElementById('audit-log').innerHTML = '';
+            logMsg(`Target Locked: [${endpoint}]`, 'system');
+            logMsg(`Initiating Cloud Loop: 1 to ${maxQty} Units...`, 'system');
+
+            const labels = [];
+            const retailData = [];
+            const costData = [];
+            const legacyData = [];
+
+            // 3. DYNAMIC INPUT HARVESTING
+            let customInputs = {
+                w: parseFloat(document.getElementById('dyn_w')?.value) || 48,
+                h: parseFloat(document.getElementById('dyn_h')?.value) || 24,
+            };
+
+            if (activeConfig && activeConfig.ui_schema && activeConfig.ui_schema.controls) {
+                activeConfig.ui_schema.controls.forEach(c => {
+                    const el = document.getElementById(`dyn_${c.id}`);
+                    if (el) {
+                        if (c.type === 'toggle') customInputs[c.id] = el.value === 'true';
+                        else customInputs[c.id] = isNaN(el.value) ? el.value : parseFloat(el.value);
+                    }
+                });
+            }
+
+            // Universal Base Payload - Prevents undefined crashes in multi-module Edge Functions
+            // Overwrites default base with user's harvested custom dimensions & toggles
+            const combinedInputs = { 
+                shape: 'Rectangle', mountStyle: 'Flush', faceMat: '063 Alum', sides: 1,
+                panels: [{ id: 1, w: customInputs.w || 48, h: customInputs.h || 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 1, gap: 0 }],
+                postType: 'Aluminum', postSize: '2', frameMat: 'AlumTube_2_1/8',
+                belowGrade: 36, topOffset: 0, thag: 60, material: '13oz', complexity: 'Standard', masking: 'No',
+                ...customInputs 
+            };
+
+            try {
+                let testQuantities = [];
+                for(let i=1; i<=10; i++) testQuantities.push(i);
+                if (maxQty > 10) { for(let i=15; i<=Math.min(maxQty, 50); i+=5) testQuantities.push(i); }
+                if (maxQty > 50) { for(let i=60; i<=maxQty; i+=10) testQuantities.push(i); }
+                if (!testQuantities.includes(maxQty)) testQuantities.push(maxQty);
+
+                for (let qty of testQuantities) {
+                    const payload = {
+                        inputs: { ...combinedInputs, qty: qty },
+                        config: activeConfig || {} 
+                    };
+
+                    const fnUrl = `${EDGE_URL}/functions/v1/${endpoint}`;
+                    const res = await fetch(fnUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) throw new Error(`API Error ${res.status} at Qty ${qty}`);
+                    const result = await res.json();
+
+                    let rTotal = result.retail?.total || result.retail?.grandTotal || result.retail?.quoteTotal || 0;
+                    let cTotal = result.cost?.total || 0;
+
+                    let rUnit = rTotal / qty;
+                    let cUnit = cTotal / qty;
+                    let margin = rUnit > 0 ? ((1 - (cUnit/rUnit)) * 100).toFixed(1) : 0;
+
+                    labels.push(qty);
+                    retailData.push(rUnit);
+                    costData.push(cUnit);
+                    legacyData.push(ghostPrice);
+
+                    let logColor = 'info';
+                    if (margin < 30) logColor = 'warn';
+                    if (margin < 0) logColor = 'error';
+
+                    logMsg(`QTY ${qty} | Sell: $${rUnit.toFixed(2)} | Cost: $${cUnit.toFixed(2)} | Margin: ${margin}%`, logColor);
+                }
+
+                renderChart(labels, retailData, costData, legacyData);
+                
+                logMsg(`[SUCCESS] Simulation loop completed successfully. Zero NaN/Null crashes detected.`, 'system');
+                status.innerText = "PASSED";
+                status.classList.remove('text-blue-500', 'animate-pulse');
+                status.classList.add('text-green-500');
+
+            } catch (e) {
+                logMsg(`[FATAL CRASH] ${e.message}`, 'error');
+                status.innerText = "FAILED";
+                status.classList.remove('text-blue-500', 'animate-pulse');
+                status.classList.add('text-red-500');
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = "Simulate";
+                loader.classList.add('hidden');
+            }
+        }
+
+        function renderChart(labels, retailData, costData, legacyData) {
+            const ctx = document.getElementById('auditChart').getContext('2d');
+            if (auditChart) auditChart.destroy();
+
+            const datasets = [
+                {
+                    label: 'Live Retail Curve ($/Unit)',
+                    data: retailData,
+                    borderColor: '#2563eb', // blue-600
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#1d4ed8',
+                    pointRadius: 4,
+                    fill: true,
+                    tension: 0.1
+                },
+                {
+                    label: 'Live Physics Hard Cost ($/Unit)',
+                    data: costData,
+                    borderColor: '#dc2626', // red-600
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#b91c1c',
+                    pointRadius: 3,
+                    fill: false,
+                    tension: 0.1
+                }
+            ];
+
+            if (legacyData.some(d => d !== null)) {
+                datasets.push({
+                    label: 'Legacy Benchmark (Ghost Line)',
+                    data: legacyData,
+                    borderColor: '#94a3b8', // slate-400
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [1],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0
+                });
+            }
+
+            auditChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { family: 'sans-serif', weight: 'bold' } } },
+                        tooltip: {
+                            mode: 'index', intersect: false,
+                            callbacks: {
+                                label: function(context) { return context.dataset.label + ': $' + context.parsed.y.toFixed(2); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Simulated Order Volume (Quantity)', font: { weight: 'bold' } } },
+                        y: { title: { display: true, text: 'Unit Dollars ($)', font: { weight: 'bold' } }, beginAtZero: true }
+                    }
+                }
             });
         }
-
-        auditChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: datasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { font: { family: 'sans-serif', weight: 'bold' } } },
-                    tooltip: {
-                        mode: 'index', intersect: false,
-                        callbacks: {
-                            label: function(context) { return context.dataset.label + ': $' + context.parsed.y.toFixed(2); }
-                        }
-                    }
-                },
-                scales: {
-                    x: { title: { display: true, text: 'Simulated Order Volume (Quantity)', font: { weight: 'bold' } } },
-                    y: { title: { display: true, text: 'Unit Dollars ($)', font: { weight: 'bold' } }, beginAtZero: true }
-                }
-            }
-        });
-    }
     </script>
 </body>
 </html>
