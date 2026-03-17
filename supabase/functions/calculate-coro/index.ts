@@ -1,20 +1,26 @@
+// Tells VS Code to stop looking for Deno configurations and accept it globally
+declare const Deno: any;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: any) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { inputs, config } = await req.json()
+    // Renamed to 'requestData' to prevent the redeclaration error
+    const requestData = await req.json();
+    const inputs = requestData.inputs || {};
+    const config = requestData.config || {};
 
     const sqft = (inputs.w * inputs.h) / 144;
     const totalSqFt = sqft * inputs.qty;
-    const thk = inputs.thickness;
     const multDS = inputs.sides === 2 ? 2 : 1;
+    const thk = String(inputs.thickness || '4mm');
 
     // --- 1. RETAIL ENGINE (DUAL LEDGER) ---
     const ret: any[] = [];
@@ -44,9 +50,9 @@ Deno.serve(async (req) => {
 
     let dsAdderTotal = 0;
     if (inputs.sides === 2) {
-        const dsAdder = thk === '4mm' ? parseFloat(config.Retail_Adder_DS_4mm || "2.5") : parseFloat(config.Retail_Adder_DS_10mm || "5");
-        dsAdderTotal = dsAdder * sqft * inputs.qty;
-        R(`Double Sided Adder`, dsAdderTotal, `${inputs.qty}x Sides @ $${dsAdder}/sf`);
+        const dsMult = parseFloat(config.Retail_Adder_DS_Mult || "0.5");
+        dsAdderTotal = (baseRate * dsMult) * totalSqFt;
+        R(`Double Sided Adder`, dsAdderTotal, `${totalSqFt.toFixed(1)} SF @ +${(dsMult * 100).toFixed(0)}% Base Rate`);
     }
 
     let lamTotal = 0;
@@ -56,7 +62,6 @@ Deno.serve(async (req) => {
         R(`Laminate Finish`, lamTotal, `${inputs.qty}x Lam @ $${lamAdder}/sf`);
     }
 
-    // FIXED: Capture routerFee so we can pass it to the UI
     let routerFee = 0;
     if (inputs.shape !== 'Rectangle') {
         routerFee = inputs.shape === 'CNC Simple' ? parseFloat(config.Retail_Fee_Router_Easy || "30") : parseFloat(config.Retail_Fee_Router_Hard || "50");
@@ -67,14 +72,13 @@ Deno.serve(async (req) => {
     const minOrder = parseFloat(config.Retail_Min_Order || "50");
     let isMinApplied = false;
     let grandTotal = grandTotalRaw;
-    
+
     if (grandTotalRaw < minOrder) {
         R(`Shop Minimum Surcharge`, minOrder - grandTotalRaw, `Minimum order difference`);
         grandTotal = minOrder;
         isMinApplied = true;
     }
 
-    // FIXED: Ensure Laminate is wrapped into the base Print Total
     const printTotal = (unitPrint * inputs.qty) + dsAdderTotal + lamTotal;
 
     // --- 2. COST ENGINE (PHYSICS & BOM) ---
@@ -90,34 +94,29 @@ Deno.serve(async (req) => {
     const rateOp = parseFloat(config.Rate_Operator || "25");
     const rateShop = parseFloat(config.Rate_Shop_Labor || "20");
 
-    const rawBlanks = L(`Raw Substrate (${thk})`, (totalSqFt / 32) * sheetCost, `(${totalSqFt.toFixed(1)} SF / 32) * $${sheetCost.toFixed(2)}/sht`);
-    L(`Material Waste Buffer`, rawBlanks * (wastePct - 1), `Substrate Cost * ${(wastePct-1)*100}%`);
-    L(`Job Setup (File RIP)`, (parseFloat(config.Time_Setup_Job || "15") / 60) * rateOp, `15 Mins * $${rateOp}/hr`);
+    const yieldX = Math.floor(48 / inputs.w) * Math.floor(96 / inputs.h);
+    const yieldY = Math.floor(48 / inputs.h) * Math.floor(96 / inputs.w);
+    const bestYield = Math.max(yieldX, yieldY, 1);
+    const rawBlanks = (inputs.qty / bestYield) * sheetCost;
 
-    // Ink & Flatbed
+    L(`Coroplast Blanks (${thk})`, rawBlanks, `${inputs.qty} Qty / ${bestYield} Yield * $${sheetCost.toFixed(2)}/Sht`);
+    L(`Material Waste Buffer`, rawBlanks * (wastePct - 1), `Substrate Cost * ${(wastePct-1)*100}%`);
+
     L(`Flatbed Ink`, totalSqFt * parseFloat(config.Cost_Ink_Latex || "0.16") * multDS, `${totalSqFt.toFixed(1)} SF * $0.16/SF * ${multDS} Sides`);
 
     const printHrs = ((inputs.h / 12) * inputs.qty / parseFloat(config.Machine_Speed_LF_Hr || "25")) * multDS;
     L(`Flatbed Op (Attn Ratio)`, printHrs * rateOp * parseFloat(config.Labor_Attendance_Ratio || "0.10"), `${printHrs.toFixed(2)} Hrs * $${rateOp}/hr * 10%`);
     L(`Flatbed Machine Run`, printHrs * parseFloat(config.Rate_Machine_Flatbed || "10"), `${printHrs.toFixed(2)} Hrs * $10/hr`);
-    L(`Load/Unload Printer`, (parseFloat(config.Time_Handling || "5") * multDS / 60) * rateOp, `5 Mins * $${rateOp}/hr * ${multDS} Sides`);
 
-    // Laminator Math
-    if (inputs.laminate && inputs.laminate !== 'None') {
-        const lamCost = totalSqFt * parseFloat(config.Cost_Lam_SqFt || "0.36") * multDS;
-        L(`Laminate Media`, lamCost * wastePct, `${totalSqFt.toFixed(1)} SF * $0.36/SF * Waste`);
-        const lamHrs = totalSqFt / parseFloat(config.Speed_Lam_Roll || "300") * multDS;
-        L(`Laminator Op (100% Attn)`, lamHrs * rateShop, `${lamHrs.toFixed(2)} Hrs * $${rateShop}/hr * 100%`);
-        L(`Laminator Machine Run`, lamHrs * parseFloat(config.Rate_Machine_Lam || "5"), `${lamHrs.toFixed(2)} Hrs * $5/hr`);
-        L(`Load/Unload Laminator`, (parseFloat(config.Time_Handling || "5") * multDS / 60) * rateShop, `Handling Mins * ${multDS} Sides`);
-    }
+    L(`Job Setup (File RIP)`, (parseFloat(config.Time_Setup_Job || "15") / 60) * rateOp, `15 Mins * $${rateOp}/hr`);
 
-    // Finishing
     if (inputs.shape !== 'Rectangle') {
-        const cutHrs = (totalSqFt * (inputs.shape === 'CNC Simple' ? 1 : 2)) / 60;
+        const cncTime = inputs.shape === 'CNC Simple' ? parseFloat(config.Time_CNC_Easy_SqFt || "1") : parseFloat(config.Time_CNC_Complex_SqFt || "2");
+        const cutHrs = (totalSqFt * cncTime) / 60;
+        const cncSetup = parseFloat(config.Time_Setup_CNC || "10");
+        L(`CNC Router Setup`, (cncSetup / 60) * parseFloat(config.Rate_CNC_Labor || "25"), `${cncSetup} Mins * $25/hr`);
         L(`CNC Router Run`, cutHrs * parseFloat(config.Rate_Machine_CNC || "10"), `${cutHrs.toFixed(2)} Hrs * $10/hr`);
         L(`CNC Op (Attn Ratio)`, cutHrs * parseFloat(config.Rate_CNC_Labor || "25"), `${cutHrs.toFixed(2)} Hrs * $25/hr`);
-        L(`Load/Unload Router`, (parseFloat(config.Time_Handling || "5") / 60) * rateOp, `5 Mins * $${rateOp}/hr`);
     } else {
         const shearSetup = parseFloat(config.Time_Shear_Setup || "5");
         L(`Shear Machine Setup`, (shearSetup / 60) * rateShop, `${shearSetup} Mins * $${rateShop}/hr`);
@@ -128,6 +127,7 @@ Deno.serve(async (req) => {
     let hardCostRaw = cst.reduce((sum, i) => sum + i.total, 0);
     const totalCost = hardCostRaw * riskFactor;
 
+    // This is the true output payload for the response
     const payload = {
         retail: { unitPrice: grandTotal / inputs.qty, grandTotal: grandTotal, breakdown: ret, isMinApplied, printTotal, routerFee },
         cost: { total: totalCost, breakdown: cst },
@@ -137,6 +137,6 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 })
+    return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders })
   }
 })

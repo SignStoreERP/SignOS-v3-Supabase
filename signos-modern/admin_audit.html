@@ -99,268 +99,255 @@
         </div>
     </div>
 
-    <script>
-        let globalHistory = [];
-        let auditResults = [];
+<script>
+    let globalHistory = [];
+    let auditResults = [];
 
-        // Security Gate & Initialization
-        window.onload = async () => {
-            const role = sessionStorage.getItem('signos_role');
-            if (role !== 'ADMIN' && role !== 'SUPER') {
-                alert("ACCESS DENIED: Restricted to Administrators.");
-                window.location.href = 'menu.html';
+    // Security Gate & Initialization
+    window.onload = async () => {
+        const role = sessionStorage.getItem('signos_role');
+        if (role !== 'ADMIN' && role !== 'SUPER') {
+            alert("ACCESS DENIED: Restricted to Administrators.");
+            window.location.href = 'menu.html';
+            return;
+        }
+        await loadSources();
+    };
+
+    async function loadSources() {
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=category.asc,product_line.asc`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            
+            if (!res.ok) throw new Error("Failed to load sources");
+            globalHistory = await res.json();
+
+            const uniqueSources = [...new Set(globalHistory.map(item => item.source_document))].filter(Boolean);
+            const sel = document.getElementById('audit-source');
+            
+            uniqueSources.forEach(src => {
+                sel.innerHTML += `<option value="${src}">${src}</option>`;
+            });
+
+            updateProductDropdown();
+
+        } catch(e) {
+            console.error("Error loading sources:", e);
+        }
+    }
+
+    function updateProductDropdown() {
+        const sourceDoc = document.getElementById('audit-source').value;
+        let filteredData = sourceDoc === 'ALL' ? globalHistory : globalHistory.filter(i => i.source_document === sourceDoc);
+        
+        const uniqueProducts = [...new Set(filteredData.map(item => item.product_line))].filter(Boolean).sort();
+        
+        const prodSel = document.getElementById('audit-product');
+        prodSel.innerHTML = '<option value="ALL">All Products</option>';
+        uniqueProducts.forEach(p => {
+            prodSel.innerHTML += `<option value="${p}">${p}</option>`;
+        });
+    }
+
+    async function runGlobalAudit() {
+        const btn = document.getElementById('btn-run');
+        const btnText = document.getElementById('btn-text');
+        const loader = document.getElementById('loader');
+        const tbody = document.getElementById('audit-table');
+        const btnExport = document.getElementById('btn-export');
+        
+        const sourceDoc = document.getElementById('audit-source').value;
+        const targetProd = document.getElementById('audit-product').value;
+        const testStakes = document.getElementById('audit-hardware').value === 'stakes';
+        const testVolume = document.getElementById('audit-volume').value === 'volume';
+
+        btn.disabled = true;
+        btnText.innerText = "Auditing...";
+        loader.classList.remove('hidden');
+        btnExport.classList.add('hidden');
+        auditResults = [];
+        
+        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-blue-500 font-bold animate-pulse uppercase tracking-widest">Running Simulation Matrix...</td></tr>`;
+
+        try {
+            let auditData = globalHistory;
+            if (sourceDoc !== 'ALL') auditData = auditData.filter(i => i.source_document === sourceDoc);
+            if (targetProd !== 'ALL') auditData = auditData.filter(i => i.product_line === targetProd);
+
+            if (auditData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found.</td></tr>`;
                 return;
             }
-            await loadSources();
-        };
 
-        async function loadSources() {
-            try {
-                // Fetch ALL historical records so we can dynamically filter the dropdowns
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=category.asc,product_line.asc`, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                });
+            tbody.innerHTML = '';
+
+            const baseInputs = {
+                shape: 'Rectangle', mountStyle: 'Flush', faceMat: '063 Alum',
+                panels: [{ id: 1, w: 48, h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 1, gap: 0 }],
+                postType: 'Aluminum', postSize: '2', frameMat: 'AlumTube_2_1/8',
+                belowGrade: 36, topOffset: 0, thag: 60, color: 'White'
+            };
+
+            for (let item of auditData) {
+                let endpoint = '';
+                let pLine = (item.product_line || '').toLowerCase();
+                if (pLine.includes('banner')) endpoint = 'calculate-banner';
+                else if (pLine.includes('foam')) endpoint = 'calculate-foam';
+                else if (pLine.includes('acm')) endpoint = 'calculate-acm';
+                else if (pLine.includes('pvc')) endpoint = 'calculate-pvc';
+                else if (pLine.includes('coro') || pLine.includes('yard')) endpoint = 'calculate-coro';
                 
-                if (!res.ok) throw new Error("Failed to load sources");
-                globalHistory = await res.json();
+                if (!endpoint) continue;
 
-                const uniqueSources = [...new Set(globalHistory.map(item => item.source_document))].filter(Boolean);
-                const sel = document.getElementById('audit-source');
-                
-                uniqueSources.forEach(src => {
-                    sel.innerHTML += `<option value="${src}">${src}</option>`;
-                });
-
-                updateProductDropdown();
-
-            } catch(e) {
-                console.error("Error loading sources:", e);
-            }
-        }
-
-        function updateProductDropdown() {
-            const sourceDoc = document.getElementById('audit-source').value;
-            let filteredData = sourceDoc === 'ALL' ? globalHistory : globalHistory.filter(i => i.source_document === sourceDoc);
-            
-            const uniqueProducts = [...new Set(filteredData.map(item => item.product_line))].filter(Boolean).sort();
-            
-            const prodSel = document.getElementById('audit-product');
-            prodSel.innerHTML = '<option value="ALL">All Products</option>';
-            uniqueProducts.forEach(p => {
-                prodSel.innerHTML += `<option value="${p}">${p}</option>`;
-            });
-        }
-
-        async function runGlobalAudit() {
-            const btn = document.getElementById('btn-run');
-            const btnText = document.getElementById('btn-text');
-            const loader = document.getElementById('loader');
-            const tbody = document.getElementById('audit-table');
-            const btnExport = document.getElementById('btn-export');
-            
-            const sourceDoc = document.getElementById('audit-source').value;
-            const targetProd = document.getElementById('audit-product').value;
-            const testStakes = document.getElementById('audit-hardware').value === 'stakes';
-            const testVolume = document.getElementById('audit-volume').value === 'volume';
-
-            btn.disabled = true;
-            btnText.innerText = "Auditing...";
-            loader.classList.remove('hidden');
-            btnExport.classList.add('hidden');
-            auditResults = [];
-            
-            tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-blue-500 font-bold animate-pulse uppercase tracking-widest">Running Simulation Matrix...</td></tr>`;
-
-            try {
-                // 1. Filter Data Based on User Selection
-                let auditData = globalHistory;
-                if (sourceDoc !== 'ALL') auditData = auditData.filter(i => i.source_document === sourceDoc);
-                if (targetProd !== 'ALL') auditData = auditData.filter(i => i.product_line === targetProd);
-
-                if (auditData.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found.</td></tr>`;
-                    return;
+                // FIXED PARSING BUG
+                let w = 24, h = 24;
+                if (item.dimensions && item.dimensions.includes('x')) {
+                    let parts = item.dimensions.toLowerCase().split('x');
+                    let multiplier = (item.category === 'Roll') ? 12 : 1;
+                    w = parseFloat(parts) * multiplier;
+                    h = parseFloat(parts[1]) * multiplier;
                 }
 
-                tbody.innerHTML = '';
+                let sides = (item.sides === 'Double' || item.sides === '2') ? 2 : 1;
 
-                // Universal Base Payload preventing Edge Function undefined crashes
-                const baseInputs = {
-                    shape: 'Rectangle', mountStyle: 'Flush', faceMat: '063 Alum',
-                    panels: [{ id: 1, w: 48, h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 1, gap: 0 }],
-                    postType: 'Aluminum', postSize: '2', frameMat: 'AlumTube_2_1/8',
-                    belowGrade: 36, topOffset: 0, thag: 60, color: 'White'
-                };
+                let extThickness = '4mm'; // Safe default
+                if (pLine.includes('10mm')) extThickness = '10mm';
+                else if (pLine.includes('6mm')) extThickness = '6mm';
+                else if (pLine.includes('3mm')) extThickness = '3mm';
+                else if (pLine.includes('1/4')) extThickness = '0.25';
+                else if (pLine.includes('1/2')) extThickness = '0.5';
+                else if (pLine.includes('3/4')) extThickness = '0.75';
+                else if (pLine.includes('1"')) extThickness = '1';
 
-                // 2. Execute Loop
-                for (let item of auditData) {
-                    
-                    // Route to the correct physics engine
-                    let endpoint = '';
-                    let pLine = (item.product_line || '').toLowerCase();
-                    if (pLine.includes('banner')) endpoint = 'calculate-banner';
-                    else if (pLine.includes('foam')) endpoint = 'calculate-foam';
-                    else if (pLine.includes('acm')) endpoint = 'calculate-acm';
-                    else if (pLine.includes('pvc')) endpoint = 'calculate-pvc';
-                    else if (pLine.includes('coro') || pLine.includes('yard')) endpoint = 'calculate-coro';
-                    
-                    if (!endpoint) continue;
+                let extMaterial = '13oz';
+                if (pLine.includes('15oz')) extMaterial = '15oz';
+                else if (pLine.includes('18oz')) extMaterial = '18oz';
+                else if (pLine.includes('mesh')) extMaterial = 'Mesh';
+                
+                let permutations = [ { hasStakes: false, hardwareName: '', legacyAdd: 0 } ];
+                
+                if (testStakes && (pLine.includes('coro') || pLine.includes('yard'))) {
+                    permutations.push({ hasStakes: true, hardwareName: ' w/ H-Stakes', legacyAdd: 2.00 }); 
+                }
 
-                    // Smart Dimensional Parsing
-                    let w = 24, h = 24;
-                    if (item.dimensions && item.dimensions.includes('x')) {
-                        let parts = item.dimensions.toLowerCase().split('x');
-                        let multiplier = (item.category === 'Roll') ? 12 : 1;
-                        w = parseFloat(parts) * multiplier;
-                        h = parseFloat(parts[4]) * multiplier;
-                    }
+                let qtyPermutations = testVolume ? [2, 3] : [2];
 
-                    let sides = (item.sides === 'Double' || item.sides === '2') ? 2 : 1;
+                for (let q of qtyPermutations) {
+                    for (let perm of permutations) {
+                        
+                        const payload = {
+                            inputs: { 
+                                ...baseInputs, 
+                                w: w, 
+                                h: h, 
+                                sides: sides, 
+                                qty: q, 
+                                hasStakes: perm.hasStakes,
+                                thickness: extThickness,
+                                material: extMaterial
+                            },
+                            config: {}
+                        };
 
-                    // SMART EXTRACTION: Pull specific variables out of the product line text
-                    let extThickness = '4mm'; // Safe default
-                    if (pLine.includes('10mm')) extThickness = '10mm';
-                    else if (pLine.includes('6mm')) extThickness = '6mm';
-                    else if (pLine.includes('3mm')) extThickness = '3mm';
-                    else if (pLine.includes('1/4')) extThickness = '0.25';
-                    else if (pLine.includes('1/2')) extThickness = '0.5';
-                    else if (pLine.includes('3/4')) extThickness = '0.75';
-                    else if (pLine.includes('1"')) extThickness = '1';
+                        const response = await fetch(`${EDGE_URL}/functions/v1/${endpoint}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                            body: JSON.stringify(payload)
+                        });
 
-                    let extMaterial = '13oz';
-                    if (pLine.includes('15oz')) extMaterial = '15oz';
-                    else if (pLine.includes('18oz')) extMaterial = '18oz';
-                    else if (pLine.includes('mesh')) extMaterial = 'Mesh';
-                    
-                    // 3. Dynamic Permutation Generation
-                    let permutations = [ { hasStakes: false, hardwareName: '', legacyAdd: 0 } ];
-                    
-                    if (testStakes && (pLine.includes('coro') || pLine.includes('yard'))) {
-                        permutations.push({ hasStakes: true, hardwareName: ' w/ H-Stakes', legacyAdd: 2.00 }); 
-                    }
-
-                    // 4. Quantity Matrix Loop
-                    let qtyPermutations = testVolume ? [4, 5] : [4];
-
-                    for (let q of qtyPermutations) {
-                        for (let perm of permutations) {
-                            
-                            // Apply the extracted physics payload
-                            const payload = {
-                                inputs: { 
-                                    ...baseInputs, 
-                                    w: w, 
-                                    h: h, 
-                                    sides: sides, 
-                                    qty: q, 
-                                    hasStakes: perm.hasStakes,
-                                    thickness: extThickness,
-                                    material: extMaterial
-                                },
-                                config: {}
-                            };
-
-                            const response = await fetch(`${EDGE_URL}/functions/v1/${endpoint}`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                                body: JSON.stringify(payload)
-                            });
-
-                            if (!response.ok) {
-                                console.error(`Failed ${endpoint} for ${item.product_line}`);
-                                continue;
-                            }
-
-                            const result = await response.json();
-                            if (!result || !result.retail) continue;
-
-                            let livePriceTotal = result.retail.grandTotal;
-                            
-                            if (perm.hasStakes && endpoint === 'calculate-coro') {
-                                livePriceTotal += (2.00 * q);
-                            }
-
-                            // Calculate Legacy Expectations
-                            let baseLegacyUnit = item.legacy_price + perm.legacyAdd;
-                            if (q >= 10) {
-                                // Assume standard Tier 1 5% discount for bulk
-                                baseLegacyUnit = baseLegacyUnit * 0.95;
-                            }
-                            const expectedTotal = baseLegacyUnit * q;
-                            const variance = livePriceTotal - expectedTotal;
-                            
-                            const displayProduct = item.product_line + perm.hardwareName;
-
-                            // Formatting rendering variables
-                            let varianceColor = 'text-green-500';
-                            let varianceText = Math.abs(variance) < 0.05 ? 'MATCH' : (variance > 0 ? `+$${variance.toFixed(2)}` : `-$${Math.abs(variance).toFixed(2)}`);
-
-                            if (variance > 0.05) varianceColor = 'text-blue-500'; 
-                            if (variance < -0.05) varianceColor = 'text-red-500';  
-
-                            let badge = `<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">ERR</span>`;
-                            if (Math.abs(variance) < 0.05) badge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">EXACT</span>`;
-                            else if (Math.abs(variance) < 2) badge = `<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">MINOR</span>`;
-                            else if (Math.abs(variance) >= 2) badge = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">DRIFT</span>`;
-
-                            auditResults.push({
-                                category: item.category,
-                                product: displayProduct,
-                                dimensions: item.dimensions,
-                                sides: item.sides,
-                                qty: q,
-                                legacy: expectedTotal,
-                                live: livePriceTotal,
-                                variance: variance
-                            });
-
-                            tbody.innerHTML += `
-                                <tr class="hover:bg-gray-50 transition">
-                                    <td class="p-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">${item.category}</td>
-                                    <td class="p-4 font-bold text-gray-800">${displayProduct}</td>
-                                    <td class="p-4 text-gray-600">${item.dimensions}</td>
-                                    <td class="p-4 text-gray-600">${item.sides}</td>
-                                    <td class="p-4 text-center font-bold text-blue-700">${q}</td>
-                                    <td class="p-4 text-right font-mono text-gray-500">$${expectedTotal.toFixed(2)}</td>
-                                    <td class="p-4 text-right font-mono font-bold text-blue-600">$${livePriceTotal.toFixed(2)}</td>
-                                    <td class="p-4 text-right font-mono font-bold ${varianceColor}">${varianceText}</td>
-                                    <td class="p-4 text-center">${badge}</td>
-                                </tr>
-                            `;
+                        if (!response.ok) {
+                            console.error(`Failed ${endpoint} for ${item.product_line}`);
+                            continue;
                         }
+
+                        const result = await response.json();
+                        if (!result || !result.retail) continue;
+
+                        let livePriceTotal = result.retail.grandTotal;
+                        
+                        if (perm.hasStakes && endpoint === 'calculate-coro') {
+                            livePriceTotal += (2.00 * q);
+                        }
+
+                        let baseLegacyUnit = item.legacy_price + perm.legacyAdd;
+                        if (q >= 10) {
+                            baseLegacyUnit = baseLegacyUnit * 0.95;
+                        }
+                        const expectedTotal = baseLegacyUnit * q;
+                        const variance = livePriceTotal - expectedTotal;
+                        
+                        const displayProduct = item.product_line + perm.hardwareName;
+
+                        let varianceColor = 'text-green-500';
+                        let varianceText = Math.abs(variance) < 0.05 ? 'MATCH' : (variance > 0 ? `+$${variance.toFixed(2)}` : `-$${Math.abs(variance).toFixed(2)}`);
+
+                        if (variance > 0.05) varianceColor = 'text-blue-500'; 
+                        if (variance < -0.05) varianceColor = 'text-red-500';  
+
+                        let badge = `<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">ERR</span>`;
+                        if (Math.abs(variance) < 0.05) badge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">EXACT</span>`;
+                        else if (Math.abs(variance) < 2) badge = `<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">MINOR</span>`;
+                        else if (Math.abs(variance) >= 2) badge = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">DRIFT</span>`;
+
+                        auditResults.push({
+                            category: item.category,
+                            product: displayProduct,
+                            dimensions: item.dimensions,
+                            sides: item.sides,
+                            qty: q,
+                            legacy: expectedTotal,
+                            live: livePriceTotal,
+                            variance: variance
+                        });
+
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="p-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">${item.category}</td>
+                                <td class="p-4 font-bold text-gray-800">${displayProduct}</td>
+                                <td class="p-4 text-gray-600">${item.dimensions}</td>
+                                <td class="p-4 text-gray-600">${item.sides}</td>
+                                <td class="p-4 text-center font-bold text-blue-700">${q}</td>
+                                <td class="p-4 text-right font-mono text-gray-500">$${expectedTotal.toFixed(2)}</td>
+                                <td class="p-4 text-right font-mono font-bold text-blue-600">$${livePriceTotal.toFixed(2)}</td>
+                                <td class="p-4 text-right font-mono font-bold ${varianceColor}">${varianceText}</td>
+                                <td class="p-4 text-center">${badge}</td>
+                            </tr>
+                        `;
                     }
                 }
-
-                btnExport.classList.remove('hidden');
-
-            } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-red-500 font-bold uppercase">System Error: ${e.message}</td></tr>`;
-            } finally {
-                btn.disabled = false;
-                btnText.innerText = "Execute Audit";
-                loader.classList.add('hidden');
             }
+
+            btnExport.classList.remove('hidden');
+
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-red-500 font-bold uppercase">System Error: ${e.message}</td></tr>`;
+        } finally {
+            btn.disabled = false;
+            btnText.innerText = "Execute Audit";
+            loader.classList.add('hidden');
         }
+    }
 
-        function exportCSV() {
-            if (auditResults.length === 0) return;
+    function exportCSV() {
+        if (auditResults.length === 0) return;
 
-            let csvContent = "data:text/csv;charset=utf-8,Category,Product Line,Dimensions,Sides,Qty,Legacy Total,Live Cloud Total,Variance\n";
+        let csvContent = "data:text/csv;charset=utf-8,Category,Product Line,Dimensions,Sides,Qty,Legacy Total,Live Cloud Total,Variance\n";
 
-            auditResults.forEach(r => {
-                let row = `${r.category},"${r.product}",${r.dimensions},${r.sides},${r.qty},${r.legacy.toFixed(2)},${r.live.toFixed(2)},${r.variance.toFixed(2)}`;
-                csvContent += row + "\n";
-            });
+        auditResults.forEach(r => {
+            let row = `${r.category},"${r.product}",${r.dimensions},${r.sides},${r.qty},${r.legacy.toFixed(2)},${r.live.toFixed(2)},${r.variance.toFixed(2)}`;
+            csvContent += row + "\n";
+        });
 
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `SignOS_Price_Matrix_Audit_${Date.now()}.csv`);
-            document.body.appendChild(link);
-            
-            link.click();
-            document.body.removeChild(link);
-        }
-    </script>
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `SignOS_Price_Matrix_Audit_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
 </body>
 </html>
