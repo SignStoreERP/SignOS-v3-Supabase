@@ -43,7 +43,6 @@
             </div>
             
             <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-4">
-                
                 <!-- VENDOR & PROCUREMENT -->
                 <div>
                     <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Procurement</span>
@@ -54,7 +53,7 @@
                         Labor & Overheads
                     </button>
                 </div>
-
+                
                 <!-- ECONOMICS & LOGIC -->
                 <div class="border-t border-gray-100 pt-2">
                     <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Economics & Logic</span>
@@ -81,7 +80,6 @@
                         Workforce Manager ↗
                     </a>
                 </div>
-
             </div>
         </div>
 
@@ -93,7 +91,7 @@
                     <!-- Dynamic Legend -->
                 </div>
             </div>
-            
+
             <div class="flex-1 overflow-auto custom-scroll p-4">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <table class="w-full text-left border-collapse min-w-[800px]">
@@ -186,17 +184,18 @@
                 const res = await fetch(queryUrl, {
                     headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
                 });
-                
+
                 if (!res.ok) throw new Error("Failed to connect to database");
                 
                 tableData = await res.json();
-                
+
                 // Pre-sort global variables by category so they group nicely
                 if (tableName === 'global_variables') {
                     tableData.sort((a,b) => (a.category > b.category) ? 1 : ((b.category > a.category) ? -1 : 0));
                 }
-                
+
                 renderTable();
+
             } catch(e) {
                 document.getElementById('data-table').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold text-xs uppercase tracking-widest">Error: ${e.message}</td></tr>`;
             }
@@ -208,7 +207,6 @@
             const tbody = document.getElementById('data-table');
             const legend = document.getElementById('table-legend');
             const searchVal = document.getElementById('search-filter').value.toLowerCase();
-
             let html = '';
 
             // Apply Category Filtering for Global Variables
@@ -250,8 +248,8 @@
                 filteredData.forEach(row => {
                     const hasOverride = row.override_value !== null && row.override_value !== undefined && row.override_value !== '';
                     const cBadge = row.category === 'Material' ? 'bg-green-100 text-green-700' : 
-                                 (row.category === 'Labor' ? 'bg-purple-100 text-purple-700' : 
-                                 (row.category === 'Retail' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'));
+                                  (row.category === 'Labor' ? 'bg-purple-100 text-purple-700' : 
+                                  (row.category === 'Retail' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'));
                     
                     html += `<tr class="hover:bg-blue-50/50 transition group ${hasOverride ? 'bg-orange-50/30' : ''}">
                         <td class="p-3">
@@ -268,7 +266,7 @@
                     </tr>`;
                 });
             }
-
+            
             // VIEW: RETAIL CURVES
             else if (activeTable === 'retail_curves') {
                 legend.innerHTML = 'Note: These algorithms dictate the auto-scaling market prices for standard signs.';
@@ -306,23 +304,23 @@
 
             // VIEW: SYSTEM MODULES (ROUTING / VERSIONS / DEPLOYMENT)
             else if (activeTable === 'system_modules') {
-                legend.innerHTML = 'Note: SUPER role bypasses visibility matrices.';
+                legend.innerHTML = 'Note: SUPER role bypasses tag matrices. Git commits are auto-synced via CI/CD.';
                 thead.innerHTML = `<tr>
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Module Info</th>
                     <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Dev Status</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Versions</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Visibility Matrix</th>
-                    <th class="p-3 text-center"></th>
+                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Active Commit</th>
+                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-left">Access Tags (JSON)</th>
+                    <th class="p-3 text-center">Action</th>
                 </tr>`;
 
                 filteredData.forEach(row => {
                     html += `<tr class="hover:bg-blue-50/50 transition">
                         <td class="p-3">
                             <div class="font-bold text-gray-800 text-sm flex items-center gap-2">
-                                <span class="bg-gray-100 p-1 rounded border border-gray-200 shadow-inner">${row.icon || '⚡'}</span> 
+                                <span class="bg-gray-100 p-1 rounded border border-gray-200 shadow-inner">${row.icon || '⚡'}</span>
                                 ${row.display_name}
                             </div>
-                            <div class="text-[9px] text-gray-400 font-mono mt-1">${row.id} <span class="text-gray-300 mx-1">|</span> ${row.file_name}</div>
+                            <div class="text-[9px] text-gray-400 font-mono mt-1">${row.id} <span class="text-gray-300 mx-1">|</span> ${row.file_link || ''}</div>
                         </td>
                         <td class="p-3 text-center">
                             <select id="sm-status-${row.id}" class="text-[10px] font-black uppercase tracking-widest border border-gray-300 rounded p-1.5 outline-none focus:border-blue-500 bg-white" onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')">
@@ -333,26 +331,12 @@
                             </select>
                         </td>
                         <td class="p-3 text-center">
-                            <div class="flex flex-col gap-1.5 items-center">
-                                <div class="flex items-center gap-1"><span class="text-[9px] font-bold text-gray-400 w-8 text-right">LIVE:</span><input type="text" id="sm-lv-${row.id}" value="${row.live_ver || ''}" class="w-14 text-[10px] border rounded p-1 text-center font-mono outline-none focus:border-blue-500" oninput="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')"></div>
-                                <div class="flex items-center gap-1"><span class="text-[9px] font-bold text-gray-400 w-8 text-right">DEV:</span><input type="text" id="sm-dv-${row.id}" value="${row.dev_ver || ''}" class="w-14 text-[10px] border rounded p-1 text-center font-mono outline-none focus:border-blue-500" oninput="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')"></div>
-                            </div>
+                            <span class="font-mono text-[10px] bg-slate-100 border border-slate-200 px-2 py-1 rounded text-slate-600 shadow-inner">
+                                ${row.active_commit ? '#' + row.active_commit.substring(0,7) : 'Auto via CI/CD'}
+                            </span>
                         </td>
                         <td class="p-3">
-                            <div class="flex flex-col gap-2 items-center text-[10px] font-black text-gray-600 bg-white p-2 rounded border border-gray-200 shadow-inner">
-                                <div class="flex items-center gap-3 border-b border-gray-100 pb-1">
-                                    <span class="w-10 text-right text-gray-400">LIVE:</span>
-                                    <label class="cursor-pointer hover:text-blue-500"><input type="checkbox" id="sm-ls-${row.id}" ${row.live_sales?'checked':''} onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')" class="mr-0.5"> S</label>
-                                    <label class="cursor-pointer hover:text-green-500"><input type="checkbox" id="sm-lp-${row.id}" ${row.live_prod?'checked':''} onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')" class="mr-0.5"> P</label>
-                                    <label class="cursor-pointer hover:text-red-500"><input type="checkbox" id="sm-la-${row.id}" ${row.live_admin?'checked':''} onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')" class="mr-0.5"> A</label>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <span class="w-10 text-right text-gray-400">DEV:</span>
-                                    <label class="cursor-pointer hover:text-blue-500"><input type="checkbox" id="sm-ds-${row.id}" ${row.dev_sales?'checked':''} onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')" class="mr-0.5"> S</label>
-                                    <label class="cursor-pointer hover:text-green-500"><input type="checkbox" id="sm-dp-${row.id}" ${row.dev_prod?'checked':''} onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')" class="mr-0.5"> P</label>
-                                    <label class="cursor-pointer hover:text-red-500"><input type="checkbox" id="sm-da-${row.id}" ${row.dev_admin?'checked':''} onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')" class="mr-0.5"> A</label>
-                                </div>
-                            </div>
+                            <input type="text" id="sm-tags-${row.id}" value='${JSON.stringify(row.access_tags || [])}' class="w-full text-[10px] font-mono border border-gray-300 rounded p-2 outline-none focus:border-blue-500 bg-gray-50" placeholder='["SILO_SALES", "RANK_2"]' oninput="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')">
                         </td>
                         <td class="p-3 text-center">
                             <button id="btn-sm-${row.id}" onclick="saveSystemModule('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-3 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">
@@ -382,7 +366,7 @@
                     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
                     body: JSON.stringify(payload)
                 });
-                
+
                 if (!res.ok) throw new Error("Failed to write to database.");
 
                 // Log the action
@@ -400,7 +384,7 @@
 
                 btn.innerText = "SAVED";
                 btn.classList.replace('bg-blue-600', 'bg-green-500');
-                
+
                 // Update local memory so search/re-render holds the new data
                 const row = tableData.find(r => r.id === id);
                 if (row) {
@@ -419,9 +403,9 @@
                 alert(e.message);
                 btn.innerText = "ERROR";
                 btn.classList.replace('bg-blue-600', 'bg-red-500');
-                setTimeout(() => {
-                    btn.innerText = "UPDATE";
-                    btn.disabled = false;
+                setTimeout(() => { 
+                    btn.innerText = "UPDATE"; 
+                    btn.disabled = false; 
                 }, 2000);
             }
         }
@@ -431,16 +415,19 @@
             const btn = document.getElementById(`btn-sm-${id}`);
             btn.innerText = "SAVING..."; btn.disabled = true;
 
+            let parsedTags = [];
+            try {
+                parsedTags = JSON.parse(document.getElementById(`sm-tags-${id}`).value || '[]');
+            } catch(e) {
+                alert("Invalid JSON format in Access Tags. Please use valid array format like [\"SILO_SALES\"].");
+                btn.innerText = "ERROR"; btn.classList.replace('bg-blue-600', 'bg-red-500');
+                setTimeout(() => { btn.innerText = "UPDATE"; btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.disabled = false; }, 2000);
+                return;
+            }
+
             const payload = {
                 dev_status: document.getElementById(`sm-status-${id}`).value,
-                live_ver: document.getElementById(`sm-lv-${id}`).value,
-                dev_ver: document.getElementById(`sm-dv-${id}`).value,
-                live_sales: document.getElementById(`sm-ls-${id}`).checked,
-                live_prod: document.getElementById(`sm-lp-${id}`).checked,
-                live_admin: document.getElementById(`sm-la-${id}`).checked,
-                dev_sales: document.getElementById(`sm-ds-${id}`).checked,
-                dev_prod: document.getElementById(`sm-dp-${id}`).checked,
-                dev_admin: document.getElementById(`sm-da-${id}`).checked
+                access_tags: parsedTags
             };
 
             try {
@@ -449,7 +436,7 @@
                     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
                     body: JSON.stringify(payload)
                 });
-                
+
                 if (!res.ok) throw new Error("Failed to write to database.");
 
                 // Log the action
@@ -467,6 +454,14 @@
 
                 btn.innerText = "SAVED";
                 btn.classList.replace('bg-blue-600', 'bg-green-500');
+
+                // Update local memory
+                const row = tableData.find(r => r.id === id);
+                if (row) {
+                    row.dev_status = payload.dev_status;
+                    row.access_tags = payload.access_tags;
+                }
+
                 setTimeout(() => {
                     btn.classList.add('hidden');
                     btn.classList.replace('bg-green-500', 'bg-blue-600');
@@ -478,6 +473,7 @@
                 alert(e.message);
                 btn.innerText = "ERROR";
                 btn.classList.replace('bg-blue-600', 'bg-red-500');
+                setTimeout(() => { btn.innerText = "UPDATE"; btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.disabled = false; }, 2000);
             }
         }
 
@@ -502,7 +498,7 @@
             const reason = document.getElementById('mod-reason').value.trim();
             const user = sessionStorage.getItem('signos_user') || 'Admin';
 
-            const payload = { 
+            const payload = {
                 override_value: val === '' ? null : parseFloat(val),
                 updated_at: new Date().toISOString()
             };
@@ -513,7 +509,7 @@
                     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
                     body: JSON.stringify(payload)
                 });
-                
+
                 if (!res.ok) throw new Error("Database update failed.");
 
                 const logPayload = {
@@ -532,7 +528,7 @@
 
                 closeModal();
                 loadTable('global_variables', activeFilterGroup); // Refresh specific tab
-
+                
             } catch (e) { alert(e.message); }
         }
 

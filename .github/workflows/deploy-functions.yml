@@ -1,12 +1,10 @@
-name: Deploy Supabase Edge Functions
-
-# This workflow triggers automatically whenever you change code in the functions folder
+name: Deploy AI Sandbox Edge Functions
 on:
   push:
     branches:
-      - main
-    paths:
-      - 'supabase/functions/**'
+      - dev   # <-- CHANGED FROM ai-sandbox
+  paths:
+    - 'supabase/functions/**'
 
 jobs:
   deploy:

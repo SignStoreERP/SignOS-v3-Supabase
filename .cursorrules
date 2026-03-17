@@ -1,1 +1,13 @@
-Context: You are developing for SignOS v4.0. We prioritize physical yield over square footage. Use the 'Twin-Engine' approach (Retail vs. Cost). Reference the ref_materials table for all costs.
+Context: You are developing for SignOS v4.0. We prioritize physical yield over square footage. Use the 'Twin-Engine' approach (Retail vs. Cost). Reference the ref_ tables for all costs.
+
+- LINEAR FEED: Roll media must be calculated by Linear Feet (LF) fed through the printer, respecting maximum roll widths (e.g., 52").
+- WASTE FACTOR: You MUST apply the `waste_factor` variable (default 1.05) to all material depletion events.
+- NON-ZERO REMNANT RULE: Remnants are valued at a 50% "Holding Value" to prioritize off-cut utilization.
+
+# 4. TAXONOMY & NAMING CONVENTIONS
+- Database Tables: Must use prefixes `ref_` (Reference), `prod_` (Product logic), `sys_` (Infrastructure), or `usr_` (User profiles).
+- Global Entities: Must follow [Class]_[Category]_[Identifier]. Classes include `PHY_` (Physical), `VIR_` (Virtual), `OPS_` (Operational), `EDU_` (Educational), and `FIN_` (Financial).
+
+# 5. ENVIRONMENT ISOLATION
+- When executing locally, only interact with the local Supabase Docker container (`localhost:54321`).
+- Explicitly target the `dev` database schema (e.g., `dev.materials`), NEVER the `public` schema.
