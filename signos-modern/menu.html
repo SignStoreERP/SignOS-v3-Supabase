@@ -142,23 +142,24 @@
                 const grid = document.createElement('div');
                 grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3";
 
-                data.filter(i => val(i, 'Category') === cat).forEach(mod => {
-                    const checkTrue = (v) => v === true || String(v).toUpperCase() === "TRUE";
-                    let isAllowed = false;
+        data.filter(i => val(i, 'Category') === cat).forEach(mod => {
+            
+            const tags = val(mod, 'Access_Tags') || [];
+            const devStatus = val(mod, 'Dev_Status');
+            let isAllowed = false;
 
-                    if (role === 'SUPER') {
-                        isAllowed = true;
-                    } else if (role === 'ADMIN') {
-                        isAllowed = IS_DEV_ENV ? checkTrue(val(mod, 'Dev_ADMIN')) : checkTrue(val(mod, 'Live_ADMIN'));
-                    } else if (role === 'SALES') {
-                        isAllowed = IS_DEV_ENV ? checkTrue(val(mod, 'Dev_SALES')) : checkTrue(val(mod, 'Live_SALES'));
-                    } else if (role === 'PROD') {
-                        isAllowed = IS_DEV_ENV ? checkTrue(val(mod, 'Dev_PROD')) : checkTrue(val(mod, 'Live_PROD'));
-                    }
+            if (role === 'SUPER') {
+                isAllowed = true; // Overwatch sees everything
+            } else {
+                // Standard users only see LIVE modules that possess their specific Role Tag
+                if (devStatus === 'LIVE' && tags.includes(role)) {
+                    isAllowed = true;
+                }
+            }
 
-                    if (!isAllowed && role !== 'SUPER') return;
+            if (!isAllowed) return;
 
-                    const liveVer = val(mod, 'Live_Ver');
+            const liveVer = val(mod, 'Live_Ver');
                     const devVer = val(mod, 'Dev_Ver');
                     let verText = "";
                     let verClass = "";
@@ -283,6 +284,7 @@
                     Dev_Status: item.dev_status,
                     Live_Ver: item.live_ver,
                     Dev_Ver: item.dev_ver,
+                    Access_Tags: item.access_tags || [],
                     Live_SALES: item.live_sales,
                     Live_PROD: item.live_prod,
                     Live_ADMIN: item.live_admin,
