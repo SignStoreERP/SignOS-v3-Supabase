@@ -1,3 +1,4 @@
+// Tells VS Code to stop looking for Deno configurations and accept it globally
 declare const Deno: any;
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 
@@ -19,7 +20,7 @@ Deno.serve(async (req: any) => {
     // --- 1. RETAIL ENGINE (NEAREST MATRIX LOOKUP) ---
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-    let matrixPrice = 0;
+    let matrixPrice = 0; 
     let mappedBox = "";
 
     if (supabaseUrl && supabaseKey) {
@@ -27,18 +28,27 @@ Deno.serve(async (req: any) => {
         const res = await fetch(`${supabaseUrl}/rest/v1/retail_fixed_prices?product_line=ilike.${pQuery}&select=*`, {
             headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
         });
+        
         if (res.ok) {
             const fixedPrices = await res.json();
-            let bestArea = Infinity; let selectedRow = null;
+            let bestArea = Infinity; 
+            let selectedRow = null;
+            
             for (const row of fixedPrices) {
                 if (!row.dimensions || !row.dimensions.includes('x')) continue;
                 const parts = row.dimensions.toLowerCase().split('x');
-                const bw = parseFloat(parts); const bh = parseFloat(parts[1]);
+                
+                // FIXED: Explicitly grab the Width  and Height [1] from the split array
+                const bw = parseFloat(parts); 
+                const bh = parseFloat(parts[1]); 
                 const boxArea = bw * bh;
+                
                 if (((reqW <= bw && reqH <= bh) || (reqW <= bh && reqH <= bw)) && boxArea < bestArea) {
-                    bestArea = boxArea; selectedRow = { ...row, w: bw, h: bh };
+                    bestArea = boxArea; 
+                    selectedRow = { ...row, w: bw, h: bh };
                 }
             }
+            
             if (selectedRow) {
                 mappedBox = selectedRow.dimensions;
                 const sidesStr = reqSides === 2 ? 'Double' : 'Single';
@@ -46,14 +56,15 @@ Deno.serve(async (req: any) => {
 
                 if (match) {
                     matrixPrice = parseFloat(match.price_qty_1 || "0");
-                    let bulk = match.price_qty_10 || match.price_qty_10_plus;
+                    // FIXED: Correct column name from live DB
+                    let bulk = match.price_qty_10; 
                     if (qty >= 10 && bulk) matrixPrice = parseFloat(bulk);
                     else if (qty >= 10) matrixPrice *= 0.95;
                 } else {
                     let single = fixedPrices.find((r: any) => r.dimensions === mappedBox && r.sides === 'Single');
                     if (single) {
                         let base = parseFloat(single.price_qty_1 || "0");
-                        let bulk = single.price_qty_10 || single.price_qty_10_plus;
+                        let bulk = single.price_qty_10;
                         if (qty >= 10 && bulk) base = parseFloat(bulk);
                         else if (qty >= 10) base *= 0.95;
                         matrixPrice = reqSides === 2 ? base * (1 + parseFloat(config.Retail_Adder_DS_Mult || "0.5")) : base;
