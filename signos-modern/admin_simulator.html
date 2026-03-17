@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero-Variance Simulator v6.1 | SignOS Admin</title>
+    <title>Zero-Variance Simulator v6.2 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="signos-core.js"></script>
@@ -11,6 +11,9 @@
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .modal-scroll::-webkit-scrollbar { width: 6px; }
+        .modal-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 4px; }
+        .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col p-4 md:p-8">
@@ -22,7 +25,7 @@
         <div class="bg-gray-900 px-6 py-4 flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v6.1</span>
+                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v6.2</span>
                 </h1>
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Dynamic UI Injection & Custom Curve Auditing</p>
             </div>
@@ -61,7 +64,10 @@
 
         <!-- NEW: DYNAMIC CUSTOM INPUTS -->
         <div id="custom-inputs-section" class="p-6 bg-white border-b border-gray-200 shrink-0 hidden">
-            <h2 class="text-[10px] font-black text-blue-800 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Custom Calculator Inputs</h2>
+            <div class="flex justify-between items-center mb-3 border-b border-blue-100 pb-1">
+                <h2 class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Custom Calculator Inputs</h2>
+                <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Click graph points for detailed ledgers</span>
+            </div>
             <div id="dynamic-inputs" class="grid grid-cols-2 md:grid-cols-6 gap-4">
                 <!-- Dynamically injected based on DB Schema -->
             </div>
@@ -71,7 +77,6 @@
         <div class="flex flex-col lg:flex-row flex-1 overflow-hidden bg-gray-50">
             
             <!-- LEFT: CHART -->
-            <!-- FIXED: Height strictly bounded so it never grows out of the viewport -->
             <div class="w-full lg:w-3/4 p-6 flex flex-col h-[400px] shrink-0">
                 <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Unit Dollars vs. Quantity Curve</h2>
                 <div class="relative w-full h-full">
@@ -92,12 +97,48 @@
         </div>
     </div>
 
+    <!-- POINT-CLICK LEDGER MODAL -->
+    <div id="ledger-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200">
+            <div class="p-5 bg-slate-50 border-b border-gray-200 flex justify-between items-center shrink-0">
+                <div>
+                    <h3 class="font-black text-gray-800 uppercase tracking-widest text-sm" id="lm-title">Simulation Ledger</h3>
+                    <div class="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest" id="lm-subtitle">QTY: --</div>
+                </div>
+                <button onclick="document.getElementById('ledger-modal').classList.add('hidden')" class="text-gray-400 hover:text-red-500 transition font-bold text-xl focus:outline-none">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-6 bg-gray-50 space-y-6">
+                <!-- Retail -->
+                <div>
+                    <h3 class="text-[11px] font-black text-blue-700 uppercase tracking-widest border-b-2 border-blue-100 pb-2 mb-3">Market Logic (Retail)</h3>
+                    <div id="lm-retail" class="space-y-3"></div>
+                </div>
+                <!-- Cost -->
+                <div>
+                    <h3 class="text-[11px] font-black text-red-700 uppercase tracking-widest border-b-2 border-red-100 pb-2 mb-3">Physics Engine (Hard Cost)</h3>
+                    <div id="lm-cost" class="space-y-3"></div>
+                </div>
+            </div>
+            <div class="border-t border-gray-200 bg-white p-4 shrink-0 flex justify-between items-center">
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Total Hard Cost</span>
+                    <span class="text-sm font-mono font-black text-red-600" id="lm-total-cost">$0.00</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Gross Retail Total</span>
+                    <span class="text-xl font-black text-blue-600 tracking-tight" id="lm-total-retail">$0.00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let auditChart = null;
         let activeConfig = null;
-        let allLegacyBenchmarks = []; // Holds the full legacy list in memory
+        let allLegacyBenchmarks = []; 
+        let simLedgers = []; // Stores full JSON responses for click-to-inspect
 
-        // Map UI Products to their matching backend endpoints (Supports both legacy and new DB IDs)
+        // Map UI Products to their matching backend endpoints
         const ROUTER_MAP = {
             'PROD_Yard': 'calculate-yard',
             'PROD_Yard_Signs': 'calculate-yard',
@@ -120,7 +161,6 @@
             'PROD_Nameplates': 'calculate-nameplate'
         };
 
-        // Filter Map to match target products to legacy product_line keywords
         const LEGACY_FILTER_MAP = {
             'PROD_Yard': ['Coro', 'Yard'],
             'PROD_Yard_Signs': ['Coro', 'Yard'],
@@ -141,11 +181,10 @@
                 window.location.href = 'menu.html';
                 return;
             }
-            await loadLegacyBenchmarks(); // Fetch benchmarks to memory first
+            await loadLegacyBenchmarks();
             await loadProducts();
         };
 
-        // 1. DYNAMICALLY LOAD AVAILABLE PRODUCTS
         async function loadProducts() {
             try {
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=id,display_name,category&order=category.asc`, {
@@ -163,25 +202,19 @@
                         sel.appendChild(opt);
                     }
                 });
-                // Trigger first load
                 loadProductUI();
-            } catch(e) {
-                console.error(e);
-            }
+            } catch(e) { console.error(e); }
         }
 
-        // 2. FETCH SPECIFIC PRODUCT SCHEMA TO BUILD INPUTS & FILTER LEGACY DROPDOWN
         async function loadProductUI() {
             const prodId = document.getElementById('sim-product').value;
             if (!prodId) return;
 
-            // A. Update Legacy Benchmarks Dropdown
             const selLegacy = document.getElementById('sim-legacy');
             selLegacy.innerHTML = '<option value="">None (Live Curves Only)</option>';
 
             const filters = LEGACY_FILTER_MAP[prodId] || [];
             allLegacyBenchmarks.forEach(item => {
-                // If filters exist, check if the product line matches. If no filters, show all.
                 const matches = filters.length === 0 || filters.some(f => 
                     (item.product_line || '').toLowerCase().includes(f.toLowerCase()) || 
                     (item.category || '').toLowerCase().includes(f.toLowerCase())
@@ -194,7 +227,6 @@
                 }
             });
 
-            // B. Fetch Schema and Build Inputs
             try {
                 const res = await SignOS.fetchProductData(prodId);
                 activeConfig = res.config;
@@ -202,7 +234,6 @@
                 const inputSec = document.getElementById('custom-inputs-section');
                 const container = document.getElementById('dynamic-inputs');
                 
-                // Always provide standard dimensions
                 let html = `
                     <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width (in)</label><input type="number" id="dyn_w" value="24" class="w-full border border-gray-300 p-2 rounded text-sm font-bold bg-gray-50 outline-none focus:border-blue-500 shadow-inner"></div>
                     <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height (in)</label><input type="number" id="dyn_h" value="18" class="w-full border border-gray-300 p-2 rounded text-sm font-bold bg-gray-50 outline-none focus:border-blue-500 shadow-inner"></div>
@@ -211,7 +242,6 @@
                 if (activeConfig.ui_schema && activeConfig.ui_schema.controls) {
                     activeConfig.ui_schema.controls.forEach(c => {
                         if (c.id === 'qty' || c.id === 'w' || c.id === 'h') return;
-                        
                         html += `<div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">${c.label}</label>`;
                         if (c.type === 'select') {
                             html += `<select id="dyn_${c.id}" class="w-full border border-gray-300 p-2 rounded text-sm font-bold bg-white outline-none focus:border-blue-500 shadow-sm h-[38px]">`;
@@ -228,13 +258,9 @@
                 
                 container.innerHTML = html;
                 inputSec.classList.remove('hidden');
-
-            } catch (e) {
-                console.error("Failed to load schema for UI", e);
-            }
+            } catch (e) { console.error("Failed to load schema for UI", e); }
         }
 
-        // Pre-fetch all legacy values into memory globally
         async function loadLegacyBenchmarks() {
             try {
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=product_line.asc`, {
@@ -244,9 +270,7 @@
                 
                 allLegacyBenchmarks = await res.json();
                 logMsg("Legacy Blue Sheet benchmarks loaded into memory.", "system");
-            } catch(e) {
-                logMsg(`Warning: ${e.message}`, "warn");
-            }
+            } catch(e) { logMsg(`Warning: ${e.message}`, "warn"); }
         }
 
         function logMsg(msg, type = 'info') {
@@ -288,8 +312,8 @@
             const retailData = [];
             const costData = [];
             const legacyData = [];
+            simLedgers = []; // Reset the global inspection array
 
-            // 3. DYNAMIC INPUT HARVESTING
             let customInputs = {
                 w: parseFloat(document.getElementById('dyn_w')?.value) || 48,
                 h: parseFloat(document.getElementById('dyn_h')?.value) || 24,
@@ -305,8 +329,6 @@
                 });
             }
 
-            // Universal Base Payload - Prevents undefined crashes in multi-module Edge Functions
-            // Overwrites default base with user's harvested custom dimensions & toggles
             const combinedInputs = { 
                 shape: 'Rectangle', mountStyle: 'Flush', faceMat: '063 Alum', sides: 1,
                 panels: [{ id: 1, w: customInputs.w || 48, h: customInputs.h || 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 1, gap: 0 }],
@@ -344,6 +366,10 @@
                     let rUnit = rTotal / qty;
                     let cUnit = cTotal / qty;
                     let margin = rUnit > 0 ? ((1 - (cUnit/rUnit)) * 100).toFixed(1) : 0;
+                    let netProfit = rTotal - cTotal;
+
+                    // Store full result object for the Click-to-Inspect Modal
+                    simLedgers.push({ qty, result, rUnit, cUnit, margin, netProfit });
 
                     labels.push(qty);
                     retailData.push(rUnit);
@@ -359,7 +385,7 @@
 
                 renderChart(labels, retailData, costData, legacyData);
                 
-                logMsg(`[SUCCESS] Simulation loop completed successfully. Zero NaN/Null crashes detected.`, 'system');
+                logMsg(`[SUCCESS] Simulation loop completed successfully. Click any point on the graph to inspect the exact financial ledger.`, 'system');
                 status.innerText = "PASSED";
                 status.classList.remove('text-blue-500', 'animate-pulse');
                 status.classList.add('text-green-500');
@@ -376,6 +402,35 @@
             }
         }
 
+        function openLedgerModal(data) {
+            document.getElementById('ledger-modal').classList.remove('hidden');
+            document.getElementById('lm-title').innerText = `X-Ray Ledger (1 of ${data.qty} Units)`;
+            document.getElementById('lm-subtitle').innerText = `BATCH QTY: ${data.qty} | NET PROFIT: $${data.netProfit.toFixed(2)} | MARGIN: ${data.margin}%`;
+
+            const fmt = (n) => "$" + (n||0).toFixed(2);
+            // Safely strip HTML tags (like the sandbox hover <span> tags) from formulas to keep it clean
+            const cleanHTML = (str) => (str||'').replace(/<[^>]*>?/gm, '');
+
+            let rHtml = (data.result.retail.breakdown || []).map(i => `
+                <div class="mb-2 border-b border-gray-100 pb-1.5">
+                    <div class="flex justify-between text-[11px] text-blue-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
+                    <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${cleanHTML(i.formula)}</div>
+                </div>
+            `).join('');
+            document.getElementById('lm-retail').innerHTML = rHtml;
+
+            let cHtml = (data.result.cost.breakdown || []).map(i => `
+                <div class="mb-2 border-b border-gray-100 pb-1.5">
+                    <div class="flex justify-between text-[11px] text-red-800 font-bold tracking-wide"><span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span></div>
+                    <div class="text-[9px] text-gray-500 font-mono italic mt-0.5">↳ ${cleanHTML(i.formula)}</div>
+                </div>
+            `).join('');
+            document.getElementById('lm-cost').innerHTML = cHtml;
+
+            document.getElementById('lm-total-cost').innerText = fmt(data.result.cost.total);
+            document.getElementById('lm-total-retail').innerText = fmt(data.result.retail.grandTotal || data.result.retail.quoteTotal || data.result.retail.total);
+        }
+
         function renderChart(labels, retailData, costData, legacyData) {
             const ctx = document.getElementById('auditChart').getContext('2d');
             if (auditChart) auditChart.destroy();
@@ -388,7 +443,8 @@
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     borderWidth: 3,
                     pointBackgroundColor: '#1d4ed8',
-                    pointRadius: 4,
+                    pointRadius: 5,
+                    pointHoverRadius: 8,
                     fill: true,
                     tension: 0.1
                 },
@@ -399,7 +455,8 @@
                     backgroundColor: 'transparent',
                     borderWidth: 2,
                     pointBackgroundColor: '#b91c1c',
-                    pointRadius: 3,
+                    pointRadius: 4,
+                    pointHoverRadius: 7,
                     fill: false,
                     tension: 0.1
                 }
@@ -409,7 +466,7 @@
                 datasets.push({
                     label: 'Legacy Benchmark (Ghost Line)',
                     data: legacyData,
-                    borderColor: '#94a3b8', // slate-400
+                    borderColor: '#94a3b8',
                     backgroundColor: 'transparent',
                     borderWidth: 2,
                     borderDash: [1],
@@ -421,19 +478,40 @@
 
             auditChart = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
+                data: { labels: labels, datasets: datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement ? 'pointer' : 'default';
+                    },
+                    onClick: (event, activeEls) => {
+                        if (activeEls.length > 0) {
+                            const index = activeEls.index;
+                            openLedgerModal(simLedgers[index]);
+                        }
+                    },
                     plugins: {
                         legend: { position: 'top', labels: { font: { family: 'sans-serif', weight: 'bold' } } },
                         tooltip: {
-                            mode: 'index', intersect: false,
+                            padding: 10,
+                            titleFont: { size: 13, weight: 'bold' },
+                            bodyFont: { size: 12 },
                             callbacks: {
-                                label: function(context) { return context.dataset.label + ': $' + context.parsed.y.toFixed(2); }
+                                label: function(context) { return context.dataset.label + ': $' + context.parsed.y.toFixed(2); },
+                                // Inject Margin % and Net Profit dynamically into the hover tooltip
+                                afterBody: function(context) {
+                                    if (context.length > 0 && simLedgers.length > 0) {
+                                        const idx = context.dataIndex;
+                                        const data = simLedgers[idx];
+                                        return [
+                                            `-----------------------`,
+                                            `Net Profit: $${data.netProfit.toFixed(2)} (Total Batch)`,
+                                            `Profit Margin: ${data.margin}%`
+                                        ];
+                                    }
+                                }
                             }
                         }
                     },
