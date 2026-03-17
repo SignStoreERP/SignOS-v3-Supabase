@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retail Price Auditor v1.0 | SignOS Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <style>
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans flex flex-col p-4 md:p-8">
+
+    <!-- MAIN ISLAND -->
+    <div class="max-w-7xl mx-auto w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200 flex flex-col">
+        
+        <!-- HEADER -->
+        <div class="bg-gray-900 px-6 py-4 flex justify-between items-center shrink-0">
+            <div>
+                <h1 class="text-lg font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
+                    📊 Retail Price Auditor <span class="text-xs text-gray-500">v1.0</span>
+                </h1>
+                <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Automated Edge Function vs. Legacy Blue Sheet Validation</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="exportCSV()" id="btn-export" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-2 rounded text-[10px] uppercase tracking-widest transition shadow border border-emerald-400">
+                    Export CSV
+                </button>
+                <a href="menu.html" class="text-[10px] font-black text-gray-300 border border-gray-600 px-4 py-2 rounded hover:bg-gray-800 transition uppercase tracking-widest">Exit to Menu</a>
+            </div>
+        </div>
+
+        <!-- CONTROLS & SUMMARY -->
+        <div class="p-6 bg-slate-50 border-b border-gray-200 flex justify-between items-end shrink-0">
+            <div>
+                <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">Global Audit Sequence</h2>
+                <p class="text-[10px] text-gray-400 max-w-xl">This tool pulls the immutable legacy prices from <code>ref_retail_history</code> and pings the live Supabase Edge Functions to detect pricing drift across your catalog.</p>
+            </div>
+            <button onclick="runGlobalAudit()" id="btn-run" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-3 rounded shadow-md text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 w-48">
+                <span id="btn-text">Execute Audit</span>
+                <div id="loader" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            </button>
+        </div>
+
+        <!-- RESULTS TABLE -->
+        <div class="flex-1 overflow-x-auto custom-scroll relative min-h-[500px] bg-white">
+            <table class="w-full text-left border-collapse min-w-[900px]">
+                <thead class="bg-white sticky top-0 z-10 shadow-sm text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                    <tr>
+                        <th class="p-4 border-b border-gray-200">Category</th>
+                        <th class="p-4 border-b border-gray-200">Product Line</th>
+                        <th class="p-4 border-b border-gray-200">Dimensions</th>
+                        <th class="p-4 border-b border-gray-200">Sides</th>
+                        <th class="p-4 border-b border-gray-200 text-right">Legacy Price</th>
+                        <th class="p-4 border-b border-gray-200 text-right text-blue-600">Live Cloud Price</th>
+                        <th class="p-4 border-b border-gray-200 text-right">Variance ($)</th>
+                        <th class="p-4 border-b border-gray-200 text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="audit-table" class="divide-y divide-gray-100 text-xs font-medium">
+                    <tr>
+                        <td colspan="8" class="p-12 text-center text-gray-400 font-bold uppercase tracking-widest border-dashed border-2 border-gray-200 m-4">
+                            System Ready. Click Execute Audit to begin.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+    let auditResults = [];
+
+    // Security Gate & Initialization
+    window.onload = () => {
+        const role = sessionStorage.getItem('signos_role');
+        if (role !== 'ADMIN' && role !== 'SUPER') {
+            alert("ACCESS DENIED: Restricted to Administrators.");
+            window.location.href = 'menu.html';
+        }
+    };
+
+    async function runGlobalAudit() {
+        const btn = document.getElementById('btn-run');
+        const btnText = document.getElementById('btn-text');
+        const loader = document.getElementById('loader');
+        const tbody = document.getElementById('audit-table');
+        const btnExport = document.getElementById('btn-export');
+        
+        btn.disabled = true;
+        btnText.innerText = "Auditing...";
+        loader.classList.remove('hidden');
+        btnExport.classList.add('hidden');
+        auditResults = [];
+        
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-blue-500 font-bold animate-pulse uppercase tracking-widest">Fetching Legacy Ledger...</td></tr>`;
+
+        try {
+            // 1. Fetch Legacy Baseline
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=category.asc,product_line.asc`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            if (!res.ok) throw new Error("Failed to fetch legacy ledger");
+            const legacyData = await res.json();
+
+            tbody.innerHTML = '';
+
+            // Universal Base Payload preventing Edge Function undefined crashes
+            const baseInputs = {
+                shape: 'Rectangle', mountStyle: 'Flush', faceMat: '063 Alum',
+                panels: [{ id: 1, w: 48, h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 1, gap: 0 }],
+                postType: 'Aluminum', postSize: '2', frameMat: 'AlumTube_2_1/8',
+                belowGrade: 36, topOffset: 0, thag: 60
+            };
+
+            // 2. Loop Through Each Legacy Item and Ping the Live Cloud Engine
+            for (let item of legacyData) {
+                // Hardware isn't calculated via Edge Functions currently, skip them
+                if (item.category === 'Hardware') continue;
+
+                let endpoint = '';
+                if (item.product_line.includes('Banner')) endpoint = 'calculate-banner';
+                else if (item.product_line.includes('Coroplast')) endpoint = 'calculate-coro';
+                else if (item.product_line.includes('Foam Core')) endpoint = 'calculate-foam';
+                else if (item.product_line.includes('ACM')) endpoint = 'calculate-acm';
+
+                if (!endpoint) continue;
+
+                // Smart Dimensional Parsing (Rolls are listed in Feet, Rigid in Inches)
+                let w = 24, h = 24;
+                if (item.dimensions && item.dimensions.includes('x')) {
+                    let parts = item.dimensions.split('x');
+                    let multiplier = (item.category === 'Roll') ? 12 : 1; 
+                    w = parseFloat(parts) * multiplier;
+                    h = parseFloat(parts[4]) * multiplier;
+                }
+
+                let sides = item.sides === 'Double' ? 2 : 1;
+
+                const payload = {
+                    inputs: { ...baseInputs, w: w, h: h, sides: sides, qty: 1 },
+                    config: {}
+                };
+
+                // Ping the specific Edge Function
+                let livePrice = 0;
+                let status = 'ERROR';
+                
+                try {
+                    const fnUrl = `${EDGE_URL}/functions/v1/${endpoint}`;
+                    const edgeRes = await fetch(fnUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (edgeRes.ok) {
+                        const result = await edgeRes.json();
+                        livePrice = result.retail?.total || result.retail?.grandTotal || result.retail?.quoteTotal || result.retail?.unitPrice || 0;
+                        status = 'SUCCESS';
+                    }
+                } catch(e) {
+                    console.error("Edge Ping Failed", e);
+                }
+
+                let variance = livePrice - item.legacy_price;
+                
+                // Formatting rendering variables
+                let varianceColor = 'text-green-500';
+                let varianceText = variance === 0 ? 'MATCH' : (variance > 0 ? `+$${variance.toFixed(2)}` : `-$${Math.abs(variance).toFixed(2)}`);
+                if (variance > 0) varianceColor = 'text-blue-500'; // Cloud is charging more
+                if (variance < 0) varianceColor = 'text-red-500';  // Cloud is charging less (Margin loss risk)
+
+                let badge = `<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">ERR</span>`;
+                if (status === 'SUCCESS') {
+                    if (Math.abs(variance) < 0.05) badge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-green-200">PASS</span>`;
+                    else if (variance < 0) badge = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-red-200">LOSS</span>`;
+                    else badge = `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-blue-200">GAIN</span>`;
+                }
+
+                // Add to results for CSV
+                auditResults.push({
+                    category: item.category,
+                    product: item.product_line,
+                    dimensions: item.dimensions,
+                    sides: item.sides,
+                    legacy: item.legacy_price,
+                    live: livePrice,
+                    variance: variance
+                });
+
+                // Append to Table
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">${item.category}</td>
+                        <td class="p-4 font-bold text-gray-800">${item.product_line}</td>
+                        <td class="p-4 text-gray-600">${item.dimensions}</td>
+                        <td class="p-4 text-gray-600">${item.sides}</td>
+                        <td class="p-4 text-right font-mono text-gray-500">$${item.legacy_price.toFixed(2)}</td>
+                        <td class="p-4 text-right font-mono font-bold text-blue-600">$${livePrice.toFixed(2)}</td>
+                        <td class="p-4 text-right font-mono font-bold ${varianceColor}">${varianceText}</td>
+                        <td class="p-4 text-center">${badge}</td>
+                    </tr>
+                `;
+            }
+
+            btnExport.classList.remove('hidden');
+
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-red-500 font-bold uppercase">System Error: ${e.message}</td></tr>`;
+        } finally {
+            btn.disabled = false;
+            btnText.innerText = "Execute Audit";
+            loader.classList.add('hidden');
+        }
+    }
+
+    function exportCSV() {
+        if (auditResults.length === 0) return;
+        
+        let csvContent = "data:text/csv;charset=utf-8,Category,Product Line,Dimensions,Sides,Legacy Price,Live Cloud Price,Variance\n";
+        
+        auditResults.forEach(r => {
+            let row = `${r.category},"${r.product}",${r.dimensions},${r.sides},${r.legacy.toFixed(2)},${r.live.toFixed(2)},${r.variance.toFixed(2)}`;
+            csvContent += row + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `SignOS_Price_Audit_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    </script>
+</body>
+</html>
