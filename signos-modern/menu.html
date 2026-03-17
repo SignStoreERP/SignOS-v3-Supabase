@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SignOS Menu v6.0 (Mobile)</title>
+    <title>SignOS Menu v6.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
 </head>
@@ -13,7 +13,7 @@
         <div class="flex items-center gap-3">
             <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-black shadow-inner border border-blue-400">OS</div>
             <div class="flex flex-col">
-                <span class="font-bold text-gray-200 tracking-wider">Macon Hub <span class="text-blue-400">v6.0</span></span>
+                <span class="font-bold text-gray-200 tracking-wider">The Sign Store <span class="text-blue-400">v6.0</span></span>
                 <span id="auth-user" class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">---</span>
             </div>
         </div>
@@ -154,19 +154,13 @@
 
                     if (!isAllowed) return;
 
-                    const liveVer = val(mod, 'Live_Ver');
-                    const devVer = val(mod, 'Dev_Ver');
-                    let verText = "";
-                    let verClass = "";
+                    // FIX: Replaced dropped manual versions with the Git Commit tracker
+                    const activeCommit = val(mod, 'Active_Commit');
+                    let verText = activeCommit ? '#' + activeCommit.substring(0,7) : "Auto-Sync";
+                    let verClass = devStatus === 'LIVE' ? "bg-green-100 text-green-800 border-green-200" : "bg-orange-100 text-orange-800 border-orange-200";
 
-                    if (IS_DEV_ENV) {
-                        if (!devVer || devVer === '') return;
-                        verText = `DEV ${devVer}`;
-                        verClass = "bg-orange-100 text-orange-800 border-orange-200";
-                    } else {
-                        if (!liveVer || liveVer === '') return;
-                        verText = `v${liveVer.replace('v','')}`;
-                        verClass = "bg-green-100 text-green-800 border-green-200";
+                    if (devStatus !== 'LIVE' && devStatus !== 'DEV ONLY') {
+                         verText = devStatus; // Show "FIX PENDING" etc.
                     }
 
                     const displayName = val(mod, 'Display_Name');
@@ -262,13 +256,13 @@
                 
                 const rawData = await response.json();
                 
+                // FIX: Removed mapped manual versions to pull the active_commit
                 const data = rawData.map(item => ({
                     Module_ID: item.id,
                     Display_Name: item.display_name,
                     File_Link: item.file_link,
                     Dev_Status: item.dev_status,
-                    Live_Ver: item.live_ver,
-                    Dev_Ver: item.dev_ver,
+                    Active_Commit: item.active_commit,
                     Access_Tags: item.access_tags || [],
                     Category: item.category,
                     Icon: item.icon,
