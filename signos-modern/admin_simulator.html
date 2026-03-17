@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero-Variance Simulator v6.0 | SignOS Admin</title>
+    <title>Zero-Variance Simulator v6.1 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="signos-core.js"></script>
@@ -22,7 +22,7 @@
         <div class="bg-gray-900 px-6 py-4 flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v6.0</span>
+                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v6.1</span>
                 </h1>
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Dynamic UI Injection & Custom Curve Auditing</p>
             </div>
@@ -42,7 +42,7 @@
                 <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Legacy Benchmark (Ghost Line)</label>
                 <select id="sim-legacy" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
                     <option value="">None (Live Curves Only)</option>
-                    <!-- Injected via Supabase fetch on load -->
+                    <!-- Injected dynamically based on Product Target -->
                 </select>
             </div>
 
@@ -95,23 +95,43 @@
     <script>
         let auditChart = null;
         let activeConfig = null;
+        let allLegacyBenchmarks = []; // Holds the full legacy list in memory
 
-        // Map UI Products to their matching backend endpoints
+        // Map UI Products to their matching backend endpoints (Supports both legacy and new DB IDs)
         const ROUTER_MAP = {
+            'PROD_Yard': 'calculate-yard',
             'PROD_Yard_Signs': 'calculate-yard',
+            'PROD_Coro': 'calculate-coro',
             'PROD_Coroplast_Signs': 'calculate-coro',
             'PROD_ACM': 'calculate-acm',
             'PROD_PVC': 'calculate-pvc',
             'PROD_Foam': 'calculate-foam',
             'PROD_Acr': 'calculate-acrylic',
+            'PROD_Ban': 'calculate-banner',
             'PROD_Vinyl_Banners': 'calculate-banner',
+            'PROD_Dec': 'calculate-decal',
             'PROD_Decals': 'calculate-decal',
             'PROD_Cut': 'calculate-cut',
             'PROD_Wrap': 'calculate-wrap',
             'PROD_Wall': 'calculate-wall',
             'PROD_Post_Panel': 'calculate-post-panel',
+            'PROD_ADA_Quote': 'calculate-ada',
             'PROD_ADA_Signs': 'calculate-ada',
             'PROD_Nameplates': 'calculate-nameplate'
+        };
+
+        // Filter Map to match target products to legacy product_line keywords
+        const LEGACY_FILTER_MAP = {
+            'PROD_Yard': ['Coro', 'Yard'],
+            'PROD_Yard_Signs': ['Coro', 'Yard'],
+            'PROD_Coro': ['Coro'],
+            'PROD_Coroplast_Signs': ['Coro'],
+            'PROD_ACM': ['ACM'],
+            'PROD_PVC': ['PVC'],
+            'PROD_Foam': ['Foam'],
+            'PROD_Acr': ['Acrylic', 'Acr'],
+            'PROD_Ban': ['Banner'],
+            'PROD_Vinyl_Banners': ['Banner']
         };
 
         window.onload = async () => {
@@ -121,8 +141,8 @@
                 window.location.href = 'menu.html';
                 return;
             }
+            await loadLegacyBenchmarks(); // Fetch benchmarks to memory first
             await loadProducts();
-            await loadLegacyBenchmarks();
         };
 
         // 1. DYNAMICALLY LOAD AVAILABLE PRODUCTS
@@ -150,11 +170,31 @@
             }
         }
 
-        // 2. FETCH SPECIFIC PRODUCT SCHEMA TO BUILD INPUTS
+        // 2. FETCH SPECIFIC PRODUCT SCHEMA TO BUILD INPUTS & FILTER LEGACY DROPDOWN
         async function loadProductUI() {
             const prodId = document.getElementById('sim-product').value;
             if (!prodId) return;
 
+            // A. Update Legacy Benchmarks Dropdown
+            const selLegacy = document.getElementById('sim-legacy');
+            selLegacy.innerHTML = '<option value="">None (Live Curves Only)</option>';
+
+            const filters = LEGACY_FILTER_MAP[prodId] || [];
+            allLegacyBenchmarks.forEach(item => {
+                // If filters exist, check if the product line matches. If no filters, show all.
+                const matches = filters.length === 0 || filters.some(f => 
+                    (item.product_line || '').toLowerCase().includes(f.toLowerCase()) || 
+                    (item.category || '').toLowerCase().includes(f.toLowerCase())
+                );
+                if (matches) {
+                    const opt = document.createElement('option');
+                    opt.value = item.legacy_price;
+                    opt.innerText = `[${item.category}] ${item.product_line} (${item.dimensions} ${item.sides}) - $${item.legacy_price.toFixed(2)}`;
+                    selLegacy.appendChild(opt);
+                }
+            });
+
+            // B. Fetch Schema and Build Inputs
             try {
                 const res = await SignOS.fetchProductData(prodId);
                 activeConfig = res.config;
@@ -194,6 +234,7 @@
             }
         }
 
+        // Pre-fetch all legacy values into memory globally
         async function loadLegacyBenchmarks() {
             try {
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=product_line.asc`, {
@@ -201,16 +242,8 @@
                 });
                 if (!res.ok) throw new Error("Failed to fetch legacy ledger");
                 
-                const data = await res.json();
-                const sel = document.getElementById('sim-legacy');
-                
-                data.forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item.legacy_price;
-                    opt.innerText = `[${item.category}] ${item.product_line} (${item.dimensions} ${item.sides}) - $${item.legacy_price.toFixed(2)}`;
-                    sel.appendChild(opt);
-                });
-                logMsg("Legacy Blue Sheet benchmarks loaded.", "system");
+                allLegacyBenchmarks = await res.json();
+                logMsg("Legacy Blue Sheet benchmarks loaded into memory.", "system");
             } catch(e) {
                 logMsg(`Warning: ${e.message}`, "warn");
             }
