@@ -1,0 +1,37 @@
+name: SignOS Nightly Health & Simulation Check
+
+# Run automatically every day at 3:00 AM EST (8:00 AM UTC)
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  # Also allow admins to trigger this manually from the GitHub dashboard
+  workflow_dispatch:
+
+jobs:
+  run-health-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Ping SignOS Health Check Edge Function
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      run: |
+        echo "Initiating Nightly Zero-Variance Math & Systems Check..."
+        
+        # Call the dedicated health check Edge Function
+        HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" -X POST "$SUPABASE_URL/functions/v1/system-health-check" \
+          -H "Authorization: Bearer $SUPABASE_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"mode": "full_simulation"}')
+        
+        cat response.json
+        
+        # Evaluate the response
+        if [ "$HTTP_STATUS" -eq 200 ]; then
+          echo "✅ All Systems GREEN. Math and routing verified."
+        else
+          echo "❌ SYSTEM FAILURE DETECTED. Status: $HTTP_STATUS"
+          # (Optional) Add a curl command here to trigger a Slack/Discord webhook alert
+          exit 1
+        fi
