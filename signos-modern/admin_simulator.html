@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero-Variance Simulator v5.0 | SignOS Admin</title>
+    <title>Zero-Variance Simulator v5.1 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="signos-core.js"></script>
@@ -16,13 +16,13 @@
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col p-4 md:p-8">
 
     <!-- MAIN ISLAND -->
-    <div class="max-w-6xl mx-auto w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200 flex flex-col">
+    <div class="max-w-7xl mx-auto w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200 flex flex-col">
         
         <!-- HEADER -->
         <div class="bg-gray-900 px-6 py-4 flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v5.0</span>
+                    🤖 Zero-Variance Simulator <span class="text-xs text-gray-500">v5.1</span>
                 </h1>
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Cloud Edge Function Live Auditing (Zero Client-Side Math)</p>
             </div>
@@ -30,7 +30,7 @@
         </div>
 
         <!-- CONTROLS -->
-        <div class="p-6 bg-slate-50 border-b border-gray-200 grid grid-cols-1 md:grid-cols-5 gap-4 items-end shrink-0">
+        <div class="p-6 bg-slate-50 border-b border-gray-200 grid grid-cols-1 md:grid-cols-6 gap-4 items-end shrink-0">
             <div class="md:col-span-2">
                 <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Target Edge Function</label>
                 <select id="sim-endpoint" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
@@ -41,13 +41,20 @@
                     <option value="calculate-ada">calculate-ada (ADA / Architectural)</option>
                 </select>
             </div>
-            <div>
-                <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Max Quantity</label>
+            <div class="md:col-span-2">
+                <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Legacy Benchmark (Ghost Line)</label>
+                <select id="sim-legacy" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
+                    <option value="">None (Live Curves Only)</option>
+                    <!-- Injected via Supabase fetch on load -->
+                </select>
+            </div>
+            <div class="md:col-span-1">
+                <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Max Qty</label>
                 <input type="number" id="sim-max" value="100" min="10" max="1000" step="10" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-800 text-center outline-none focus:border-blue-500 shadow-sm bg-white">
             </div>
-            <div class="md:col-span-2 flex gap-2">
+            <div class="md:col-span-1 flex gap-2">
                 <button onclick="runAudit()" id="btn-run" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 rounded shadow-md text-[10px] uppercase tracking-widest transition flex items-center justify-center gap-2">
-                    <span id="btn-text">Execute Cloud Audit</span>
+                    <span id="btn-text">Execute</span>
                     <div id="loader" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 </button>
             </div>
@@ -81,14 +88,39 @@
     <script>
     let auditChart = null;
 
-    // Security Gate check
-    window.onload = () => {
+    // Security Gate & Initialization
+    window.onload = async () => {
         const role = sessionStorage.getItem('signos_role');
         if (role !== 'ADMIN' && role !== 'SUPER') {
             alert("ACCESS DENIED: Restricted to Administrators.");
             window.location.href = 'menu.html';
+            return;
         }
+        await loadLegacyBenchmarks();
     };
+
+    // Safely retrieve the historical offline ledger directly from Supabase
+    async function loadLegacyBenchmarks() {
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?select=*&order=product_line.asc`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            if (!res.ok) throw new Error("Failed to fetch legacy ledger");
+            
+            const data = await res.json();
+            const sel = document.getElementById('sim-legacy');
+            
+            data.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.legacy_price;
+                opt.innerText = `[${item.category}] ${item.product_line} (${item.dimensions} ${item.sides}) - $${item.legacy_price.toFixed(2)}`;
+                sel.appendChild(opt);
+            });
+            logMsg("Legacy Blue Sheet benchmarks loaded.", "system");
+        } catch(e) {
+            logMsg(`Warning: ${e.message}`, "warn");
+        }
+    }
 
     function logMsg(msg, type = 'info') {
         const logEl = document.getElementById('audit-log');
@@ -108,9 +140,12 @@
         const status = document.getElementById('api-status');
         const endpoint = document.getElementById('sim-endpoint').value;
         const maxQty = parseInt(document.getElementById('sim-max').value) || 100;
+        
+        const legacyVal = document.getElementById('sim-legacy').value;
+        const ghostPrice = legacyVal ? parseFloat(legacyVal) : null;
 
         btn.disabled = true;
-        btnText.innerText = "Pinging Edge...";
+        btnText.innerText = "Pinging...";
         loader.classList.remove('hidden');
         status.innerText = "TESTING ACTIVE";
         status.classList.add('text-blue-500', 'animate-pulse');
@@ -122,6 +157,7 @@
         const labels = [];
         const retailData = [];
         const costData = [];
+        const legacyData = [];
 
         // Universal Base Payload - Prevents undefined crashes in multi-module Edge Functions
         const baseInputs = {
@@ -166,6 +202,7 @@
                 labels.push(qty);
                 retailData.push(rUnit);
                 costData.push(cUnit);
+                legacyData.push(ghostPrice); // Push the flat legacy price for every coordinate
 
                 let logColor = 'info';
                 if (margin < 30) logColor = 'warn';
@@ -174,7 +211,7 @@
                 logMsg(`QTY ${qty} | Sell: $${rUnit.toFixed(2)} | Cost: $${cUnit.toFixed(2)} | Margin: ${margin}%`, logColor);
             }
 
-            renderChart(labels, retailData, costData);
+            renderChart(labels, retailData, costData, legacyData);
             logMsg(`[SUCCESS] Simulation loop completed successfully. Zero NaN/Null crashes detected.`, 'system');
             
             status.innerText = "PASSED";
@@ -188,44 +225,60 @@
             status.classList.add('text-red-500');
         } finally {
             btn.disabled = false;
-            btnText.innerText = "Execute Cloud Audit";
+            btnText.innerText = "Execute";
             loader.classList.add('hidden');
         }
     }
 
-    function renderChart(labels, retailData, costData) {
+    function renderChart(labels, retailData, costData, legacyData) {
         const ctx = document.getElementById('auditChart').getContext('2d');
         if (auditChart) auditChart.destroy();
+
+        const datasets = [
+            {
+                label: 'Live Retail Curve ($/Unit)',
+                data: retailData,
+                borderColor: '#2563eb', // blue-600
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 3,
+                pointBackgroundColor: '#1d4ed8',
+                pointRadius: 4,
+                fill: true,
+                tension: 0.1
+            },
+            {
+                label: 'Live Physics Ledger ($/Unit)',
+                data: costData,
+                borderColor: '#dc2626', // red-600
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointBackgroundColor: '#b91c1c',
+                pointRadius: 3,
+                fill: false,
+                tension: 0.1
+            }
+        ];
+
+        // Only inject the Ghost Line if a Legacy Benchmark was selected
+        if (legacyData.some(d => d !== null)) {
+            datasets.push({
+                label: 'Legacy Blue Sheet Target (Ghost Line)',
+                data: legacyData,
+                borderColor: '#94a3b8', // slate-400
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                borderDash: [1], // Creates the dotted "Ghost" effect
+                pointRadius: 0, // Hides the dots to emphasize it's a flat baseline
+                fill: false,
+                tension: 0
+            });
+        }
 
         auditChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [
-                    {
-                        label: 'Retail Price ($/Unit)',
-                        data: retailData,
-                        borderColor: '#2563eb', // blue-600
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#1d4ed8',
-                        pointRadius: 4,
-                        fill: true,
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Physical Hard Cost ($/Unit)',
-                        data: costData,
-                        borderColor: '#dc2626', // red-600
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        pointBackgroundColor: '#b91c1c',
-                        pointRadius: 3,
-                        borderDash: [1],
-                        fill: false,
-                        tension: 0.1
-                    }
-                ]
+                datasets: datasets
             },
             options: {
                 responsive: true,
