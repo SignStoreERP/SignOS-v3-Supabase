@@ -38,7 +38,7 @@
 
     <!-- MAIN DASHBOARD GRID -->
     <div class="flex-1 overflow-y-auto custom-scroll p-6">
-        <div class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
 
             <!-- WIDGET 1: SYSTEM HEALTH & QUICK LINKS -->
             <div class="flex flex-col gap-6">
@@ -119,22 +119,40 @@
                 </div>
             </div>
 
+            <!-- WIDGET 4: ACTIVE PERSONNEL -->
+<div class="bg-slate-800 rounded-xl border border-slate-700 shadow-lg flex flex-col h-[600px] lg:h-auto">
+    <div class="p-5 border-b border-slate-700 flex justify-between items-center shrink-0">
+        <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">Active Personnel</h2>
+        <button onclick="fetchActiveUsers()" class="text-[10px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition">Scan</button>
+    </div>
+    <div class="p-3 bg-slate-900/50 border-b border-slate-700 flex justify-between items-center shrink-0">
+        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Floor Status</span>
+        <span id="active-count" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-black px-2 py-0.5 rounded shadow-sm">0 ONLINE</span>
+    </div>
+    <div class="flex-1 overflow-y-auto custom-scroll p-2">
+        <div id="active-users-list" class="space-y-1">
+            <div class="p-4 text-center text-xs font-bold text-slate-500 animate-pulse uppercase tracking-widest">Scanning Floor...</div>
+        </div>
+    </div>
+</div>
+
         </div>
     </div>
 
     <script>
-        window.onload = async function() {
-            const role = sessionStorage.getItem('signos_role');
-            if (role !== 'ADMIN' && role !== 'SUPER') {
-                alert("SECURITY VIOLATION: Command Center is restricted to Administrators.");
-                window.location.href = 'menu.html';
-                return;
-            }
-            document.getElementById('auth-user').innerText = sessionStorage.getItem('signos_user') || 'ADMIN';
-            
-            fetchModules();
-            fetchLogs();
-        };
+window.onload = async function() {
+    const role = sessionStorage.getItem('signos_role');
+    if (role !== 'ADMIN' && role !== 'SUPER') {
+        alert("SECURITY VIOLATION: Command Center is restricted to Administrators.");
+        window.location.href = 'menu.html';
+        return;
+    }
+    document.getElementById('auth-user').innerText = sessionStorage.getItem('signos_user') || 'ADMIN';
+    
+    fetchModules();
+    fetchLogs();
+    fetchActiveUsers(); // ADD THIS LINE
+};
 
         // Fetch Connected UI Tools from system_modules table
         async function fetchModules() {
@@ -205,6 +223,67 @@
                 document.getElementById('logs-list').innerHTML = `<div class="p-4 text-center text-xs font-bold text-red-500 uppercase">Telemetry feed interrupted</div>`;
             }
         }
+
+        // Fetch and Parse Active Users from Telemetry (Last 30 mins)
+async function fetchActiveUsers() {
+    try {
+        // Fetch the last 200 logs to guarantee we capture all recent movement
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/access_logs?select=timestamp,user_id,role,action&order=timestamp.desc&limit=200`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        if (!res.ok) throw new Error("Failed to scan personnel");
+        const logs = await res.json();
+
+        const activeUsers = new Map();
+        const activeThreshold = 30 * 60 * 1000; // 30 minutes in milliseconds
+        const now = new Date();
+
+        // Loop through logs and isolate the most recent action per unique user
+        logs.forEach(log => {
+            if (!log.user_id || log.user_id === 'System') return; // Ignore automated system bots
+            
+            const logTime = new Date(log.timestamp);
+            
+            // If the action was within the threshold and the user isn't on the list yet
+            if ((now - logTime) < activeThreshold && !activeUsers.has(log.user_id)) {
+                activeUsers.set(log.user_id, {
+                    role: log.role,
+                    lastAction: log.action,
+                    time: logTime
+                });
+            }
+        });
+
+        document.getElementById('active-count').innerText = `${activeUsers.size} ONLINE`;
+        let html = '';
+
+        if (activeUsers.size === 0) {
+            html = `<div class="p-6 text-center text-xs font-bold text-slate-600 uppercase tracking-widest">No active personnel found.</div>`;
+        } else {
+            // Build the UI Cards for each active user
+            activeUsers.forEach((data, user) => {
+                const timeAgo = Math.floor((now - data.time) / 60000);
+                const timeText = timeAgo === 0 ? 'Just now' : `${timeAgo}m ago`;
+                
+                html += `
+                <div class="p-3 bg-slate-900/50 rounded border border-slate-700 flex justify-between items-center hover:border-slate-500 transition">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-slate-200 uppercase">${user}</span>
+                        <span class="text-[9px] font-black text-blue-400 uppercase tracking-widest mt-0.5">${data.role}</span>
+                    </div>
+                    <div class="flex flex-col items-end gap-1">
+                        <span class="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border text-emerald-400 border-emerald-500/30 bg-emerald-500/10">Active</span>
+                        <span class="text-[9px] font-bold text-slate-500">${timeText}</span>
+                    </div>
+                </div>`;
+            });
+        }
+        
+        document.getElementById('active-users-list').innerHTML = html;
+    } catch(e) {
+        document.getElementById('active-users-list').innerHTML = `<div class="p-4 text-center text-xs font-bold text-red-500 uppercase">Error loading personnel</div>`;
+    }
+}
     </script>
 </body>
 </html>

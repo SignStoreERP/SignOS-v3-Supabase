@@ -3,46 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Log Viewer v2.21 | SignOS Admin</title>
+    <title>Log Viewer v3.0 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
-    <script src="logic_viewer.js"></script>
-
-    <style>
-        /* === UI OVERLAY SCROLLBARS === */
+    <style type="text/tailwindcss">
         .custom-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f1f1; }
         .custom-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
         .log-row { cursor: pointer; transition: background-color 0.1s; }
         .log-row:hover { background-color: #eff6ff; }
         
-        /* Log Colors */
-        .log-auth { color: #2563eb; }
-        .log-error { color: #dc2626; font-weight: bold; background-color: #fef2f2; }
-        .log-checkout { color: #16a34a; font-weight: bold; background-color: #f0fdf4; }
-
-        /* Stronger Active State */
-        .archive-item.active { 
-            background-color: #eff6ff; 
-            border-left: 4px solid #2563eb; 
-            color: #1e40af; 
-            font-weight: 600;
-        }
-
-        .sort-header { cursor: pointer; user-select: none; transition: background-color 0.1s; }
-        .sort-header:hover { background-color: #e5e7eb; color: #1f2937; }
-
-        .modal { transition: opacity 0.25s ease; }
-        body.modal-active { overflow: hidden; }
-
-        /* Chips */
-        .filter-chip { @apply px-2 py-1 rounded-md text-[10px] font-bold border transition-all duration-200 uppercase tracking-wide cursor-pointer select-none whitespace-nowrap; }
+        .chip { cursor: pointer; transition: all 0.2s; }
+        .chip-active { box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body class="bg-gray-100 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
@@ -50,10 +26,10 @@
     <div class="bg-gray-900 text-white border-b border-gray-800 px-4 py-3 flex justify-between items-center shadow-lg z-30 shrink-0">
         <div>
             <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
-                <span class="text-blue-400">⚡</span> Log Viewer <span class="text-gray-500 text-xs font-normal">v2.21</span>
+                <span class="text-blue-400">⚡</span> Log Viewer <span class="text-gray-500 text-xs font-normal">v3.0</span>
             </h1>
             <div class="text-[10px] font-bold text-gray-400 mt-0.5 tracking-wider">
-                LOGGED IN AS: <span id="auth-user" class="text-blue-400">CHECKING...</span>
+                LOGGED IN AS: <span id="auth-user" class="text-blue-400 uppercase">---</span>
             </div>
         </div>
         <button onclick="window.location.href='menu.html'" class="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded text-xs font-bold border border-gray-700 transition">
@@ -61,115 +37,70 @@
         </button>
     </div>
 
-    <div class="md:hidden bg-white border-b border-gray-200 px-4 py-2 shrink-0 z-20 shadow-sm">
-        <button onclick="toggleFilters()" class="w-full bg-slate-50 text-slate-600 px-3 py-2 rounded text-xs font-bold border border-slate-200 active:bg-slate-200 flex justify-center items-center gap-2">
-            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
-            OPEN SEARCH & FILTERS
-        </button>
+    <div class="md:hidden bg-white border-b border-gray-200 px-4 py-2 shrink-0 z-20 shadow-sm flex gap-2">
+        <button onclick="fetchLogs()" class="flex-1 bg-slate-50 text-slate-600 px-3 py-2 rounded text-xs font-bold border border-slate-200 active:bg-slate-200">🔄 Refresh</button>
+        <button onclick="toggleFilters()" class="flex-1 bg-slate-50 text-slate-600 px-3 py-2 rounded text-xs font-bold border border-slate-200 active:bg-slate-200">🌪️ Filters</button>
     </div>
 
-    <div class="flex-1 flex overflow-hidden relative">
-
-        <div id="sidebar-backdrop" onclick="closeSidebar()" class="fixed inset-0 bg-black/60 z-40 hidden md:hidden glass transition-opacity backdrop-blur-sm"></div>
-
-        <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-72 bg-white border-r border-gray-200 flex flex-col z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none h-full">
-            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                <div>
-                    <div class="text-xs font-bold text-gray-700 uppercase tracking-wider">Log Archives</div>
-                    <div class="text-[10px] text-gray-400 mt-0.5">Select a data source</div>
-                </div>
-                <button onclick="closeSidebar()" class="md:hidden bg-gray-200 rounded-full p-1 text-gray-500 hover:text-red-500">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-
-            <div id="archive-list" class="flex-1 overflow-y-auto custom-scroll">
-                <div class="p-4 text-center text-gray-400 text-xs animate-pulse">Loading index...</div>
-            </div>
-
-            <div class="p-4 border-t border-gray-100 bg-gray-50 pb-24 md:pb-4">
-                <label class="flex items-center justify-center w-full px-4 py-2 bg-white border border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition group">
-                    <div class="flex flex-col items-center">
-                        <span class="text-[10px] font-bold text-gray-500 group-hover:text-blue-500">📂 OPEN LOCAL FILE</span>
-                    </div>
-                    <input id="file-input" type="file" class="hidden" accept=".txt,.csv,.json" />
-                </label>
-            </div>
-        </div>
-
-        <div class="flex-1 flex flex-col min-w-0 bg-gray-100 h-full relative">
-            
-            <div id="filter-panel" class="hidden md:block border-b border-gray-200 bg-white shadow-sm z-20">
-                <div class="p-3">
-                    <div class="mb-3">
-                        <input type="text" id="filter-search" onkeyup="applyFilters()" placeholder="🔍 Search logs (User, IP, Action)..." 
-                            class="w-full bg-slate-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:border-blue-500 focus:bg-white transition shadow-inner">
-                    </div>
-
-                    <div class="flex flex-nowrap gap-4 overflow-x-auto custom-scroll pb-2">
-                        <div class="min-w-[120px]">
-                            <div class="text-[9px] font-bold text-gray-400 uppercase mb-1">Users</div>
-                            <div id="filter-users" class="flex flex-wrap gap-1"></div>
-                        </div>
-                        <div class="min-w-[120px]">
-                            <div class="text-[9px] font-bold text-gray-400 uppercase mb-1">Actions</div>
-                            <div id="filter-actions" class="flex flex-wrap gap-1"></div>
-                        </div>
-                        <div class="min-w-[100px]">
-                            <div class="text-[9px] font-bold text-gray-400 uppercase mb-1">Roles</div>
-                            <div id="filter-roles" class="flex flex-wrap gap-1"></div>
-                        </div>
-                        <div class="min-w-[120px]">
-                            <div class="text-[9px] font-bold text-gray-400 uppercase mb-1">Targets</div>
-                            <div id="filter-targets" class="flex flex-wrap gap-1"></div>
-                        </div>
-                    </div>
+    <div class="flex-1 flex flex-col min-w-0 bg-gray-100 h-full relative">
+        <div id="filter-panel" class="hidden md:block border-b border-gray-200 bg-white shadow-sm z-20">
+            <div class="p-3">
+                <div class="mb-3 flex gap-2">
+                    <input type="text" id="filter-search" onkeyup="applyFilters()" placeholder="🔍 Search logs (User, Target, Metadata)..."
+                           class="w-full bg-slate-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none focus:border-blue-500 focus:bg-white transition shadow-inner">
+                    <button onclick="fetchLogs()" class="hidden md:block bg-blue-50 text-blue-600 px-4 py-2 rounded text-xs font-bold border border-blue-200 hover:bg-blue-100 transition">REFRESH</button>
                 </div>
                 
-                <div class="bg-blue-50 px-4 py-1 border-t border-blue-100 hidden md:flex justify-between items-center">
-                    <h2 id="current-file-name" class="text-[10px] font-bold text-blue-800 uppercase tracking-wide truncate">Loading...</h2>
-                    <div class="text-[10px] font-bold text-blue-600 whitespace-nowrap"><span id="stat-count">0</span> ROWS</div>
+                <div class="flex flex-nowrap gap-4 overflow-x-auto custom-scroll pb-2">
+                    <div class="min-w-[120px]">
+                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-1">Users</div>
+                        <div id="filter-users" class="flex flex-wrap gap-1"></div>
+                    </div>
+                    <div class="min-w-[120px]">
+                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-1">Actions</div>
+                        <div id="filter-actions" class="flex flex-wrap gap-1"></div>
+                    </div>
+                    <div class="min-w-[100px]">
+                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-1">Roles</div>
+                        <div id="filter-roles" class="flex flex-wrap gap-1"></div>
+                    </div>
+                    <div class="min-w-[120px]">
+                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-1">Targets</div>
+                        <div id="filter-targets" class="flex flex-wrap gap-1"></div>
+                    </div>
                 </div>
             </div>
-
-            <div class="flex-1 overflow-auto custom-scroll relative bg-gray-50 pb-20 md:pb-0">
-                <table class="w-full text-left border-collapse min-w-[800px]">
-                    <thead class="bg-white sticky top-0 z-10 shadow-sm text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        <tr>
-                            <th onclick="setSort('time')" class="sort-header p-3 border-b border-gray-200 whitespace-nowrap w-32">Time ▾</th>
-                            <th onclick="setSort('user')" class="sort-header p-3 border-b border-gray-200 w-24">User</th>
-                            <th onclick="setSort('role')" class="sort-header p-3 border-b border-gray-200 w-20">Role</th>
-                            <th onclick="setSort('action')" class="sort-header p-3 border-b border-gray-200 w-24">Action</th>
-                            <th onclick="setSort('target')" class="sort-header p-3 border-b border-gray-200 w-32">Target</th>
-                            <th onclick="setSort('ip')" class="sort-header p-3 border-b border-gray-200 w-28">IP</th>
-                            <th class="p-3 border-b border-gray-200">Details</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-body" class="bg-white divide-y divide-gray-100 text-xs"></tbody>
-                </table>
+            
+            <div class="bg-blue-50 px-4 py-1 border-t border-blue-100 hidden md:flex justify-between items-center">
+                <h2 id="current-file-name" class="text-[10px] font-bold text-blue-800 uppercase tracking-wide truncate">LIVE DATABASE CONNECTION</h2>
+                <div class="text-[10px] font-bold text-blue-600 whitespace-nowrap"><span id="stat-count">0</span> ROWS</div>
             </div>
+        </div>
+
+        <div class="flex-1 overflow-auto custom-scroll relative bg-gray-50 pb-20 md:pb-0">
+            <table class="w-full text-left border-collapse min-w-[800px]">
+                <thead class="bg-white sticky top-0 z-10 shadow-sm text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                    <tr>
+                        <th class="p-3 border-b border-gray-200 whitespace-nowrap w-40">Time</th>
+                        <th class="p-3 border-b border-gray-200 w-24">User</th>
+                        <th class="p-3 border-b border-gray-200 w-20">Role</th>
+                        <th class="p-3 border-b border-gray-200 w-40">Action</th>
+                        <th class="p-3 border-b border-gray-200 w-32">Target</th>
+                        <th class="p-3 border-b border-gray-200 w-28">IP</th>
+                        <th class="p-3 border-b border-gray-200">Details (Metadata)</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body" class="bg-white divide-y divide-gray-100 text-xs">
+                    <tr><td colspan="7" class="p-8 text-center text-blue-500 font-bold animate-pulse uppercase tracking-widest">Fetching Telemetry...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <div onclick="toggleSidebar()" class="md:hidden fixed bottom-6 left-4 right-4 bg-gray-900/90 backdrop-blur-md text-white rounded-full shadow-2xl z-30 flex items-center justify-between px-4 py-3 cursor-pointer border border-gray-700 active:scale-95 transition-transform">
-        <div class="flex items-center gap-3 overflow-hidden">
-            <div class="bg-blue-600 p-1.5 rounded-full shrink-0 animate-pulse">
-                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-            </div>
-            <div class="flex flex-col min-w-0">
-                <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none">Viewing</span>
-                <span id="mobile-file-name" class="text-xs font-bold text-white truncate leading-tight mt-0.5">Loading...</span>
-            </div>
-        </div>
-        <div class="text-gray-400 pl-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-        </div>
-    </div>
-
-    <div id="detail-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
-        <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all scale-100">
-            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center shrink-0">
+    <!-- DETAIL MODAL -->
+    <div id="detail-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200">
+            <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center shrink-0">
                 <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Log Entry Details</h2>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 text-lg">✕</button>
             </div>
@@ -178,65 +109,151 @@
                     <div><span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Timestamp</span><span id="m-time" class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">---</span></div>
                     <div><span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">IP Address</span><span id="m-ip" class="font-mono text-xs text-gray-500">---</span></div>
                     <div><span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">User</span><span id="m-user" class="font-bold text-gray-800">---</span></div>
-                    <div><span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Role</span><span id="m-role" class="bg-white border px-2 py-0.5 rounded text-xs">---</span></div>
+                    <div><span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Role</span><span id="m-role" class="bg-white border px-2 py-0.5 rounded text-xs font-bold text-gray-600">---</span></div>
                     <div><span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Action</span><span id="m-action" class="font-bold text-blue-600">---</span></div>
-                    <div><span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target</span><span id="m-target" class="text-gray-600">---</span></div>
+                    <div><span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target</span><span id="m-target" class="text-gray-600 font-mono">---</span></div>
                 </div>
                 <div>
-                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Raw Metadata</h3>
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Raw Metadata JSON</h3>
                     <div class="bg-slate-800 rounded-lg p-4 shadow-inner overflow-x-auto">
-                        <pre id="m-meta" class="text-xs font-mono text-green-400 whitespace-pre-wrap break-all"></pre>
+                        <pre id="m-raw" class="text-xs font-mono text-green-400 whitespace-pre-wrap break-all leading-relaxed"></pre>
                     </div>
                 </div>
-            </div>
-            <div class="bg-gray-50 px-6 py-3 border-t border-gray-200 text-right shrink-0">
-                <button onclick="closeModal()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-bold py-2 px-6 rounded text-xs shadow-sm transition">Close</button>
             </div>
         </div>
     </div>
 
     <script>
-        function toggleSidebar() {
-            const sb = document.getElementById('sidebar');
-            const bd = document.getElementById('sidebar-backdrop');
-            
-            const isClosed = sb.classList.contains('-translate-x-full');
-            if (isClosed) {
-                sb.classList.remove('-translate-x-full');
-                bd.classList.remove('hidden');
-                document.getElementById('filter-panel').classList.add('hidden');
+        let allLogs = [];
+        let activeFilters = { user: null, role: null, action: null, target: null };
+
+        window.onload = async function() {
+            const role = sessionStorage.getItem('signos_role');
+            if (role !== 'ADMIN' && role !== 'SUPER') {
+                alert("SECURITY VIOLATION: Access restricted to Administrators.");
+                window.location.href = 'menu.html';
+                return;
+            }
+            document.getElementById('auth-user').innerText = sessionStorage.getItem('signos_user') || 'ADMIN';
+            await fetchLogs();
+        };
+
+        async function fetchLogs() {
+            try {
+                document.getElementById('table-body').innerHTML = `<tr><td colspan="7" class="p-8 text-center text-blue-500 font-bold animate-pulse uppercase tracking-widest">CONNECTING TO SUPABASE...</td></tr>`;
+
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/access_logs?select=*&order=timestamp.desc&limit=1000`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                
+                if (!res.ok) throw new Error("Failed to fetch telemetry stream.");
+                allLogs = await res.json();
+
+                document.getElementById('stat-count').innerText = allLogs.length;
+                buildFilters();
+                renderTable();
+            } catch(e) {
+                document.getElementById('table-body').innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-500 font-bold uppercase">ERROR: ${e.message}</td></tr>`;
+            }
+        }
+
+        function buildFilters() {
+            const users = [...new Set(allLogs.map(l => l.user_id))].filter(Boolean);
+            const roles = [...new Set(allLogs.map(l => l.role))].filter(Boolean);
+            const actions = [...new Set(allLogs.map(l => l.action))].filter(Boolean);
+            const targets = [...new Set(allLogs.map(l => l.target))].filter(Boolean);
+
+            const makeChips = (arr, type, colorClass) => {
+                return arr.map(val => `<button onclick="toggleFilter('${type}', '${val}')" id="btn-${type}-${val}" class="chip px-2 py-1 bg-white border border-${colorClass}-200 text-${colorClass}-600 rounded text-[9px] font-black uppercase tracking-wider hover:bg-${colorClass}-50">${val}</button>`).join('');
+            };
+
+            document.getElementById('filter-users').innerHTML = makeChips(users, 'user', 'slate');
+            document.getElementById('filter-roles').innerHTML = makeChips(roles, 'role', 'blue');
+            document.getElementById('filter-actions').innerHTML = makeChips(actions, 'action', 'purple');
+            document.getElementById('filter-targets').innerHTML = makeChips(targets, 'target', 'teal');
+        }
+
+        function toggleFilter(type, val) {
+            if (activeFilters[type] === val) {
+                activeFilters[type] = null; // deselect
+                document.getElementById(`btn-${type}-${val}`).classList.remove('chip-active', 'ring-2');
             } else {
-                closeSidebar();
+                if (activeFilters[type]) document.getElementById(`btn-${type}-${activeFilters[type]}`).classList.remove('chip-active', 'ring-2');
+                activeFilters[type] = val;
+                document.getElementById(`btn-${type}-${val}`).classList.add('chip-active', 'ring-2', 'ring-offset-1');
             }
+            renderTable();
         }
 
-        function closeSidebar() {
-            document.getElementById('sidebar').classList.add('-translate-x-full');
-            document.getElementById('sidebar-backdrop').classList.add('hidden');
-        }
+        function applyFilters() { renderTable(); }
 
-        function toggleFilters() {
-            const fp = document.getElementById('filter-panel');
-            fp.classList.toggle('hidden');
-            closeSidebar();
-        }
+        function renderTable() {
+            const search = document.getElementById('filter-search').value.toLowerCase();
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
 
-        // --- SMART BEHAVIOR: Auto-Close Menu on Selection ---
-        document.getElementById('archive-list').addEventListener('click', (e) => {
-            // If on mobile (screen < 768px) and user clicked an item
-            if(window.innerWidth < 768 && e.target.closest('.archive-item')) {
-                // Short timeout to allow the "Active" CSS state to flash briefly
-                setTimeout(closeSidebar, 150);
+            let filtered = allLogs.filter(row => {
+                if (activeFilters.user && row.user_id !== activeFilters.user) return false;
+                if (activeFilters.role && row.role !== activeFilters.role) return false;
+                if (activeFilters.action && row.action !== activeFilters.action) return false;
+                if (activeFilters.target && row.target !== activeFilters.target) return false;
+
+                if (search) {
+                    const str = `${row.user_id} ${row.action} ${row.target} ${JSON.stringify(row.meta_data)}`.toLowerCase();
+                    if (!str.includes(search)) return false;
+                }
+                return true;
+            });
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 font-bold uppercase tracking-widest">No matching logs found.</td></tr>`;
+                return;
             }
-        });
 
-        // --- NAME SYNC ---
-        const targetNode = document.getElementById('current-file-name');
-        const observer = new MutationObserver(() => {
-            document.getElementById('mobile-file-name').innerText = targetNode.innerText;
-        });
-        if(targetNode) observer.observe(targetNode, { childList: true, subtree: true, characterData: true });
+            filtered.forEach(row => {
+                const d = new Date(row.timestamp);
+                const timeStr = d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString();
+
+                // Extract IP from JSON metadata if it exists
+                const ip = row.meta_data?.ip || 'System';
+                const metaStr = JSON.stringify(row.meta_data);
+
+                // Smart Color Coding
+                let actionColor = "text-blue-600";
+                if (row.action.includes('ERROR') || row.action.includes('LIMIT') || row.action.includes('CONSTRAINT')) actionColor = "text-red-600 font-bold bg-red-50";
+                if (row.action.includes('LOGIN')) actionColor = "text-emerald-600 font-bold";
+                if (row.action.includes('OVERRIDE')) actionColor = "text-orange-500 font-bold";
+
+                const tr = document.createElement('tr');
+                tr.className = "log-row border-b border-gray-100";
+                tr.onclick = () => openModal(row);
+                tr.innerHTML = `
+                    <td class="p-3 whitespace-nowrap text-gray-500 font-mono text-[10px]">${timeStr}</td>
+                    <td class="p-3 font-bold text-slate-700">${row.user_id || 'System'}</td>
+                    <td class="p-3"><span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">${row.role || 'SYS'}</span></td>
+                    <td class="p-3 font-bold ${actionColor}">${row.action}</td>
+                    <td class="p-3 font-mono text-gray-500">${row.target || '---'}</td>
+                    <td class="p-3 text-gray-400 font-mono">${ip}</td>
+                    <td class="p-3 text-gray-400 truncate max-w-[200px]">${metaStr}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openModal(row) {
+            document.getElementById('detail-modal').classList.remove('hidden');
+            const d = new Date(row.timestamp);
+            document.getElementById('m-time').innerText = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+            document.getElementById('m-ip').innerText = row.meta_data?.ip || 'System';
+            document.getElementById('m-user').innerText = row.user_id || 'System';
+            document.getElementById('m-role').innerText = row.role || 'SYS';
+            document.getElementById('m-action').innerText = row.action;
+            document.getElementById('m-target').innerText = row.target || '---';
+            document.getElementById('m-raw').innerText = JSON.stringify(row.meta_data, null, 2);
+        }
+
+        function closeModal() { document.getElementById('detail-modal').classList.add('hidden'); }
+        function toggleFilters() { document.getElementById('filter-panel').classList.toggle('hidden'); }
     </script>
-
 </body>
 </html>
