@@ -1,44 +1,70 @@
+declare const Deno: any;
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: any) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   try {
-    const { inputs, config } = await req.json()
-    const ret: any[] = []; const cst: any[] = [];
+    const requestData = await req.json();
+    const inputs = requestData.inputs || {};
+    const config = requestData.config || {};
+    const panels = inputs.panels || [];
+
+    const ret: any[] = [];
+    const cst: any[] = [];
     const R = (label: string, total: number, formula: string) => { if(total > 0) ret.push({label, total, formula}); return total; };
     const L = (label: string, total: number, formula: string) => { if(total > 0) cst.push({label, total, formula}); return total; };
 
-    let totalSqFt = 0;
-    let printTotalRaw = 0;
-    let installTotalRaw = 0;
+    let totalPrintRetail = 0;
+    let totalInstallRetail = 0;
+    let totalActualSqFt = 0;
 
-    inputs.panels.forEach((p: any) => {
-        const area = (p.w * p.h) / 144 * inputs.qty;
-        if(!p.included) {
-            totalSqFt += area;
-            const rate = p.material.startsWith('perf') ? parseFloat(config.Retail_Price_Perf_SqFt || "12") : parseFloat(config.Retail_Price_Vehicle_SqFt || "15");
-            printTotalRaw += (area * rate);
-        }
-        if(inputs.install === 'Yes') {
-            installTotalRaw += (area * parseFloat(config.Retail_Price_Install_Simple || "5"));
+    // BILLED BRACKET LOGIC (12" Increments for large panels)
+    const getBracket = (val: number) => {
+        const brackets = [1-14];
+        for (let b of brackets) { if (val <= b) return b; }
+        return Math.ceil(val / 12) * 12;
+    };
+
+    panels.forEach((p: any) => {
+        const actualArea = (p.w * p.h) / 144;
+        totalActualSqFt += actualArea;
+
+        const billedW = getBracket(p.w);
+        const billedH = getBracket(p.h);
+        const billedSqFt = (billedW * billedH) / 144;
+
+        let rate = p.material === 'perf6040' ? parseFloat(config.Retail_Rate_Perf || "12") : parseFloat(config.Retail_Price_Vehicle_SqFt || "15");
+        
+        // Window perf cost is often included in a full wrap package
+        if (p.material.startsWith('perf') && p.included) rate = 0;
+
+        let printCost = rate * billedSqFt;
+        totalPrintRetail += printCost;
+        R(`Panel (${p.material} Billed at ${billedW}"x${billedH}")`, printCost, `${billedSqFt} SF @ $${rate}/sf`);
+
+        if (inputs.install === 'Yes') {
+            let installRate = parseFloat(config.Retail_Install_Vehicle_SqFt || "5");
+            totalInstallRetail += (installRate * actualArea); // Install logic uses Actual SF
         }
     });
 
-    R(`Printed Graphics`, printTotalRaw, `Total Wrap Area`);
-    if (inputs.install === 'Yes') R(`Installation Labor`, installTotalRaw, `Install Labor`);
+    if (inputs.install === 'Yes') R(`Vehicle Installation`, totalInstallRetail, `Actual SF * Install Rate`);
 
     let grandTotalRaw = ret.reduce((sum, i) => sum + i.total, 0);
-    // FIXED: Override the global $50 minimum with a wrap-specific $150 minimum
-    const minOrder = config.Retail_Min_Order_Wrap ? parseFloat(config.Retail_Min_Order_Wrap) : 150;
+    const minOrder = parseFloat(config.Retail_Min_Order || "150");
     let isMinApplied = false; let grandTotal = grandTotalRaw;
-    if (grandTotalRaw < minOrder) { R(`Shop Minimum`, minOrder - grandTotalRaw, `Difference`); grandTotal = minOrder; isMinApplied = true; }
 
-    const wastePct = parseFloat(config.Waste_Factor || "1.25");
-    L(`Wrap Media & Lam`, totalSqFt * parseFloat(config.Cost_Vin_Vehicle || "0.89") * wastePct, `Media + Lam Cost`);
-    L(`Latex Ink`, totalSqFt * parseFloat(config.Cost_Ink_Latex || "0.16"), `Ink Cost`);
-    const totalCost = cst.reduce((sum, i) => sum + i.total, 0) * parseFloat(config.Factor_Risk || "1.10");
+    if (grandTotalRaw < minOrder) {
+        R(`Shop Minimum Surcharge`, minOrder - grandTotalRaw, `Difference`);
+        grandTotal = minOrder; isMinApplied = true;
+    }
 
-    const payload = { retail: { unitPrice: grandTotal / inputs.qty, grandTotal, breakdown: ret, isMinApplied, printTotal: printTotalRaw, installTotal: installTotalRaw, displaySqFt: totalSqFt }, cost: { total: totalCost, breakdown: cst }, metrics: { margin: (grandTotal - totalCost) / grandTotal } };
+    // --- COST ENGINE (PHYSICAL ACTUALS) ---
+    L(`Vehicle Media & Lam`, totalActualSqFt * (1.30 + 0.96) * parseFloat(config.Waste_Factor || "1.25"), `Actual SF * Mat Cost * Waste`);
+    L(`Latex Ink`, totalActualSqFt * parseFloat(config.Cost_Ink_Latex || "0.16") * 1.25, `Actual SF * Ink Cost * Waste`);
+
+    const totalCost = cst.reduce((sum, i) => sum + i.total, 0) * parseFloat(config.Factor_Risk || "1.1");
+    const payload = { retail: { unitPrice: grandTotal / (inputs.qty || 1), grandTotal, breakdown: ret, isMinApplied, printTotal: totalPrintRetail }, cost: { total: totalCost, breakdown: cst }, metrics: { margin: (grandTotal - totalCost) / grandTotal } };
     return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-  } catch (e: any) { return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: corsHeaders }) }
+  } catch (error: any) { return new Response(JSON.stringify({ error: error.message }), { headers: corsHeaders, status: 400 }) }
 })
