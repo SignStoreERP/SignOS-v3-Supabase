@@ -143,7 +143,27 @@
     </div>
 
     <script>
-        const AVAILABLE_TAGS = ['SALES', 'PROD', 'ADMIN', 'SUPER', 'DEPT_SALES', 'DEPT_VINYL', 'DEPT_CNC', 'DEPT_DESIGN', 'DEPT_FAB_MTL', 'DEPT_INSTALL', 'RANK_1', 'RANK_2', 'RANK_3'];
+        const TAG_DICT = {
+            'SALES': 'System Role: Sales & Quoting',
+            'PROD': 'System Role: Production Floor',
+            'ADMIN': 'System Role: Administration',
+            'SUPER': 'System Role: Overwatch & Global Override',
+            'DEPT_SALES': 'Silo: Sales & Accounts',
+            'DEPT_VINYL': 'Silo: Vinyl & Print',
+            'DEPT_CNC': 'Silo: CNC Routing',
+            'DEPT_DESIGN': 'Silo: Graphic Design',
+            'DEPT_FAB_MTL': 'Silo: Metal Fabrication',
+            'DEPT_INSTALL': 'Silo: Field Installation',
+            'RANK_1': 'Competency: Novice (Requires Shadowing)',
+            'RANK_2': 'Competency: Proficient (Independent)',
+            'RANK_3': 'Competency: Expert (Training Capable)'
+        };
+
+        const TAG_CATEGORIES = {
+            'System Roles': ['SALES', 'PROD', 'ADMIN', 'SUPER'],
+            'Department Silos': ['DEPT_SALES', 'DEPT_VINYL', 'DEPT_CNC', 'DEPT_DESIGN', 'DEPT_FAB_MTL', 'DEPT_INSTALL'],
+            'Competency Ranks': ['RANK_1', 'RANK_2', 'RANK_3']
+        };
         
         let tableData = [];
         let activeTable = 'global_variables';
@@ -317,25 +337,50 @@
 
                 filteredData.forEach(row => {
                     const activeTags = row.access_tags || [];
-                    const mergedTags = [...new Set([...AVAILABLE_TAGS, ...activeTags])];
                     
-                    let tagsHtml = `<div class="flex flex-wrap gap-1" id="sm-tags-${row.id}">`;
-                    mergedTags.forEach(tag => {
-                        const isActive = activeTags.includes(tag);
-                        const bgClass = isActive ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-400 border-gray-200';
-                        tagsHtml += `<button onclick="toggleTag(this, '${row.id}', '${tag}')" data-active="${isActive}" class="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition ${bgClass}">${tag}</button>`;
-                    });
+                    let tagsHtml = `<div class="space-y-3" id="sm-tags-${row.id}">`;
+                    
+                    // Render structured categories
+                    for (const [catName, tags] of Object.entries(TAG_CATEGORIES)) {
+                        tagsHtml += `<div>
+                            <div class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">${catName}</div>
+                            <div class="flex flex-wrap gap-1">`;
+                        
+                        tags.forEach(tag => {
+                            const isActive = activeTags.includes(tag);
+                            const bgClass = isActive ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-400 border-gray-200';
+                            const tagDesc = TAG_DICT[tag] || 'System Access Tag';
+                            tagsHtml += `<button title="${tagDesc}" onclick="toggleTag(this, '${row.id}', '${tag}')" data-active="${isActive}" class="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition ${bgClass}">${tag}</button>`;
+                        });
+                        
+                        tagsHtml += `</div></div>`;
+                    }
+                    
+                    // Isolate any custom strings (like specific employee IDs) not in the standard categories
+                    const standardTags = Object.values(TAG_CATEGORIES).flat();
+                    const customTags = activeTags.filter(t => !standardTags.includes(t));
+                    
+                    if (customTags.length > 0) {
+                        tagsHtml += `<div>
+                            <div class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Custom / Direct User Access</div>
+                            <div class="flex flex-wrap gap-1">`;
+                        customTags.forEach(tag => {
+                            tagsHtml += `<button title="Custom Identifier or Employee ID" onclick="toggleTag(this, '${row.id}', '${tag}')" data-active="true" class="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition bg-blue-100 text-blue-700 border-blue-300">${tag}</button>`;
+                        });
+                        tagsHtml += `</div></div>`;
+                    }
+
                     tagsHtml += `</div>`;
 
                     html += `<tr class="hover:bg-blue-50/50 transition">
-                        <td class="p-3">
+                        <td class="p-3 align-top">
                             <div class="font-bold text-gray-800 text-sm flex items-center gap-2">
                                 <span class="bg-gray-100 p-1 rounded border border-gray-200 shadow-inner">${row.icon || '⚡'}</span>
                                 ${row.display_name}
                             </div>
-                            <div class="text-[9px] text-gray-400 font-mono mt-1">${row.id} <span class="text-gray-300 mx-1">|</span> ${row.file_link || ''}</div>
+                            <div class="text-[9px] text-gray-400 font-mono mt-1">${row.id} <br/> ${row.file_link || ''}</div>
                         </td>
-                        <td class="p-3 text-center">
+                        <td class="p-3 text-center align-top">
                             <select id="sm-status-${row.id}" class="text-[10px] font-black uppercase tracking-widest border border-gray-300 rounded p-1.5 outline-none focus:border-blue-500 bg-white" onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')">
                                 <option value="LIVE" ${row.dev_status==='LIVE'?'selected':''}>LIVE</option>
                                 <option value="FIX PENDING" ${row.dev_status==='FIX PENDING'?'selected':''}>FIX PENDING</option>
@@ -343,13 +388,13 @@
                                 <option value="NOT APPROVED" ${row.dev_status==='NOT APPROVED'?'selected':''}>NOT APPROVED</option>
                             </select>
                         </td>
-                        <td class="p-3 text-center">
-                            <span class="font-mono text-[10px] bg-slate-100 border border-slate-200 px-2 py-1 rounded text-slate-600 shadow-inner">
+                        <td class="p-3 text-center align-top">
+                            <span class="font-mono text-[10px] bg-slate-100 border border-slate-200 px-2 py-1 rounded text-slate-600 shadow-inner block w-max mx-auto">
                                 ${row.active_commit ? '#' + row.active_commit.substring(0,7) : 'Auto via CI/CD'}
                             </span>
                         </td>
-                        <td class="p-3">${tagsHtml}</td>
-                        <td class="p-3 text-center">
+                        <td class="p-3 align-top">${tagsHtml}</td>
+                        <td class="p-3 text-center align-top">
                             <button id="btn-sm-${row.id}" onclick="saveSystemModule('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-3 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">
                                 Update
                             </button>
@@ -440,6 +485,7 @@
             btn.innerText = "SAVING..."; btn.disabled = true;
 
             let parsedTags = [];
+            // Target any button inside the tag container that is marked as active
             document.querySelectorAll(`#sm-tags-${id} button`).forEach(b => {
                 if(b.getAttribute('data-active') === 'true') parsedTags.push(b.innerText);
             });
