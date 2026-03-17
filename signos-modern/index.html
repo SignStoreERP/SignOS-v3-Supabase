@@ -8,7 +8,6 @@
     <script src="signos-core.js"></script>
     <!-- Add Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <script>
         if (sessionStorage.getItem("signos_user")) {
             const role = sessionStorage.getItem("signos_role");
@@ -22,31 +21,24 @@
     <div class="max-w-sm w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200" id="login-card">
         <div class="bg-gray-900 px-6 py-6 text-center">
             <h1 class="text-2xl font-black text-white tracking-tight">SignOS ERP</h1>
-            <p class="text-gray-400 text-[10px] mt-1 uppercase tracking-widest">Secure Access Gateway</p>
+            <div class="text-[10px] font-bold text-gray-400 mt-1 tracking-widest uppercase">Secure Access Gateway</div>
         </div>
-
-        <div class="p-6">
-            <form id="login-form" class="space-y-4">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email Address</label>
-                    <input type="email" id="email" required class="w-full border border-gray-300 p-3 rounded-lg text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-inner bg-gray-50" placeholder="user@signstoremacon.com">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Password</label>
-                    <input type="password" id="password" required class="w-full border border-gray-300 p-3 rounded-lg text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-inner bg-gray-50" placeholder="••••••••">
-                </div>
-                
-                <button type="submit" id="btn-go" class="w-full h-12 mt-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-bold text-white shadow-md transition uppercase tracking-widest">
-                    Authenticate
-                </button>
-            </form>
+        
+        <form id="login-form" class="p-6 space-y-5">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email / Access ID</label>
+                <input type="email" id="email" required class="w-full border border-gray-300 p-3 rounded-lg text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-inner bg-gray-50" placeholder="user@signstoremacon.com">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Password</label>
+                <input type="password" id="password" required class="w-full border border-gray-300 p-3 rounded-lg text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-inner bg-gray-50" placeholder="••••••••">
+            </div>
             
-            <div id="status-msg" class="mt-4 text-center text-[10px] font-bold text-gray-400 h-4 uppercase tracking-wide">Authorized Personnel Only</div>
-        </div>
-
-        <div class="bg-gray-50 border-t border-gray-100 p-3 text-center">
-            <p class="text-[9px] text-gray-400">v4.0 | System Status: <span class="text-green-500 font-bold">ONLINE</span></p>
-        </div>
+            <button type="submit" id="btn-go" class="w-full h-12 mt-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-bold text-white shadow-md transition uppercase tracking-widest">
+                Authorize
+            </button>
+            <div id="status-msg" class="mt-4 text-center text-[10px] font-bold text-gray-400 h-4 uppercase tracking-wide">AWAITING CREDENTIALS</div>
+        </form>
     </div>
 
     <script>
@@ -78,10 +70,10 @@
                 return;
             }
 
-            // 2. Fetch specific role and name from your custom 'staff' table (using supabaseClient)
+            // 2. Fetch specific role, ID, and department from your custom 'staff' table
             const { data: staffData, error: staffError } = await supabaseClient
                 .from('staff')
-                .select('first_name, role')
+                .select('id, first_name, role, department_id')
                 .eq('id', authData.user.id)
                 .single();
 
@@ -95,14 +87,16 @@
             // 3. Set Session Storage and Forward
             msg.innerText = `WELCOME, ${staffData.first_name.toUpperCase()}`;
             msg.className = "mt-4 text-center text-[10px] font-bold text-green-600 h-4 uppercase tracking-wide";
-            
-            sessionStorage.setItem("signos_user", staffData.first_name);
-            sessionStorage.setItem("signos_role", staffData.role);
-            
-            let mode = (staffData.role === "PROD") ? 'production' : (staffData.role === "ADMIN" || staffData.role === "SUPER" ? 'admin' : 'sales');
-            sessionStorage.setItem("signos_mode", mode);
 
-            setTimeout(() => { window.location.href = `menu.html?mode=${mode}`; }, 500);
+            sessionStorage.setItem("signos_user", staffData.first_name);
+            sessionStorage.setItem("signos_user_id", staffData.id);
+            sessionStorage.setItem("signos_dept", staffData.department_id);
+            sessionStorage.setItem("signos_role", staffData.role);
+
+            setTimeout(() => {
+                let mode = (staffData.role === 'PROD') ? 'production' : (staffData.role === 'ADMIN' || staffData.role === 'SUPER' ? 'admin' : 'sales');
+                window.location.href = `menu.html?mode=${mode}`;
+            }, 800);
         });
     </script>
 </body>
