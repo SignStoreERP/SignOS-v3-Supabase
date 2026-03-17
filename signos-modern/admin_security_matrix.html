@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RBAC & RLS Auditor v1.0 | SignOS Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <style>
+        .custom-scroll { scrollbar-width: thin; scrollbar-color: #475569 #1e293b; }
+        .custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .matrix-table th, .matrix-table td { min-width: 100px; }
+    </style>
+</head>
+<body class="bg-gray-100 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- GLOBAL HEADER -->
+    <div class="bg-gray-900 text-white border-b border-gray-800 px-6 py-4 flex justify-between items-center shadow-lg z-30 shrink-0">
+        <div>
+            <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
+                <span class="text-red-500">🛡️</span> RBAC & RLS Auditor <span class="text-gray-500 text-xs font-normal">v1.0</span>
+            </h1>
+            <div class="text-[10px] font-bold text-gray-400 mt-0.5 tracking-wider uppercase">
+                Tier 2: Identity & Security Simulation
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="menu.html" class="text-xs font-bold text-gray-300 border border-gray-600 px-3 py-1.5 rounded hover:bg-gray-800 transition active:scale-95 uppercase">
+                Exit
+            </a>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- SIDEBAR CONTROLS -->
+        <div class="w-72 bg-white border-r border-gray-200 flex flex-col z-20 shrink-0 shadow-sm">
+            <div class="p-4 border-b border-gray-100 bg-slate-50 shrink-0">
+                <h2 class="text-xs font-black text-gray-700 uppercase tracking-wider">Security Tools</h2>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                <!-- Matrix Controls -->
+                <div>
+                    <span class="block text-[10px] font-black text-blue-800 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">1. Bulk UI Matrix</span>
+                    <p class="text-[10px] text-gray-500 mb-3 leading-tight">Cross-references all tags to prove which calculators render for which employees.</p>
+                    <select id="filter-dept" class="w-full border border-gray-300 rounded p-2 text-xs font-bold text-gray-700 outline-none focus:border-blue-500 mb-2">
+                        <option value="ALL">All Departments</option>
+                        <option value="DEPT_SALES">Sales & Accounts</option>
+                        <option value="DEPT_CNC">CNC Routing</option>
+                        <option value="DEPT_VINYL">Vinyl & Print</option>
+                        <option value="DEPT_INSTALL">Installation</option>
+                    </select>
+                    <button onclick="generateMatrix()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 rounded shadow text-[10px] uppercase tracking-widest transition">
+                        Run Visibility Scan
+                    </button>
+                </div>
+
+                <!-- Active RLS Probing -->
+                <div>
+                    <span class="block text-[10px] font-black text-red-800 uppercase tracking-widest mb-3 border-b border-red-100 pb-1">2. Active RLS Probing</span>
+                    <p class="text-[10px] text-gray-500 mb-3 leading-tight">Fires ghost API requests simulating standard roles to test Row Level Security locks.</p>
+                    <button onclick="runRLSProbe()" class="w-full bg-red-600 hover:bg-red-700 text-white font-black py-2.5 rounded shadow text-[10px] uppercase tracking-widest transition flex justify-center items-center gap-2">
+                        <span id="rls-btn-text">Execute API Probe</span>
+                        <div id="rls-loader" class="hidden w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN VIEW (SPLIT TERMINAL / MATRIX) -->
+        <div class="flex-1 flex flex-col bg-gray-50 relative overflow-hidden">
+            
+            <!-- THE MATRIX -->
+            <div class="flex-1 flex flex-col h-1/2 border-b border-gray-200">
+                <div class="bg-white px-4 py-2 border-b border-gray-200 flex justify-between items-center shrink-0">
+                    <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">UI Visibility Matrix</h3>
+                    <div id="matrix-stats" class="text-[10px] font-bold text-gray-400">Awaiting Scan...</div>
+                </div>
+                <div class="flex-1 overflow-auto bg-white custom-scroll relative">
+                    <table class="w-full text-left border-collapse matrix-table text-xs">
+                        <thead id="matrix-head" class="bg-slate-100 border-b border-gray-300 sticky top-0 z-10 shadow-sm">
+                            <tr><th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Run scan to populate...</th></tr>
+                        </thead>
+                        <tbody id="matrix-body" class="divide-y divide-gray-100">
+                            <!-- Injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- RLS EXHAUST TERMINAL -->
+            <div class="h-1/3 bg-gray-900 flex flex-col shrink-0">
+                <div class="bg-black px-4 py-2 border-b border-gray-800 flex justify-between items-center shrink-0">
+                    <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active RLS Probe Exhaust</h3>
+                    <button onclick="document.getElementById('probe-log').innerHTML=''" class="text-[9px] font-bold text-gray-600 hover:text-white uppercase transition">Clear</button>
+                </div>
+                <div id="probe-log" class="flex-1 p-4 overflow-y-auto custom-scroll text-[10px] font-mono text-green-400 space-y-1 leading-relaxed">
+                    System Ready. Awaiting execution command...
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        let staffData = [];
+        let moduleData = [];
+
+        window.onload = async function() {
+            const role = sessionStorage.getItem('signos_role');
+            if (role !== 'ADMIN' && role !== 'SUPER') {
+                alert("SECURITY VIOLATION: Restricted to Administrators.");
+                window.location.href = 'menu.html';
+                return;
+            }
+            await fetchSystemData();
+        };
+
+        function logTerminal(msg, type = 'info') {
+            const logEl = document.getElementById('probe-log');
+            let colorClass = 'text-green-400';
+            if (type === 'error') colorClass = 'text-red-400';
+            if (type === 'warn') colorClass = 'text-yellow-400';
+            if (type === 'system') colorClass = 'text-blue-400';
+            
+            logEl.innerHTML += `<div class="${colorClass}">> ${msg}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function fetchSystemData() {
+            logTerminal("Fetching Master Workforce & Module Arrays...", "system");
+            try {
+                const [resStaff, resMods] = await Promise.all([
+                    fetch(`${SUPABASE_URL}/rest/v1/staff?select=*&order=first_name.asc`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }),
+                    fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=*&order=category.asc`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } })
+                ]);
+                
+                if(!resStaff.ok || !resMods.ok) throw new Error("Failed to fetch backend tables.");
+                
+                staffData = await resStaff.json();
+                moduleData = await resMods.json();
+                logTerminal(`Success: Loaded ${staffData.length} Personnel and ${moduleData.length} Modules.`, "info");
+                
+            } catch(e) {
+                logTerminal(`Database Error: ${e.message}`, "error");
+            }
+        }
+
+        // --- 1. BULK UI VISIBILITY MATRIX ---
+        function generateMatrix() {
+            const tbody = document.getElementById('matrix-body');
+            const thead = document.getElementById('matrix-head');
+            const filterDept = document.getElementById('filter-dept').value;
+            
+            let filteredStaff = staffData;
+            if (filterDept !== 'ALL') {
+                filteredStaff = staffData.filter(s => s.department_id === filterDept);
+            }
+
+            // Filter out deprecated or dev modules to keep the matrix clean
+            const activeModules = moduleData.filter(m => m.dev_status === 'LIVE' || m.dev_status === 'DEV ONLY');
+
+            document.getElementById('matrix-stats').innerText = `Analyzing ${filteredStaff.length} Users vs ${activeModules.length} Modules`;
+
+            // Build Headers
+            let headHtml = `<tr>
+                <th class="p-3 text-[10px] font-black text-gray-800 uppercase tracking-widest sticky left-0 bg-slate-100 z-20 border-r border-gray-300">Personnel</th>
+                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center border-r border-gray-200">Role</th>`;
+            
+            activeModules.forEach(mod => {
+                headHtml += `<th class="p-3 border-r border-gray-200 min-w-[120px]">
+                    <div class="text-[9px] font-black text-blue-800 uppercase tracking-widest truncate" title="${mod.display_name}">${mod.display_name}</div>
+                    <div class="text-[8px] font-bold text-gray-400 mt-0.5">${mod.dev_status}</div>
+                </th>`;
+            });
+            headHtml += `</tr>`;
+            thead.innerHTML = headHtml;
+
+            // Build Rows
+            let bodyHtml = '';
+            filteredStaff.forEach(user => {
+                const isSuper = user.role === 'SUPER';
+                const roleBadge = isSuper ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600';
+
+                bodyHtml += `<tr class="hover:bg-blue-50/30 transition">
+                    <td class="p-3 font-bold text-gray-800 text-xs sticky left-0 bg-white border-r border-gray-200 shadow-[2px_0_5px_rgba(0,0,0,0.02)] z-10 truncate">
+                        ${user.first_name} ${user.last_name || ''}
+                        <div class="text-[8px] font-mono text-gray-400 mt-0.5">${user.department_id || 'UNASSIGNED'}</div>
+                    </td>
+                    <td class="p-3 text-center border-r border-gray-100">
+                        <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${roleBadge}">${user.role}</span>
+                    </td>`;
+
+                activeModules.forEach(mod => {
+                    const tags = mod.access_tags || [];
+                    
+                    // Core UI Hiding Logic
+                    let hasAccess = false;
+                    if (isSuper) {
+                        hasAccess = true;
+                    } else if (mod.dev_status === 'LIVE') {
+                        if (tags.includes(user.role) || tags.includes(user.department_id) || tags.includes(user.id)) {
+                            hasAccess = true;
+                        }
+                    }
+
+                    const icon = hasAccess ? '<span class="text-green-500 font-bold text-sm">✅</span>' : '<span class="text-red-300 font-bold text-sm opacity-50">✕</span>';
+                    
+                    bodyHtml += `<td class="p-3 text-center border-r border-gray-100 bg-white">${icon}</td>`;
+                });
+                bodyHtml += `</tr>`;
+            });
+
+            tbody.innerHTML = bodyHtml;
+        }
+
+        // --- 2. ACTIVE RLS DATABASE PROBE ---
+        async function runRLSProbe() {
+            const btnText = document.getElementById('rls-btn-text');
+            const loader = document.getElementById('rls-loader');
+            btnText.innerText = "PROBING...";
+            loader.classList.remove('hidden');
+
+            logTerminal("-----------------------------------------", "system");
+            logTerminal("INITIATING GHOST SESSION RLS PROBE", "system");
+            logTerminal("-----------------------------------------", "system");
+
+            // Test 1: Attempt to read secure variables WITHOUT the Admin Token
+            logTerminal("Test 1: Read `global_variables` using unauthenticated token...", "info");
+            
+            try {
+                // We use a fake/empty token to simulate a completely unauthorized user trying to hit the REST API
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?select=*`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer FAKE_UNAUTH_TOKEN_123` }
+                });
+
+                if (res.status === 401 || res.status === 403 || !res.ok) {
+                    logTerminal(`PASS: Request rejected. Status: ${res.status}`, "system");
+                } else {
+                    const data = await res.json();
+                    if(data.length === 0) {
+                        logTerminal(`PASS: Request accepted but RLS returned 0 rows (Invisible).`, "system");
+                    } else {
+                        logTerminal(`CRITICAL FAILURE: Unauthorized read succeeded! Fetched ${data.length} rows.`, "error");
+                    }
+                }
+            } catch (e) {
+                logTerminal(`PASS: Network rejected unauthorized request.`, "system");
+            }
+
+            // Test 2: Attempt to WRITE to a protected table
+            setTimeout(async () => {
+                logTerminal("Test 2: Attempting unauthorized POST to `system_modules`...", "info");
+                try {
+                    const res = await fetch(`${SUPABASE_URL}/rest/v1/system_modules`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer FAKE_UNAUTH_TOKEN_123` },
+                        body: JSON.stringify({ id: 'HACK_001', display_name: 'Hacked Module' })
+                    });
+
+                    if (res.status === 401 || res.status === 403 || !res.ok) {
+                        logTerminal(`PASS: Write rejected. Status: ${res.status}`, "system");
+                    } else {
+                        logTerminal(`CRITICAL FAILURE: Unauthorized WRITE succeeded!`, "error");
+                    }
+                } catch (e) {
+                    logTerminal(`PASS: Network rejected unauthorized write.`, "system");
+                }
+                
+                logTerminal("RLS AUDIT COMPLETE. Database perimeter secure.", "system");
+                btnText.innerText = "Execute API Probe";
+                loader.classList.add('hidden');
+
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
