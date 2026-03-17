@@ -33,13 +33,29 @@
         <div class="p-6 bg-slate-50 border-b border-gray-200 grid grid-cols-1 md:grid-cols-6 gap-4 items-end shrink-0">
             <div class="md:col-span-2">
                 <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Target Edge Function</label>
-                <select id="sim-endpoint" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white">
-                    <option value="calculate-post-panel">calculate-post-panel (Post & Panel)</option>
-                    <option value="calculate-acm">calculate-acm (ACM / Metal)</option>
-                    <option value="calculate-yard">calculate-yard (Yard Signs)</option>
-                    <option value="calculate-channel-letters">calculate-channel-letters (Channel Letters)</option>
-                    <option value="calculate-ada">calculate-ada (ADA / Architectural)</option>
-                </select>
+<select id="sim-endpoint" class="w-full border border-gray-300 p-2.5 rounded font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white custom-scroll">
+    <optgroup label="Rigid Signs">
+        <option value="calculate-yard">calculate-yard (Yard Signs)</option>
+        <option value="calculate-coro">calculate-coro (Custom Coroplast)</option>
+        <option value="calculate-acm">calculate-acm (ACM / Metal)</option>
+        <option value="calculate-pvc">calculate-pvc (PVC Signs)</option>
+        <option value="calculate-foam">calculate-foam (Foam Core)</option>
+        <option value="calculate-acrylic">calculate-acrylic (Acrylic Signs)</option>
+    </optgroup>
+    <optgroup label="Roll Media">
+        <option value="calculate-banner">calculate-banner (Vinyl Banners)</option>
+        <option value="calculate-cut">calculate-cut (Cut Vinyl)</option>
+        <option value="calculate-decal">calculate-decal (Decals & Stickers)</option>
+        <option value="calculate-wrap">calculate-wrap (Vehicle Wraps)</option>
+        <option value="calculate-wall">calculate-wall (Interior Wall Wraps)</option>
+    </optgroup>
+    <optgroup label="Architectural & Fabrication">
+        <option value="calculate-ada">calculate-ada (ADA Signs)</option>
+        <option value="calculate-nameplate">calculate-nameplate (Bulk Nameplates)</option>
+        <option value="calculate-post-panel">calculate-post-panel (Post & Panel)</option>
+        <option value="calculate-channel-letters">calculate-channel-letters (Channel Letters)</option>
+    </optgroup>
+</select>
             </div>
             <div class="md:col-span-2">
                 <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Legacy Benchmark (Ghost Line)</label>
