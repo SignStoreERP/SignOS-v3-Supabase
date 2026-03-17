@@ -1,10 +1,15 @@
-name: Deploy AI Sandbox Edge Functions
+name: Deploy SignOS Edge Functions
+
+# Trigger the deployment when Edge Functions are updated on either the staging or live branches
 on:
   push:
     branches:
-      - dev   # <-- CHANGED FROM ai-sandbox
-  paths:
-    - 'supabase/functions/**'
+      - main
+      - dev
+    paths:
+      - 'supabase/functions/**'
+  # Allows you to trigger this workflow manually from the GitHub Actions tab
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -12,14 +17,15 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Deploy All Functions
-        run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+      # Project Ref agmxqdcnmfprnuktpmjq is pulled directly from Protocol 6075 (Secure Credential Vault)
+      - name: Deploy All Edge Functions
+        run: supabase functions deploy --project-ref agmxqdcnmfprnuktpmjq
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
