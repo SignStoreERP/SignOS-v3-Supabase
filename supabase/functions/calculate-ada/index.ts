@@ -120,7 +120,8 @@ Deno.serve(async (req) => {
     R('Base Sign Combination', totalSqin * baseRetailSqIn, `${totalSqin.toFixed(1)} SqIn * ${V(inputs.product === 'BasicClear' ? 'Retail_Price_ADA_Basic_Clear' : 'Retail_Price_ADA_Basic_AB', String(baseRetailSqIn))}`);
 
     if (addonMaterialCost > 0) {
-      R('Add-on Material Markup (300%)', addonMaterialCost * 3, `Add-on Hard Cost * 3.0`);
+      // Renamed to hide the internal markup percentage from the sales team
+      R('Premium Material Add-ons', addonMaterialCost * 3, `Add-on Hard Cost * 3.0`);
     }
 
     let hardCost = cst.reduce((sum, i) => sum + i.total, 0);
