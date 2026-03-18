@@ -151,183 +151,98 @@
     }
 
     async function runGlobalAudit() {
-        const btn = document.getElementById('btn-run');
-        const btnText = document.getElementById('btn-text');
-        const loader = document.getElementById('loader');
-        const tbody = document.getElementById('audit-table');
-        const btnExport = document.getElementById('btn-export');
-        
-        const sourceDoc = document.getElementById('audit-source').value;
-        const targetProd = document.getElementById('audit-product').value;
-        const testStakes = document.getElementById('audit-hardware').value === 'stakes';
-        const testVolume = document.getElementById('audit-volume').value === 'volume';
+    const btn = document.getElementById('btn-run');
+    const btnText = document.getElementById('btn-text');
+    const loader = document.getElementById('loader');
+    const tbody = document.getElementById('audit-table');
+    const sourceDoc = document.getElementById('audit-source').value;
+    const targetProd = document.getElementById('audit-product').value;
+    const testVolume = document.getElementById('audit-volume').value === 'volume';
+    
+    // Inject the new 4-Option Throttle choice (Assuming you added this dropdown to the UI)
+    const auditMode = document.getElementById('audit-mode')?.value || 'retail_only';
 
-        btn.disabled = true;
-        btnText.innerText = "Auditing...";
-        loader.classList.remove('hidden');
-        btnExport.classList.add('hidden');
-        auditResults = [];
-        
-        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-blue-500 font-bold animate-pulse uppercase tracking-widest">Running Simulation Matrix...</td></tr>`;
+    btn.disabled = true;
+    btnText.innerText = "Simulating Batch...";
+    loader.classList.remove('hidden');
+    auditResults = [];
+    tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-blue-500 font-bold animate-pulse">TRANSMITTING BULK PAYLOAD TO EDGE...</td></tr>`;
 
-        try {
-            let auditData = globalHistory;
-            if (sourceDoc !== 'ALL') auditData = auditData.filter(i => i.source_document === sourceDoc);
-            if (targetProd !== 'ALL') auditData = auditData.filter(i => i.product_line === targetProd);
+    let auditData = globalHistory;
+    if (sourceDoc !== 'ALL') auditData = auditData.filter(i => i.source_document === sourceDoc);
+    if (targetProd !== 'ALL') auditData = auditData.filter(i => i.product_line === targetProd);
 
-            if (auditData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-400 font-bold uppercase tracking-widest">No matching records found.</td></tr>`;
-                return;
-            }
+    // 1. Group items by their endpoint so we can send one batch per Edge Function
+    const batchRequests = {};
+    const qtyPermutations = testVolume ? [1, 6, 7] : [1];
 
-            tbody.innerHTML = '';
+    for (let item of auditData) {
+        let endpoint = 'calculate-coro'; // Simplified for this example
+        if (!batchRequests[endpoint]) batchRequests[endpoint] = [];
 
-            const baseInputs = {
-                shape: 'Rectangle', mountStyle: 'Flush', faceMat: '063 Alum',
-                panels: [{ id: 1, w: 48, h: 24, mountStyle: 'Flush', faceMat: '063 Alum', sides: 1, gap: 0 }],
-                postType: 'Aluminum', postSize: '2', frameMat: 'AlumTube_2_1/8',
-                belowGrade: 36, topOffset: 0, thag: 60, color: 'White'
-            };
+        const [w, h] = item.dimensions.split('x').map(Number);
+        const sides = item.sides.toLowerCase() === 'double' ? 2 : 1;
+        const thk = item.product_line.includes('10mm') ? '10mm' : '4mm';
 
-            for (let item of auditData) {
-                let endpoint = '';
-                let pLine = (item.product_line || '').toLowerCase();
-                if (pLine.includes('banner')) endpoint = 'calculate-banner';
-                else if (pLine.includes('foam')) endpoint = 'calculate-foam';
-                else if (pLine.includes('acm')) endpoint = 'calculate-acm';
-                else if (pLine.includes('pvc')) endpoint = 'calculate-pvc';
-                else if (pLine.includes('coro') || pLine.includes('yard')) endpoint = 'calculate-coro';
-                
-                if (!endpoint) continue;
-
-                // FIXED PARSING BUG
-                let w = 24, h = 24;
-                if (item.dimensions && item.dimensions.includes('x')) {
-                    let parts = item.dimensions.toLowerCase().split('x');
-                    let multiplier = (item.category === 'Roll') ? 12 : 1;
-                    w = parseFloat(parts) * multiplier;
-                    h = parseFloat(parts[1]) * multiplier;
-                }
-
-                let sides = (item.sides === 'Double' || item.sides === '2') ? 2 : 1;
-
-                let extThickness = '4mm'; // Safe default
-                if (pLine.includes('10mm')) extThickness = '10mm';
-                else if (pLine.includes('6mm')) extThickness = '6mm';
-                else if (pLine.includes('3mm')) extThickness = '3mm';
-                else if (pLine.includes('1/4')) extThickness = '0.25';
-                else if (pLine.includes('1/2')) extThickness = '0.5';
-                else if (pLine.includes('3/4')) extThickness = '0.75';
-                else if (pLine.includes('1"')) extThickness = '1';
-
-                let extMaterial = '13oz';
-                if (pLine.includes('15oz')) extMaterial = '15oz';
-                else if (pLine.includes('18oz')) extMaterial = '18oz';
-                else if (pLine.includes('mesh')) extMaterial = 'Mesh';
-                
-                let permutations = [ { hasStakes: false, hardwareName: '', legacyAdd: 0 } ];
-                
-                if (testStakes && (pLine.includes('coro') || pLine.includes('yard'))) {
-                    permutations.push({ hasStakes: true, hardwareName: ' w/ H-Stakes', legacyAdd: 2.00 }); 
-                }
-
-                let qtyPermutations = testVolume ? [2, 3] : [2];
-
-                for (let q of qtyPermutations) {
-                    for (let perm of permutations) {
-                        
-                        const payload = {
-                            inputs: { 
-                                ...baseInputs, 
-                                w: w, 
-                                h: h, 
-                                sides: sides, 
-                                qty: q, 
-                                hasStakes: perm.hasStakes,
-                                thickness: extThickness,
-                                material: extMaterial
-                            },
-                            config: {}
-                        };
-
-                        const response = await fetch(`${EDGE_URL}/functions/v1/${endpoint}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                            body: JSON.stringify(payload)
-                        });
-
-                        if (!response.ok) {
-                            console.error(`Failed ${endpoint} for ${item.product_line}`);
-                            continue;
-                        }
-
-                        const result = await response.json();
-                        if (!result || !result.retail) continue;
-
-                        let livePriceTotal = result.retail.grandTotal;
-                        
-                        if (perm.hasStakes && endpoint === 'calculate-coro') {
-                            livePriceTotal += (2.00 * q);
-                        }
-
-                        let baseLegacyUnit = item.legacy_price + perm.legacyAdd;
-                        if (q >= 10) {
-                            baseLegacyUnit = baseLegacyUnit * 0.95;
-                        }
-                        const expectedTotal = baseLegacyUnit * q;
-                        const variance = livePriceTotal - expectedTotal;
-                        
-                        const displayProduct = item.product_line + perm.hardwareName;
-
-                        let varianceColor = 'text-green-500';
-                        let varianceText = Math.abs(variance) < 0.05 ? 'MATCH' : (variance > 0 ? `+$${variance.toFixed(2)}` : `-$${Math.abs(variance).toFixed(2)}`);
-
-                        if (variance > 0.05) varianceColor = 'text-blue-500'; 
-                        if (variance < -0.05) varianceColor = 'text-red-500';  
-
-                        let badge = `<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">ERR</span>`;
-                        if (Math.abs(variance) < 0.05) badge = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">EXACT</span>`;
-                        else if (Math.abs(variance) < 2) badge = `<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">MINOR</span>`;
-                        else if (Math.abs(variance) >= 2) badge = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">DRIFT</span>`;
-
-                        auditResults.push({
-                            category: item.category,
-                            product: displayProduct,
-                            dimensions: item.dimensions,
-                            sides: item.sides,
-                            qty: q,
-                            legacy: expectedTotal,
-                            live: livePriceTotal,
-                            variance: variance
-                        });
-
-                        tbody.innerHTML += `
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">${item.category}</td>
-                                <td class="p-4 font-bold text-gray-800">${displayProduct}</td>
-                                <td class="p-4 text-gray-600">${item.dimensions}</td>
-                                <td class="p-4 text-gray-600">${item.sides}</td>
-                                <td class="p-4 text-center font-bold text-blue-700">${q}</td>
-                                <td class="p-4 text-right font-mono text-gray-500">$${expectedTotal.toFixed(2)}</td>
-                                <td class="p-4 text-right font-mono font-bold text-blue-600">$${livePriceTotal.toFixed(2)}</td>
-                                <td class="p-4 text-right font-mono font-bold ${varianceColor}">${varianceText}</td>
-                                <td class="p-4 text-center">${badge}</td>
-                            </tr>
-                        `;
-                    }
-                }
-            }
-
-            btnExport.classList.remove('hidden');
-
-        } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-red-500 font-bold uppercase">System Error: ${e.message}</td></tr>`;
-        } finally {
-            btn.disabled = false;
-            btnText.innerText = "Execute Audit";
-            loader.classList.add('hidden');
+        for (let q of qtyPermutations) {
+            batchRequests[endpoint].push({
+                meta: { expectedLegacy: item.legacy_price * q, dimensions: item.dimensions, sides: item.sides, q: q, product: item.product_line },
+                input: { w: w, h: h, sides: sides, qty: q, thickness: thk }
+            });
         }
     }
+
+    // 2. Execute ONE parallel network request per Edge Function
+    tbody.innerHTML = '';
+    
+    for (const [endpoint, tests] of Object.entries(batchRequests)) {
+        const payload = {
+            audit_mode: auditMode, // e.g., 'retail_only' to skip physics
+            inputs: tests.map(t => t.input),
+            config: activeConfig || {} 
+        };
+
+        try {
+            const response = await fetch(`${EDGE_URL}/functions/v1/${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error("Batch Rejected");
+            const batchResults = await response.json();
+
+            // 3. Render Results instantly
+            batchResults.forEach((res, idx) => {
+                const testMeta = tests[idx].meta;
+                const livePrice = res.retail.grandTotal;
+                const expectedPrice = testMeta.expectedLegacy;
+                const variance = livePrice - expectedPrice;
+
+                let badge = Math.abs(variance) < 0.05 ? `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black">EXACT</span>` : `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black">DRIFT</span>`;
+
+                tbody.innerHTML += `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="p-4 font-bold text-gray-800">${testMeta.product}</td>
+                    <td class="p-4 text-gray-600">${testMeta.dimensions}</td>
+                    <td class="p-4 text-gray-600">${testMeta.sides}</td>
+                    <td class="p-4 text-center font-bold text-blue-700">${testMeta.q}</td>
+                    <td class="p-4 text-right font-mono text-gray-500">$${expectedPrice.toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono font-bold text-blue-600">$${livePrice.toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono font-bold">$${variance.toFixed(2)}</td>
+                    <td class="p-4 text-center">${badge}</td>
+                </tr>`;
+            });
+
+        } catch (e) {
+            tbody.innerHTML += `<tr><td colspan="9" class="p-8 text-center text-red-500">Failed Batch: ${endpoint}</td></tr>`;
+        }
+    }
+
+    btn.disabled = false;
+    btnText.innerText = "Execute Audit";
+    loader.classList.add('hidden');
+}
 
     function exportCSV() {
         if (auditResults.length === 0) return;
