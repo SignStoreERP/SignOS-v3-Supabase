@@ -97,6 +97,15 @@ function injectHeader(title, showMenu = true) {
 function injectFooter() {
     if (document.getElementById('signos-universal-footer')) return;
 
+    // 1. Clean up legacy body padding so the footer docks perfectly flush to the bottom edge
+    document.body.classList.remove('pb-10');
+
+    // 2. Ensure the Island Card doesn't touch the footer by giving it a bottom margin instead
+    const mainCard = document.getElementById('main-card') || document.querySelector('.max-w-md, .max-w-2xl, .max-w-4xl');
+    if (mainCard) {
+        mainCard.classList.add('mb-12');
+    }
+
     const footerHtml = `
     <div id="signos-universal-footer" class="mt-auto bg-gray-900 border-t border-gray-800 px-6 py-4 flex justify-between items-center shrink-0 w-full z-40">
         <a href="menu.html" class="text-[10px] font-bold text-gray-400 hover:text-white uppercase tracking-widest transition flex items-center gap-2">
