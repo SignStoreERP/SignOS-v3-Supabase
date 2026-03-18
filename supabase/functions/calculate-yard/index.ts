@@ -17,7 +17,6 @@ Deno.serve(async (req: any) => {
 
     let dictionary: any[] = [];
 
-    // HEADLESS FETCH: Pull from the correct ref_retail_history table
     if ((auditMode === 'full' || auditMode === 'retail_only') && supabaseUrl && supabaseKey) {
         const res = await fetch(`${supabaseUrl}/rest/v1/ref_retail_history?select=*`, { 
             headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } 
@@ -31,7 +30,6 @@ Deno.serve(async (req: any) => {
         const hasStakes = inputs.hasStakes === true || String(inputs.hasStakes) === 'true';
         
         const ret: any[] = [];
-        const cst: any[] = [];
         
         const num = (k: string, fallback: number) => { 
             const p = parseFloat(config[k]); 
@@ -43,25 +41,19 @@ Deno.serve(async (req: any) => {
         let grandTotalRetail = 0;
         let printTotal = 0;
         let stakeTotal = 0;
+        let exactPrice = 0; // DECLARED GLOBALLY TO ISOLATE THE UNIT PRICE
 
-        // ==========================================
-        // TIER 1: RETAIL ENGINE (Strict Dictionary)
-        // ==========================================
         if (auditMode === 'full' || auditMode === 'retail_only') {
-            let exactPrice = 0; 
             const targetSides = reqSides === 2 ? 'Double' : 'Single';
             
-            // 1. Find the 18x24 4mm Coroplast Price
             const signRow = dictionary.find((r: any) => r.product_line === '4mm Coroplast' && r.sides === targetSides && (r.dimensions === '18x24' || r.dimensions === '24x18'));
             
             if (signRow) {
                 exactPrice = parseFloat(signRow.legacy_price || "0");
             } else {
-                // Failsafe matching the Blue Sheet just in case the DB call fails
                 exactPrice = reqSides === 2 ? 27.50 : 25.00;
             }
 
-            // Apply 5% Bulk Discount for 10+
             if (qty >= num('Tier_1_Qty', 10)) {
                 exactPrice = exactPrice * (1 - num('Tier_1_Disc', 0.05)); 
             }
@@ -69,7 +61,6 @@ Deno.serve(async (req: any) => {
             printTotal = exactPrice * qty;
             R(`Sign Print (18" x 24")`, printTotal, `${qty}x Signs @ $${exactPrice.toFixed(2)}/ea`);
 
-            // 2. Hardware: Wire Stakes
             if (hasStakes) {
                 let stkRate = 2.00;
                 const stakeRow = dictionary.find((r: any) => r.product_line === 'Wire Stakes' || (r.dimensions === '10x30' && r.category === 'Hardware'));
@@ -78,7 +69,6 @@ Deno.serve(async (req: any) => {
                     stkRate = parseFloat(stakeRow.legacy_price || "2.00");
                 }
                 
-                // Blue Sheet specific volume rule for Stakes (100+ = $1.50)
                 if (qty >= 100) stkRate = 1.50; 
 
                 stakeTotal = stkRate * qty;
@@ -90,7 +80,7 @@ Deno.serve(async (req: any) => {
             grandTotalRetail = grandTotalRetailRaw;
             let isMinApplied = false;
 
-            // 3. Shop Minimum Enforcement
+            // Shop Minimum Enforcement
             if (grandTotalRetailRaw < minOrder) {
                 R(`Shop Minimum Surcharge`, minOrder - grandTotalRetailRaw, `Minimum order difference`);
                 grandTotalRetail = minOrder; 
@@ -99,8 +89,9 @@ Deno.serve(async (req: any) => {
         }
 
         return { 
-            retail: { unitPrice: grandTotalRetail / qty, grandTotal: grandTotalRetail, breakdown: ret, isMinApplied: grandTotalRetail > (printTotal + stakeTotal) }, 
-            cost: { total: 0, breakdown: [] }, // Cost bypassed for now
+            // CRITICAL FIX: The unitPrice strictly returns the pure Sign Price, stripping the hardware out of the UI header!
+            retail: { unitPrice: exactPrice, grandTotal: grandTotalRetail, breakdown: ret, isMinApplied: grandTotalRetail > (printTotal + stakeTotal) }, 
+            cost: { total: 0, breakdown: [] },
             metrics: { margin: 0 } 
         };
     });
