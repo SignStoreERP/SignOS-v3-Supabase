@@ -63,6 +63,9 @@
                     <button onclick="loadTable('retail_curves', 'Curves')" id="btn-tab-Curves" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
                         Retail Curves
                     </button>
+                        <button onclick="loadTable('ref_retail_history', 'Fixed')" id="btn-tab-Fixed" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
+                        Master Price Sheet
+                    </button>
                 </div>
 
                 <!-- SYSTEM INFRASTRUCTURE -->
@@ -202,6 +205,7 @@
             try {
                 let queryUrl = `${SUPABASE_URL}/rest/v1/${tableName}?select=*`;
                 if(tableName === 'retail_curves') queryUrl += '&order=product_line.asc,sqft_min.asc';
+                else if(tableName === 'ref_retail_history') queryUrl += '&order=product_line.asc,dimensions.asc';
 
                 const res = await fetch(queryUrl, {
                     headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
@@ -323,6 +327,34 @@
                     </tr>`;
                 });
             }
+
+        // VIEW: MASTER PRICE SHEET (FIXED RETAIL DICTIONARY)
+        else if (activeTable === 'ref_retail_history') {
+            legend.innerHTML = 'Note: These are the exact, fixed prices used by dictionary-first calculators (like Coroplast v3.0).';
+            thead.innerHTML = `<tr>
+                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Product Line</th>
+                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Dimensions</th>
+                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Sides</th>
+                <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">Fixed Price ($)</th>
+                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Action</th>
+            </tr>`;
+
+            filteredData.forEach(row => {
+                html += `<tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                    <td class="p-3 text-xs font-bold text-gray-800">${row.product_line}</td>
+                    <td class="p-3 text-xs font-bold text-gray-600">${row.dimensions}</td>
+                    <td class="p-3 text-center text-xs font-bold text-gray-500">${row.sides}</td>
+                    <td class="p-3 text-right">
+                        <input type="number" step="0.01" id="fp-price-${row.id}" value="${row.legacy_price}" class="w-24 text-right border rounded p-1.5 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-fp-${row.id}').classList.remove('hidden')">
+                    </td>
+                    <td class="p-3 text-center">
+                        <button id="btn-fp-${row.id}" onclick="saveFixedPrice('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">
+                            Update
+                        </button>
+                    </td>
+                </tr>`;
+            });
+        }
 
             // VIEW: SYSTEM MODULES (ROUTING / VERSIONS / DEPLOYMENT)
             else if (activeTable === 'system_modules') {
@@ -596,6 +628,59 @@
                 
             } catch (e) { alert(e.message); }
         }
+
+        // --- SAVING LOGIC (Master Price Sheet) ---
+async function saveFixedPrice(id) {
+    const btn = document.getElementById(`btn-fp-${id}`);
+    btn.innerText = "SAVING..."; btn.disabled = true;
+
+    const payload = {
+        legacy_price: parseFloat(document.getElementById(`fp-price-${id}`).value)
+    };
+
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?id=eq.${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Failed to write to database.");
+
+        // Log the action securely
+        fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({
+                user_id: sessionStorage.getItem('signos_user') || 'Admin',
+                role: sessionStorage.getItem('signos_role') || 'ADMIN',
+                action: 'UPDATE_FIXED_PRICE',
+                target: id,
+                meta_data: payload
+            })
+        });
+
+        btn.innerText = "SAVED";
+        btn.classList.replace('bg-blue-600', 'bg-green-500');
+
+        // Update local memory so search doesn't wipe the change
+        const row = tableData.find(r => r.id === id);
+        if (row) row.legacy_price = payload.legacy_price;
+
+        setTimeout(() => {
+            btn.classList.add('hidden');
+            btn.classList.replace('bg-green-500', 'bg-blue-600');
+            btn.innerText = "Update";
+            btn.disabled = false;
+        }, 1500);
+
+    } catch (e) {
+        alert(e.message);
+        btn.innerText = "ERROR";
+        btn.classList.replace('bg-blue-600', 'bg-red-500');
+        setTimeout(() => { btn.innerText = "Update"; btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.disabled = false; }, 2000);
+    }
+}
 
         function clearOverride() {
             document.getElementById('mod-override').value = '';
