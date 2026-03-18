@@ -110,7 +110,7 @@ function renderMenu(data, role) {
     const container = document.getElementById('menu-container');
     container.innerHTML = "";
 
-    // 1. Setup our new Section Buckets
+    // 1. Setup our Section Buckets
     const sections = {
         "Sales Hub": [],
         "Production Hub": [],
@@ -147,6 +147,18 @@ function renderMenu(data, role) {
     // 3. Render the sections
     for (const [secName, mods] of Object.entries(sections)) {
         if (mods.length === 0) continue;
+
+        // NEW: Sort by Database Category first, then Display Name alphabetically
+        mods.sort((a, b) => {
+            const catA = val(a, 'Category') || 'Uncategorized';
+            const catB = val(b, 'Category') || 'Uncategorized';
+            if (catA < catB) return -1;
+            if (catA > catB) return 1;
+            
+            const nameA = val(a, 'Display_Name') || '';
+            const nameB = val(b, 'Display_Name') || '';
+            return nameA.localeCompare(nameB);
+        });
 
         const section = document.createElement('div');
         section.innerHTML = `
@@ -201,7 +213,6 @@ function renderMenu(data, role) {
         container.appendChild(section);
     }
 }
-
         // 4. MAIN INIT
         window.onload = async function() {
             const user = sessionStorage.getItem('signos_user');
