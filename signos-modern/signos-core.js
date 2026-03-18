@@ -149,60 +149,59 @@ window.SignOS = window.SignOS || {};
 
 SignOS.fetchProductData = async function(productId, refTables = []) {
     try {
-        // 1. Fetch Global Variables (Master Data Engine)
+        // 1. Fetch ALL Global Variables (Master Data Engine)
         const gvRes = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?select=id,default_value,override_value`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
         if (!gvRes.ok) throw new Error("Failed to fetch global variables");
+        
         const gvData = await gvRes.json();
-
-        let config = {};
+        const gvMap = {};
+        
+        // Build a complete dictionary of every variable in the shop
         gvData.forEach(item => {
-            // Safely parse numbers so the Edge Functions can do math
-            let val = item.override_value !== null ? item.override_value : item.default_value;
-            config[item.id] = isNaN(parseFloat(val)) ? val : parseFloat(val);
+            gvMap[item.id] = item.override_value !== null ? item.override_value : item.default_value;
         });
 
-        // 2. Fetch Product-Specific Overrides and UI Schema
+        // 2. Fetch Product-Specific Configurations
         const prodRes = await fetch(`${SUPABASE_URL}/rest/v1/product_configurations?id=eq.${productId}&select=matrix_overrides,ui_schema`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
         if (!prodRes.ok) throw new Error("Failed to fetch product configuration");
         const prodData = await prodRes.json();
 
-        if (prodData && prodData.length > 0) {
-            // FIXED: Using .at() to prevent parser deletion
-            const productRow = prodData.at(0); 
-            let matrixOverrides = {};
-            try {
-                matrixOverrides = typeof productRow.matrix_overrides === 'string' ? JSON.parse(productRow.matrix_overrides) : (productRow.matrix_overrides || {});
-            } catch(e) {}
+        // 🚨 THE FIX: Dump ALL global variables directly into the Recipe payload!
+        let config = { ...gvMap }; 
 
-            // Apply Product Overrides (and sanitize booleans to prevent NaN crashes)
+        if (prodData && prodData.length > 0) {
+            const productRow = prodData;
+            const matrixOverrides = productRow.matrix_overrides || {};
+
+            // Apply any specific product-level numeric overrides
             for (let key in matrixOverrides) {
-                if (matrixOverrides[key] === true || matrixOverrides[key] === false) {
-                    continue; // Skip booleans, allow the Global Variable number to pass through
+                if (matrixOverrides[key] === true) continue;
+                if (matrixOverrides[key] === false) {
+                    delete config[key]; // Allow disabling a specific step
+                    continue;
                 }
                 config[key] = isNaN(parseFloat(matrixOverrides[key])) ? matrixOverrides[key] : parseFloat(matrixOverrides[key]);
             }
-            // Attach the JSON UI schema for the Cost Sandbox / Omni Terminal
+
             config.ui_schema = productRow.ui_schema || null;
-        } else {
-            throw new Error(`Product Configuration [${productId}] not found in database.`);
         }
 
-        // 3. Fetch Reference Tables (Colors, Fonts, etc.)
-        let tables = {};
-        for (let tableName of refTables) {
-            const tblRes = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?select=*&limit=1000`, {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            if (tblRes.ok) {
-                tables[tableName] = await tblRes.json();
+        // 3. Fetch any additionally requested reference tables (Colors, Fonts)
+        const tables = {};
+        if (refTables.length > 0) {
+            for (const table of refTables) {
+                const tRes = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&limit=1000`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                if (tRes.ok) tables[table] = await tRes.json();
             }
         }
 
-        return { config: config, tables: tables };
+        return { config, tables };
     } catch(e) {
         console.error("fetchProductData Error:", e);
         return { error: e.message };
