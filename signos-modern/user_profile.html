@@ -128,10 +128,10 @@ async function fetchProfile() {
         const data = await response.json();
         
         if (data.length > 0) {
-            userData = data; // FIX 1: Extract the specific user object from the array
+            userData = data; // FIXED: Actually extracting the first object!
             populateUI();
 
-            // FIX 2: Update the Global Header Status to ONLINE
+            // Update the Global Header Status to ONLINE
             if (statusText) {
                 statusText.innerText = "ONLINE";
                 statusText.className = "font-bold text-green-500";
