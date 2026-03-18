@@ -1,4 +1,6 @@
 declare const Deno: any;
+import { Agent_Flatbed_Print } from "../_shared/agents/Agent_Flatbed_Print.ts";
+
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 
 Deno.serve(async (req: any) => {
@@ -6,8 +8,6 @@ Deno.serve(async (req: any) => {
   
   try {
     const requestData = await req.json();
-    
-    // BULLETPROOF ARRAY CHECK: Detect if bulk audit or single UI request
     const isArray = Array.isArray(requestData.inputs);
     const inputPayload = isArray ? requestData.inputs : [requestData.inputs];
     const config = requestData.config || {};
@@ -16,16 +16,14 @@ Deno.serve(async (req: any) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
-    // 1. PRE-FETCH MASTER PRICE LIST (BLUE SHEET)
-    let fixedPrices: any[] = [];
+    let dictionary: any[] = [];
     if ((auditMode === 'full' || auditMode === 'retail_only') && supabaseUrl && supabaseKey) {
-        const res = await fetch(`${supabaseUrl}/rest/v1/master_retail_blue_sheet?select=*`, {
+        const res = await fetch(`${supabaseUrl}/rest/v1/ref_retail_history?select=*`, {
             headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
         });
-        if (res.ok) fixedPrices = await res.json();
+        if (res.ok) dictionary = await res.json();
     }
 
-    // 2. PROCESS REQUESTS
     const results = inputPayload.map((inputs: any) => {
         const reqW = parseFloat(inputs.w) || 24;
         const reqH = parseFloat(inputs.h) || 24;
@@ -36,39 +34,42 @@ Deno.serve(async (req: any) => {
         
         const ret: any[] = [];
         const cst: any[] = [];
+        
+        const num = (k: string) => { 
+            const p = parseFloat(config[k]); 
+            if (isNaN(p)) throw new Error(`Missing DB Var: [${k}]`); 
+            return p; 
+        };
+        const V = (k: string) => `<span class="text-blue-600 font-bold" title="${k}">[${k}: ${config[k]}]</span>`;
+        
         const R = (label: string, total: number, formula: string) => { if (total > 0) ret.push({label, total, formula}); return total; };
-        const L = (label: string, total: number, formula: string) => { if (total > 0) cst.push({label, total, formula}); return total; };
+        // NOTE: If a calculation returns 0, it is intentionally excluded from the ledger.
+        const L = (label: string, total: number, formula: string, category: string) => { if (total > 0) cst.push({label, total, formula, category}); return total; };
 
         let grandTotalRetail = 0;
         let totalHardCost = 0;
-        let unitPrintTotal = 0;
+        let printTotal = 0;
         let routerFee = 0;
-        let lamTotal = 0;
         let stakeTotal = 0;
 
         // ==========================================
-        // TIER 1: RETAIL ENGINE (STRICT CHUNK LOOKUP)
+        // TIER 1: RETAIL ENGINE (Strict Dictionary)
         // ==========================================
         if (auditMode === 'full' || auditMode === 'retail_only') {
-            let matrixPrice = 0; 
+            let exactPrice = 0; 
             let mappedBox = "";
             let bestArea = Infinity; 
             
             const targetLine = is10mm ? '10mm Coroplast' : '4mm Coroplast';
             const targetSides = reqSides === 2 ? 'Double' : 'Single';
-            
-            // Filter down to valid rows to speed up processing
-            const validRows = fixedPrices.filter((r: any) => r.product_line === targetLine && r.sides === targetSides);
+            const validRows = dictionary.filter((r: any) => r.product_line === targetLine && r.sides === targetSides);
             
             for (const row of validRows) {
                 if (!row.dimensions || !row.dimensions.includes('x')) continue;
-                
-                // BULLETPROOF PARSING: Destructuring prevents array bracket bugs
                 const [swStr, shStr] = row.dimensions.toLowerCase().split('x');
                 const sw = parseFloat(swStr); 
                 const sh = parseFloat(shStr); 
                 
-                // Check both standard and rotated fit
                 const fitsStandard = (sw >= reqW && sh >= reqH);
                 const fitsRotated = (sh >= reqW && sw >= reqH);
                 
@@ -77,127 +78,184 @@ Deno.serve(async (req: any) => {
                     if (area < bestArea) {
                         bestArea = area; 
                         mappedBox = row.dimensions;
-                        
-                        // Prefer bulk price if Qty >= 10
-                        let basePrice = parseFloat(row.price_qty_1 || "0");
-                        let bulkPrice = parseFloat(row.price_qty_10_plus || "0");
-                        
-                        if (qty >= 10 && bulkPrice > 0) {
-                            matrixPrice = bulkPrice;
-                        } else if (qty >= 10) {
-                            matrixPrice = basePrice * 0.95; // 5% fallback if no bulk listed
-                        } else {
-                            matrixPrice = basePrice;
-                        }
+                        exactPrice = parseFloat(row.legacy_price || "0");
                     }
                 }
             }
             
-            if (matrixPrice > 0) {
-                unitPrintTotal = matrixPrice * qty;
-                R(`Sign Print (${thk} Rounded to ${mappedBox})`, unitPrintTotal, `${qty}x Signs @ $${matrixPrice.toFixed(2)}/ea`);
+            if (exactPrice > 0) {
+                let unitPrice = exactPrice;
+                if (qty >= num('Tier_1_Qty')) unitPrice = unitPrice * (1 - num('Tier_1_Disc')); 
+                printTotal = unitPrice * qty;
+                R(`Sign Print (${thk} Rounded to ${mappedBox})`, printTotal, `${qty}x Signs @ $${unitPrice.toFixed(2)}/ea`);
             } else {
-                // FALLBACK: Only triggers if size is larger than 48x96. Bills per square foot in 12" chunks.
+                
                 const billedW = Math.ceil(reqW / 12) * 12;
                 const billedH = Math.ceil(reqH / 12) * 12;
                 const billedSqFt = (billedW * billedH) / 144;
-                const baseRate = is10mm ? parseFloat(config.COR10_T4_Rate || "15") : parseFloat(config.COR4_T4_Rate || "5");
                 
+                let baseRate = 0;
+                let minSignPrice = 0;
+
+                if (is10mm) {
+                    if (billedSqFt < 4) { baseRate = num('COR10_T1_Rate'); minSignPrice = num('COR10_T1_Min'); }
+                    else if (billedSqFt < 16) baseRate = num('COR10_T2_Rate');
+                    else if (billedSqFt < 32) baseRate = num('COR10_T3_Rate');
+                    else baseRate = num('COR10_T4_Rate');
+                } else {
+                    if (billedSqFt < 4) { baseRate = num('COR4_T1_Rate'); minSignPrice = num('COR4_T1_Min'); }
+                    else if (billedSqFt < 16) baseRate = num('COR4_T2_Rate');
+                    else if (billedSqFt < 32) baseRate = num('COR4_T3_Rate');
+                    else baseRate = num('COR4_T4_Rate');
+                }
+
                 let rawUnitPrint = baseRate * billedSqFt;
-                let rawUnitDS = reqSides === 2 ? rawUnitPrint * parseFloat(config.Retail_Adder_DS_Mult || "0.5") : 0;
-                unitPrintTotal = (rawUnitPrint + rawUnitDS) * qty;
+                
+                if (rawUnitPrint < minSignPrice) {
+                    rawUnitPrint = minSignPrice;
+                }
 
-                R(`Base Print (${thk} Oversized ${billedW}"x${billedH}")`, rawUnitPrint * qty, `${qty}x Signs (${billedSqFt} SF) @ $${baseRate.toFixed(2)}/sf`);
-                if (reqSides === 2) R(`Double Sided Adder`, rawUnitDS * qty, `+50% Base Rate`);
+                let rawUnitDS = reqSides === 2 ? rawUnitPrint * num('Retail_Adder_DS_Mult') : 0;
+                let unitPrice = rawUnitPrint + rawUnitDS;
+                
+                if (qty >= num('Tier_1_Qty')) unitPrice = unitPrice * (1 - num('Tier_1_Disc')); 
+                printTotal = unitPrice * qty;
+                
+                R(`Base Print (${thk} Billed at ${billedW}"x${billedH}")`, printTotal, `${qty}x Signs (${billedSqFt} SF) @ $${baseRate}/sf`);
             }
 
-            // Add-Ons
-            if (inputs.laminate && inputs.laminate !== 'None') {
-                const actualSqFt = (reqW * reqH) / 144;
-                const lamAdder = parseFloat(config.Retail_Price_Gloss || "8");
-                lamTotal = (lamAdder * actualSqFt) * qty;
-                R(`Laminate Finish`, lamTotal, `${qty}x Lam @ $${lamAdder}/sf`);
+            if (inputs.shape === 'CNC Simple') {
+                routerFee = num('Retail_Fee_Router_Easy');
+                R(`CNC Router Fee`, routerFee, `Simple Shape Fee`);
+            } else if (inputs.shape === 'CNC Complex') {
+                routerFee = num('Retail_Fee_Router_Hard');
+                R(`CNC Router Fee`, routerFee, `Complex Shape Fee`);
             }
 
-            if (inputs.shape && inputs.shape !== 'Rectangle') {
-                routerFee = inputs.shape === 'CNC Simple' ? parseFloat(config.Retail_Fee_Router_Easy || "30") : parseFloat(config.Retail_Fee_Router_Hard || "50");
-                R(`CNC Router Fee`, routerFee, `Flat Shape Routing Fee`);
+            if (inputs.hardware === 'H-Stakes') {
+                const stkRate = num('Retail_Stake_Std');
+                stakeTotal = stkRate * qty;
+                R(`Standard H-Stakes`, stakeTotal, `${qty}x Stakes @ $${stkRate.toFixed(2)}/ea`);
+            } else if (inputs.hardware === 'HD-Stakes') {
+                const stkRate = num('Retail_Stake_HD');
+                stakeTotal = stkRate * qty;
+                R(`Heavy Duty Stakes`, stakeTotal, `${qty}x Stakes @ $${stkRate.toFixed(2)}/ea`);
             }
+            
+            let grandTotalRetailRaw = printTotal + routerFee + stakeTotal;
+            const minOrder = num('Retail_Min_Order');
+            grandTotalRetail = grandTotalRetailRaw;
+            let isMinApplied = false;
 
-            if (inputs.hasStakes) {
-                const stakeRetail = parseFloat(config.Retail_Stake_Std || "2.50");
-                stakeTotal = stakeRetail * qty;
-                R(`Hardware (H-Stakes)`, stakeTotal, `${qty}x Stakes @ $${stakeRetail.toFixed(2)}/ea`);
+            if (grandTotalRetailRaw < minOrder) {
+                R(`Shop Minimum Surcharge`, minOrder - grandTotalRetailRaw, `Minimum order difference`);
+                grandTotalRetail = minOrder; 
+                isMinApplied = true;
             }
-        }
-
-        let grandTotalRetailRaw = ret.reduce((sum, i) => sum + i.total, 0);
-        const minOrder = parseFloat(config.Retail_Min_Order || "50");
-        let isMinApplied = false; 
-        grandTotalRetail = grandTotalRetailRaw;
-
-        if (grandTotalRetailRaw < minOrder) {
-            R(`Shop Minimum Surcharge`, minOrder - grandTotalRetailRaw, `Minimum order difference`);
-            grandTotalRetail = minOrder; 
-            isMinApplied = true;
         }
 
         // ==========================================
-        // TIER 2: PHYSICS ENGINE (VIR_AGENT_PRNT / MACH)
+        // TIER 2: PHYSICS ENGINE (HARD COST WITH LABOR)
         // ==========================================
         if (auditMode === 'full' || auditMode === 'cost_only') {
             const actualSqFt = (reqW * reqH) / 144;
             const totalActualSqFt = actualSqFt * qty;
-            const sheetCost = is10mm ? parseFloat(config.Cost_Stock_10mm_4x8 || "33.49") : parseFloat(config.Cost_Stock_4mm_4x8 || "8.40");
-            const wastePct = parseFloat(config.Waste_Factor || "1.15");
-            const riskFactor = parseFloat(config.Factor_Risk || "1.05");
-            const rateOp = parseFloat(config.Rate_Operator || "25");
-            const rateShop = parseFloat(config.Rate_Shop_Labor || "20");
+            
+            const wastePct = num('Waste_Factor');
+            const riskFactor = num('Factor_Risk');
+            const rateOp = num('Rate_Operator');
+            const rateShop = num('Rate_Shop_Labor');
 
-            const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
-            const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
-            const bestYield = Math.max(yieldX, yieldY, 1);
-            const rawBlanks = (qty / bestYield) * sheetCost;
+            // 1. Materials & Blank Bypass
+            const isStandardBlank = (reqW === 24 && reqH === 18) || (reqW === 18 && reqH === 24);
+            const is4mmBlank = thk === '4mm' && isStandardBlank;
 
-            L(`Coroplast Blanks (${thk})`, rawBlanks, `${qty} Qty / ${bestYield} Yield * $${sheetCost.toFixed(2)}/Sht`);
-            L(`Material Waste Buffer`, rawBlanks * (wastePct - 1), `Substrate Cost * ${(wastePct-1)*100}%`);
-            L(`Flatbed Ink`, totalActualSqFt * parseFloat(config.Cost_Ink_Latex || "0.16") * reqSides, `Actual SF * Ink Cost * Sides`);
-
-            const printHrs = ((reqH / 12) * qty / parseFloat(config.Machine_Speed_LF_Hr || "25")) * reqSides;
-            L(`Flatbed Op (Attn Ratio)`, printHrs * rateOp * parseFloat(config.Labor_Attendance_Ratio || "0.10"), `${printHrs.toFixed(2)} Hrs * $${rateOp}/hr * 10%`);
-            L(`Flatbed Machine Run`, printHrs * parseFloat(config.Rate_Machine_Flatbed || "10"), `${printHrs.toFixed(2)} Hrs * $10/hr`);
-            L(`Job Setup (File RIP)`, (parseFloat(config.Time_Setup_Job || "15") / 60) * rateOp, `15 Mins * $${rateOp}/hr`);
-
-            if (inputs.shape && inputs.shape !== 'Rectangle') {
-                const cncTime = inputs.shape === 'CNC Simple' ? parseFloat(config.Time_CNC_Easy_SqFt || "1") : parseFloat(config.Time_CNC_Complex_SqFt || "2");
-                const cutHrs = (totalActualSqFt * cncTime) / 60;
-                const cncSetup = parseFloat(config.Time_Setup_CNC || "10");
-                L(`CNC Router Setup`, (cncSetup / 60) * parseFloat(config.Rate_CNC_Labor || "25"), `${cncSetup} Mins * $25/hr`);
-                L(`CNC Router Run`, cutHrs * parseFloat(config.Rate_Machine_CNC || "10"), `${cutHrs.toFixed(2)} Hrs * $10/hr`);
-                L(`CNC Op (Attn Ratio)`, cutHrs * parseFloat(config.Rate_CNC_Labor || "25"), `${cutHrs.toFixed(2)} Hrs * $25/hr`);
+            if (is4mmBlank) {
+                const blankCost = num('Cost_Blank_Standard');
+                L(`Precut Coro Blanks (24x18)`, qty * blankCost * wastePct, `Bypass Yield: ${qty} Blanks * ${V('Cost_Blank_Standard')}/Ea * ${V('Waste_Factor')}`, 'Materials');
             } else {
-                const shearSetup = parseFloat(config.Time_Shear_Setup || "5");
-                L(`Shear Machine Setup`, (shearSetup / 60) * rateShop, `${shearSetup} Mins * $${rateShop}/hr`);
-                const shearCuts = qty * 4;
-                L(`Shear Per-Cut Run`, (shearCuts * parseFloat(config.Time_Shear_Cut || "1") / 60) * rateShop, `${shearCuts} Cuts * 1 Min * $${rateShop}/hr`);
+                const sheetCostKey = is10mm ? 'Cost_Stock_10mm_4x8' : 'Cost_Stock_4mm_4x8';
+                const sheetCost = num(sheetCostKey);
+                const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
+                const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
+                const bestYield = Math.max(yieldX, yieldY, 1);
+                
+                L(`Coroplast (${thk})`, (qty / bestYield) * sheetCost * wastePct, `(${qty} Qty / ${bestYield} Yield) * ${V(sheetCostKey)}/Sht * ${V('Waste_Factor')}`, 'Materials');
             }
 
-            if (inputs.hasStakes) {
-                const stakeCost = parseFloat(config.Cost_Stake_Std || "0.65");
-                L(`H-Stakes`, qty * stakeCost, `${qty} Stakes * $${stakeCost.toFixed(2)}`);
+            // 2. Hardware
+            if (inputs.hardware === 'H-Stakes') {
+                L(`Standard H-Stakes`, qty * num('Cost_Stake_Std'), `${qty}x Stakes * ${V('Cost_Stake_Std')}`, 'Hardware');
+            } else if (inputs.hardware === 'HD-Stakes') {
+                L(`Heavy Duty Stakes`, qty * num('Cost_Stake_HD'), `${qty}x Stakes * ${V('Cost_Stake_HD')}`, 'Hardware');
+            }
+
+            // 3. Labor & Machine Pathing (Bifurcated Workflow)
+            L(`Job Setup (File RIP)`, (num('Time_Setup_Job') / 60) * rateOp, `${V('Time_Setup_Job')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
+            
+            if (is10mm) {
+                // 10mm Workflow: Printed Vinyl + Laminate + Mounting
+                L(`Vinyl Media`, totalActualSqFt * num('Cost_Vin_Cal') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Vin_Cal')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+                L(`Laminate Media`, totalActualSqFt * num('Cost_Lam_Cal') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Lam_Cal')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+                L(`Latex Ink`, totalActualSqFt * num('Cost_Ink_Latex') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+
+                L(`Print Setup (Roll Media)`, (num('Time_Setup_Printer') / 60) * rateOp, `${V('Time_Setup_Printer')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
+                
+                const printHrs = (totalActualSqFt / num('Speed_Print_Roll')) * reqSides;
+                
+                // Attendance Ratio evaluates to 0 and auto-hides from the ledger natively
+                L(`Roll Printer Operator (Attn)`, printHrs * rateOp * num('Labor_Attendance_Ratio'), `${totalActualSqFt.toFixed(1)} SF / ${V('Speed_Print_Roll')} SF/hr * ${reqSides} Sides * ${V('Rate_Operator')}/hr * ${V('Labor_Attendance_Ratio')}`, 'Labor');
+                L(`Roll Printer Machine Run`, printHrs * num('Rate_Machine_Print'), `${printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Print')}/hr`, 'Labor');
+
+                const lamHrs = (totalActualSqFt / num('Speed_Lam_Roll')) * reqSides;
+                L(`Lamination Run`, lamHrs * rateShop, `${totalActualSqFt.toFixed(1)} SF / ${V('Speed_Lam_Roll')} SF/hr * ${reqSides} Sides * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+
+                // Mount Time globally pulls the Laminator feed rate (0.20 mins/sqft)
+                const mountMins = totalActualSqFt * num('Time_Mount_Flat_SqFt') * reqSides;
+                L(`Mount Vinyl to Substrate`, (mountMins / 60) * rateShop, `${totalActualSqFt.toFixed(1)} SF * ${V('Time_Mount_Flat_SqFt')} Mins/SF * ${reqSides} Sides * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+            } else {
+                // 4mm Workflow: Direct Flatbed Print
+                L(`Flatbed Ink`, totalActualSqFt * num('Cost_Ink_Latex') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+                L(`Print Setup (Load Media)`, (num('Time_Setup_Printer') / 60) * rateOp, `${V('Time_Setup_Printer')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
+                
+                const speed = num('Machine_Speed_LF_Hr');
+                const printStrat = Agent_Flatbed_Print.calculatePrintTime(reqW, reqH, qty, speed, reqSides, 60);
+                
+                // Attendance Ratio evaluates to 0 and auto-hides from the ledger natively
+                L(`Flatbed Operator (Attn)`, printStrat.printHrs * rateOp * num('Labor_Attendance_Ratio'), `${printStrat.logic} -> ${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Operator')}/hr * ${V('Labor_Attendance_Ratio')}`, 'Labor');
+                L(`Flatbed Machine Run`, printStrat.printHrs * num('Rate_Machine_Flatbed'), `${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Flatbed')}/hr`, 'Labor');
+            }
+
+            // 4. Finishing / Routing
+            if (inputs.shape === 'CNC Simple' || inputs.shape === 'CNC Complex') {
+                const cncTimeKey = inputs.shape === 'CNC Simple' ? 'Time_CNC_Easy_SqFt' : 'Time_CNC_Complex_SqFt';
+                const cncTime = num(cncTimeKey);
+                const cutHrs = (totalActualSqFt * cncTime) / 60;
+                L(`CNC Router Setup`, (num('Time_Setup_CNC') / 60) * num('Rate_CNC_Labor'), `${V('Time_Setup_CNC')} Mins * ${V('Rate_CNC_Labor')}/hr`, 'Labor');
+                L(`CNC Router Run`, cutHrs * num('Rate_Machine_CNC'), `${cutHrs.toFixed(2)} Hrs * ${V('Rate_Machine_CNC')}/hr`, 'Labor');
+            } else if (!is4mmBlank) {
+                // Dynamic Edge Logic: Evaluates parent sheet borders
+                let cutsPerEa = 2;
+                if ((reqW === 48 && reqH === 96) || (reqW === 96 && reqH === 48)) cutsPerEa = 0; // Full Sheet
+                else if (reqW === 48 || reqH === 48 || reqW === 96 || reqH === 96) cutsPerEa = 1; // Shares one parent dimension
+
+                L(`Hand Cutting Setup`, (num('Time_Hand_Cut_Setup') / 60) * rateShop, `${V('Time_Hand_Cut_Setup')} Mins (Ruler/Razor) * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+                
+                if (cutsPerEa > 0) {
+                    L(`Hand Cutting Run (${cutsPerEa} Cuts/Ea)`, ((qty * cutsPerEa * num('Time_Hand_Cut_Ea')) / 60) * rateShop, `${qty} Qty * ${cutsPerEa} Cuts * ${V('Time_Hand_Cut_Ea')} Min/Cut * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+                }
             }
 
             totalHardCost = cst.reduce((sum, i) => sum + i.total, 0) * riskFactor;
         }
 
         return { 
-            retail: { unitPrice: grandTotalRetail / qty, grandTotal: grandTotalRetail, breakdown: ret, isMinApplied, printTotal: unitPrintTotal + lamTotal, routerFee, stakeTotal }, 
+            retail: { unitPrice: grandTotalRetail / qty, grandTotal: grandTotalRetail, breakdown: ret }, 
             cost: { total: totalHardCost, breakdown: cst }, 
             metrics: { margin: grandTotalRetail > 0 ? (grandTotalRetail - totalHardCost) / grandTotalRetail : 0 } 
         };
     });
 
-    // BULLETPROOF RESPONSE: Using Array.shift() avoids markdown index deletion
     const finalPayload = isArray ? results : results.shift();
     return new Response(JSON.stringify(finalPayload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
