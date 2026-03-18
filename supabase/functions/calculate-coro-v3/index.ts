@@ -214,8 +214,8 @@ Deno.serve(async (req: any) => {
                 L(`CNC Router Run`, cutHrs * num('Rate_Machine_CNC'), `${cutHrs.toFixed(2)} Hrs * ${V('Rate_Machine_CNC')}/hr`, 'Labor');
             } else if (!is4mmBlank) {
                 // Hand Cutting Engine (2-Cuts per piece bypassing Shear)
-                L(`Hand Cutting Setup`, (num('Time_Shear_Setup') / 60) * rateShop, `${V('Time_Shear_Setup')} Mins (Ruler/Razor) * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
-                L(`Hand Cutting Run (2 Cuts/Ea)`, ((qty * 2 * num('Time_Shear_Cut')) / 60) * rateShop, `${qty} Qty * 2 Cuts * ${V('Time_Shear_Cut')} Min/Cut * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+                L(`Hand Cutting Setup`, (num('Time_Hand_Cut_Setup') / 60) * rateShop, `${V('Time_Hand_Cut_Setup')} Mins (Ruler/Razor) * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+                L(`Hand Cutting Run (2 Cuts/Ea)`, ((qty * 2 * num('Time_Hand_Cut_Ea')) / 60) * rateShop, `${qty} Qty * 2 Cuts * ${V('Time_Hand_Cut_Ea')} Min/Cut * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
             }
 
             totalHardCost = cst.reduce((sum, i) => sum + i.total, 0) * riskFactor;

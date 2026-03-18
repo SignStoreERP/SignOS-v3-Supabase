@@ -433,7 +433,12 @@ function runCalc() {
                 body: JSON.stringify({ inputs: inputs, config: backendData, audit_mode: activeAuditMode })
             });
 
-            if (!response.ok) throw new Error("Server Rejected Request");
+            // STRICT ERROR INTERCEPTION
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Server Error");
+            }
+            
             const result = await response.json();
             
             if (!result || !result.retail) return;
@@ -461,13 +466,16 @@ function runCalc() {
             const hwTxt = inputs.hardware === 'None' ? 'No Hardware' : inputs.hardware;
             document.getElementById('job-desc').value = `(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ${inputs.thickness} Custom Coroplast Signs.\n${sideTxt}. ${cutTxt}. ${hwTxt}.`;
 
-            // DELEGATE ADMIN COST RENDERING TO ISOLATED FUNCTION
             if (adminCostEnabled && result.cost) {
                 renderAdminCostLedger(result.cost, result.metrics);
             }
 
         } catch(e) { 
             console.error("Engine Error:", e); 
+            document.getElementById('job-desc').value = `🚨 CALCULATION HALTED:\n${e.message}\n\nPlease add this missing variable to the Master Data Engine (Global Variables) to restore operations.`;
+            if(totalEl) totalEl.innerText = "ERR";
+            if(unitEl) unitEl.innerText = "ERR";
+            document.getElementById('ui-line-items').innerHTML = `<div class="text-red-500 font-bold text-center py-2">Math Engine Halted.</div>`;
         } finally {
             if(totalEl) totalEl.classList.remove('opacity-50');
             if(unitEl) unitEl.classList.remove('opacity-50');
