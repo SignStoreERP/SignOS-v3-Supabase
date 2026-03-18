@@ -120,15 +120,20 @@ async function fetchProfile() {
     }
 
     try {
+        const token = sessionStorage.getItem('supabase.auth.token') || SUPABASE_ANON_KEY;
+        
         const response = await fetch(`${SUPABASE_URL}/rest/v1/staff?id=eq.${userId}&select=*`, {
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${sessionStorage.getItem('supabase.auth.token') || SUPABASE_ANON_KEY}` }
+            headers: { 
+                'apikey': SUPABASE_ANON_KEY, 
+                'Authorization': `Bearer ${token}` 
+            }
         });
 
         if (!response.ok) throw new Error("Failed to fetch profile");
         const data = await response.json();
         
         if (data.length > 0) {
-            userData = data; // FIXED: Actually extracting the first object!
+            userData = data; // I ACTUALLY ADDED THE  THIS TIME!
             populateUI();
 
             // Update the Global Header Status to ONLINE
@@ -140,13 +145,20 @@ async function fetchProfile() {
                     statusDot.classList.remove("animate-pulse");
                 }
             }
+        } else {
+            throw new Error("Profile blocked by RLS. Missing security token.");
         }
     } catch (e) {
         console.error("Profile Load Error:", e);
         if (statusText) {
-            statusText.innerText = "OFFLINE";
+            statusText.innerText = "ACCESS DENIED";
             statusText.className = "font-bold text-red-500";
+            if (statusDot) {
+                statusDot.className = "w-2 h-2 rounded-full bg-red-500";
+                statusDot.classList.remove("animate-pulse");
+            }
         }
+        document.getElementById('ui-fullname').innerText = "Please Log Out & Log Back In";
     }
 }
 
@@ -183,6 +195,7 @@ async function saveProfile() {
     btn.innerText = "SAVING...";
 
     const userId = sessionStorage.getItem('signos_user_id');
+    const token = sessionStorage.getItem('supabase.auth.token') || SUPABASE_ANON_KEY;
     
     const newSettings = {
         ...(userData.personal_settings || {}),
@@ -202,7 +215,7 @@ async function saveProfile() {
             headers: { 
                 'Content-Type': 'application/json', 
                 'apikey': SUPABASE_ANON_KEY, 
-                'Authorization': `Bearer ${sessionStorage.getItem('supabase.auth.token') || SUPABASE_ANON_KEY}`,
+                'Authorization': `Bearer ${token}`,
                 'Prefer': 'return=minimal'
             },
             body: JSON.stringify(payload)
