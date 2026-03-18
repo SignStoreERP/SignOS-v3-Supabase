@@ -35,10 +35,6 @@ Deno.serve(async (req: any) => {
         const ret: any[] = [];
         const cst: any[] = [];
         
-        // ==========================================
-        // STRICT HEADLESS ENFORCEMENT
-        // If a variable is missing from Supabase, the function fails safely.
-        // ==========================================
         const num = (k: string) => { 
             const p = parseFloat(config[k]); 
             if (isNaN(p)) throw new Error(`Missing DB Var: [${k}]`); 
@@ -93,7 +89,6 @@ Deno.serve(async (req: any) => {
                 R(`Sign Print (${thk} Rounded to ${mappedBox})`, printTotal, `${qty}x Signs @ $${unitPrice.toFixed(2)}/ea`);
             } else {
                 
-                // ARCHITECTURAL FALLBACK: Market Area Curves (12" Increments)
                 const billedW = Math.ceil(reqW / 12) * 12;
                 const billedH = Math.ceil(reqH / 12) * 12;
                 const billedSqFt = (billedW * billedH) / 144;
@@ -115,7 +110,6 @@ Deno.serve(async (req: any) => {
 
                 let rawUnitPrint = baseRate * billedSqFt;
                 
-                // Enforce the T1 Minimum Sign Price (e.g., $25 for 4mm)
                 if (rawUnitPrint < minSignPrice) {
                     rawUnitPrint = minSignPrice;
                 }
@@ -171,7 +165,7 @@ Deno.serve(async (req: any) => {
             const rateOp = num('Rate_Operator');
             const rateShop = num('Rate_Shop_Labor');
 
-            // 1. Materials & Blank Bypass Logic
+            // 1. Materials & Blank Bypass
             const isStandardBlank = (reqW === 24 && reqH === 18) || (reqW === 18 && reqH === 24);
             const is4mmBlank = thk === '4mm' && isStandardBlank;
 
@@ -184,10 +178,9 @@ Deno.serve(async (req: any) => {
                 const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
                 const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
                 const bestYield = Math.max(yieldX, yieldY, 1);
-                L(`Coroplast Blanks (${thk})`, (qty / bestYield) * sheetCost * wastePct, `(${qty} Qty / ${bestYield} Yield) * ${V(sheetCostKey)}/Sht * ${V('Waste_Factor')}`, 'Materials');
+                // FIXED: Removed "Blanks" nomenclature for parent sheets
+                L(`Coroplast (${thk})`, (qty / bestYield) * sheetCost * wastePct, `(${qty} Qty / ${bestYield} Yield) * ${V(sheetCostKey)}/Sht * ${V('Waste_Factor')}`, 'Materials');
             }
-
-            L(`Flatbed Ink`, totalActualSqFt * num('Cost_Ink_Latex') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
 
             // 2. Hardware
             if (inputs.hardware === 'H-Stakes') {
@@ -196,14 +189,36 @@ Deno.serve(async (req: any) => {
                 L(`Heavy Duty Stakes`, qty * num('Cost_Stake_HD'), `${qty}x Stakes * ${V('Cost_Stake_HD')}`, 'Hardware');
             }
 
-            // 3. Labor (SHARED AGENT HANDOFF)
-            L(`Print Setup (Load Media)`, (num('Time_Setup_Printer') / 60) * rateOp, `${V('Time_Setup_Printer')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
+            // 3. Labor & Machine Pathing (Bifurcated Workflow)
+            L(`Job Setup (File RIP)`, (num('Time_Setup_Job') / 60) * rateOp, `${V('Time_Setup_Job')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
             
-            const speed = num('Machine_Speed_LF_Hr');
-            const printStrat = Agent_Flatbed_Print.calculatePrintTime(reqW, reqH, qty, speed, reqSides, 60);
-            
-            L(`Flatbed Operator (Attn)`, printStrat.printHrs * rateOp * num('Labor_Attendance_Ratio'), `${printStrat.logic} -> ${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Operator')}/hr * ${V('Labor_Attendance_Ratio')}`, 'Labor');
-            L(`Flatbed Machine Run`, printStrat.printHrs * num('Rate_Machine_Flatbed'), `${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Flatbed')}/hr`, 'Labor');
+            if (is10mm) {
+                // 10mm Workflow: Printed Vinyl + Laminate + Mounting
+                L(`Vinyl Media`, totalActualSqFt * num('Cost_Vin_Cal') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Vin_Cal')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+                L(`Laminate Media`, totalActualSqFt * num('Cost_Lam_Cal') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Lam_Cal')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+                L(`Latex Ink`, totalActualSqFt * num('Cost_Ink_Latex') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+
+                L(`Print Setup (Roll Media)`, (num('Time_Setup_Printer') / 60) * rateOp, `${V('Time_Setup_Printer')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
+                const printHrs = (totalActualSqFt / num('Speed_Print_Roll')) * reqSides;
+                L(`Roll Printer Operator (Attn)`, printHrs * rateOp * num('Labor_Attendance_Ratio'), `${totalActualSqFt.toFixed(1)} SF / ${V('Speed_Print_Roll')} SF/hr * ${reqSides} Sides * ${V('Rate_Operator')}/hr * ${V('Labor_Attendance_Ratio')}`, 'Labor');
+                L(`Roll Printer Machine Run`, printHrs * num('Rate_Machine_Print'), `${printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Print')}/hr`, 'Labor');
+
+                const lamHrs = (totalActualSqFt / num('Speed_Lam_Roll')) * reqSides;
+                L(`Lamination Run`, lamHrs * rateShop, `${totalActualSqFt.toFixed(1)} SF / ${V('Speed_Lam_Roll')} SF/hr * ${reqSides} Sides * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+
+                const mountMins = totalActualSqFt * num('Time_Mount_Flat_SqFt') * reqSides;
+                L(`Mount Vinyl to Substrate`, (mountMins / 60) * rateShop, `${totalActualSqFt.toFixed(1)} SF * ${V('Time_Mount_Flat_SqFt')} Mins/SF * ${reqSides} Sides * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+            } else {
+                // 4mm Workflow: Direct Flatbed Print
+                L(`Flatbed Ink`, totalActualSqFt * num('Cost_Ink_Latex') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+                L(`Print Setup (Load Media)`, (num('Time_Setup_Printer') / 60) * rateOp, `${V('Time_Setup_Printer')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
+                
+                const speed = num('Machine_Speed_LF_Hr');
+                const printStrat = Agent_Flatbed_Print.calculatePrintTime(reqW, reqH, qty, speed, reqSides, 60);
+                
+                L(`Flatbed Operator (Attn)`, printStrat.printHrs * rateOp * num('Labor_Attendance_Ratio'), `${printStrat.logic} -> ${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Operator')}/hr * ${V('Labor_Attendance_Ratio')}`, 'Labor');
+                L(`Flatbed Machine Run`, printStrat.printHrs * num('Rate_Machine_Flatbed'), `${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Flatbed')}/hr`, 'Labor');
+            }
 
             // 4. Finishing / Routing
             if (inputs.shape === 'CNC Simple' || inputs.shape === 'CNC Complex') {
@@ -213,9 +228,16 @@ Deno.serve(async (req: any) => {
                 L(`CNC Router Setup`, (num('Time_Setup_CNC') / 60) * num('Rate_CNC_Labor'), `${V('Time_Setup_CNC')} Mins * ${V('Rate_CNC_Labor')}/hr`, 'Labor');
                 L(`CNC Router Run`, cutHrs * num('Rate_Machine_CNC'), `${cutHrs.toFixed(2)} Hrs * ${V('Rate_Machine_CNC')}/hr`, 'Labor');
             } else if (!is4mmBlank) {
-                // Hand Cutting Engine (2-Cuts per piece bypassing Shear)
+                // Dynamic Edge Logic: Evaluates parent sheet borders
+                let cutsPerEa = 2;
+                if ((reqW === 48 && reqH === 96) || (reqW === 96 && reqH === 48)) cutsPerEa = 0; // Full Sheet
+                else if (reqW === 48 || reqH === 48 || reqW === 96 || reqH === 96) cutsPerEa = 1; // Shares one parent dimension
+
                 L(`Hand Cutting Setup`, (num('Time_Hand_Cut_Setup') / 60) * rateShop, `${V('Time_Hand_Cut_Setup')} Mins (Ruler/Razor) * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
-                L(`Hand Cutting Run (2 Cuts/Ea)`, ((qty * 2 * num('Time_Hand_Cut_Ea')) / 60) * rateShop, `${qty} Qty * 2 Cuts * ${V('Time_Hand_Cut_Ea')} Min/Cut * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+                
+                if (cutsPerEa > 0) {
+                    L(`Hand Cutting Run (${cutsPerEa} Cuts/Ea)`, ((qty * cutsPerEa * num('Time_Hand_Cut_Ea')) / 60) * rateShop, `${qty} Qty * ${cutsPerEa} Cuts * ${V('Time_Hand_Cut_Ea')} Min/Cut * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+                }
             }
 
             totalHardCost = cst.reduce((sum, i) => sum + i.total, 0) * riskFactor;
