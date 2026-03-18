@@ -1,85 +1,173 @@
 declare const Deno: any;
-const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
+
+const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 
 Deno.serve(async (req: any) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  
   try {
     const requestData = await req.json();
-    const inputs = requestData.inputs || {};
+    const isArray = Array.isArray(requestData.inputs);
+    const inputPayload = isArray ? requestData.inputs : [requestData.inputs];
     const config = requestData.config || {};
+    const auditMode = requestData.audit_mode || 'retail_only'; 
 
-    const actualSqFt = (inputs.w * inputs.h) / 144;
-    const totalActualSqFt = actualSqFt * inputs.qty;
-    const multDS = inputs.sides === 2 ? 2 : 1;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
-    // BILLED BRACKET LOGIC
-    const getBracket = (val: number) => {
-        const brackets = [1-15];
-        for (let b of brackets) { if (val <= b) return b; }
-        return Math.ceil(val / 12) * 12;
-    };
-    const billedW = getBracket(inputs.w);
-    const billedH = getBracket(inputs.h);
-    const billedSqFt = (billedW * billedH) / 144;
-    const totalBilledSqFt = billedSqFt * inputs.qty;
+    let dictionary: any[] = [];
+    let curves: any[] = [];
 
-    const ret: any[] = [];
-    const R = (label: string, total: number, formula: string) => { if(total > 0 || total < 0) ret.push({label, total, formula}); return total; };
-
-    let rawUnitPrint = 0;
-    let baseRateLog = 0;
-
-    // NOTE: PVC Tier 1 is a FLAT RATE MINIMUM ($33), not a per/sf multiplier
-    if (inputs.thickness === '6mm') {
-        if (billedSqFt < 3) rawUnitPrint = parseFloat(config.PVC6_T1_Min || "33");
-        else if (billedSqFt < 6) { baseRateLog = parseFloat(config.PVC6_T2_Rate || "22"); rawUnitPrint = billedSqFt * baseRateLog; }
-        else if (billedSqFt < 12) { baseRateLog = parseFloat(config.PVC6_T3_Rate || "14"); rawUnitPrint = billedSqFt * baseRateLog; }
-        else { baseRateLog = parseFloat(config.PVC6_T4_Rate || "13"); rawUnitPrint = billedSqFt * baseRateLog; }
-    } else {
-        if (billedSqFt < 3) rawUnitPrint = parseFloat(config.PVC3_T1_Min || "33");
-        else if (billedSqFt < 6) { baseRateLog = parseFloat(config.PVC3_T2_Rate || "13.20"); rawUnitPrint = billedSqFt * baseRateLog; }
-        else if (billedSqFt < 12) { baseRateLog = parseFloat(config.PVC3_T3_Rate || "8.40"); rawUnitPrint = billedSqFt * baseRateLog; }
-        else { baseRateLog = parseFloat(config.PVC3_T4_Rate || "7.80"); rawUnitPrint = billedSqFt * baseRateLog; }
+    // HEADLESS FETCH: Pull from the correct ref_retail_history table
+    if ((auditMode === 'full' || auditMode === 'retail_only') && supabaseUrl && supabaseKey) {
+        const [resDict, resCurves] = await Promise.all([
+            fetch(`${supabaseUrl}/rest/v1/ref_retail_history?select=*`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }),
+            fetch(`${supabaseUrl}/rest/v1/retail_curves?select=*`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } })
+        ]);
+        if (resDict.ok) dictionary = await resDict.json();
+        if (resCurves.ok) curves = await resCurves.json();
     }
 
-    R(`Base Print (${inputs.thickness} Billed at ${billedW}"x${billedH}")`, rawUnitPrint * inputs.qty, billedSqFt < 3 ? `${inputs.qty}x Signs @ Flat Rate` : `${inputs.qty}x Signs (${billedSqFt} SF) @ $${baseRateLog.toFixed(2)}/sf`);
+    const results = inputPayload.map((inputs: any) => {
+        const reqW = parseFloat(inputs.w) || 24;
+        const reqH = parseFloat(inputs.h) || 18;
+        const qty = parseFloat(inputs.qty) || 1;
+        const reqSides = inputs.sides === 2 ? 2 : 1;
+        const thk = String(inputs.thickness || '3mm');
+        const is6mm = thk.includes('6');
+        
+        const ret: any[] = [];
+        
+        const num = (k: string, fallback: number) => { 
+            const p = parseFloat(config[k]); 
+            return isNaN(p) ? fallback : p; 
+        };
+        
+        const R = (label: string, total: number, formula: string) => { if (total !== 0) ret.push({label, total, formula}); return total; };
 
-    let rawUnitDS = inputs.sides === 2 ? rawUnitPrint * parseFloat(config.Retail_Adder_DS_Mult || "0.5") : 0;
-    if (inputs.sides === 2) {
-        R(`Double Sided Adder`, rawUnitDS * inputs.qty, `+50% Side 2 Markup`);
-    }
+        let grandTotalRetail = 0;
+        let printTotal = 0;
+        let routerFee = 0;
 
-    let unitPrintTotal = (rawUnitPrint + rawUnitDS) * inputs.qty;
+        // ==========================================
+        // TIER 1: RETAIL ENGINE (Strict Dictionary)
+        // ==========================================
+        if (auditMode === 'full' || auditMode === 'retail_only') {
+            let exactPrice = 0; 
+            let mappedBox = "";
+            let bestArea = Infinity; 
+            
+            const targetLine = is6mm ? '6mm PVC' : '3mm PVC';
+            const targetSides = reqSides === 2 ? 'Double' : 'Single';
+            const validRows = dictionary.filter((r: any) => r.product_line === targetLine && r.sides === targetSides);
+            
+            for (const row of validRows) {
+                if (!row.dimensions || !row.dimensions.includes('x')) continue;
+                const [swStr, shStr] = row.dimensions.toLowerCase().split('x');
+                const sw = parseFloat(swStr); 
+                const sh = parseFloat(shStr); 
+                
+                const fitsStandard = (sw >= reqW && sh >= reqH);
+                const fitsRotated = (sh >= reqW && sw >= reqH);
+                
+                if (fitsStandard || fitsRotated) {
+                    const area = sw * sh;
+                    if (area < bestArea) {
+                        bestArea = area; 
+                        mappedBox = row.dimensions;
+                        exactPrice = parseFloat(row.legacy_price || "0");
+                    }
+                }
+            }
+            
+            let unitPrice = 0;
+            let isMapped = false;
+            let billedSqFt = 0;
+            const billedW = Math.ceil(reqW / 12) * 12;
+            const billedH = Math.ceil(reqH / 12) * 12;
+            
+            if (exactPrice > 0) {
+                unitPrice = exactPrice;
+                isMapped = true;
+            } else {
+                // ARCHITECTURAL FALLBACK: Dynamic Market Area Curves
+                billedSqFt = (billedW * billedH) / 144;
+                
+                let baseRate = 0;
+                let minSignPrice = 0;
 
-    if (inputs.laminate === 'None') R(`No Laminate Deduction`, -(unitPrintTotal * parseFloat(config.Retail_Lam_Deduct || "0.10")), `-10% Base Deduction`);
-    else if (inputs.laminate && inputs.laminate !== 'None') {
-        R(`Laminate Finish`, (parseFloat(config.Retail_Price_Gloss || "8") * actualSqFt) * inputs.qty, `${inputs.qty}x Lam @ $8/sf`);
-    }
+                const activeCurve = curves.find((c: any) => c.product_line === targetLine && billedSqFt >= c.sqft_min && billedSqFt <= c.sqft_max);
+                
+                if (activeCurve) {
+                    baseRate = parseFloat(activeCurve.price_per_sqft || "0");
+                    minSignPrice = parseFloat(activeCurve.min_price || "0");
+                } else {
+                    throw new Error(`Missing Retail Curve in DB for ${targetLine} at ${billedSqFt} SqFt`);
+                }
 
-    let routerFee = 0;
-    if (inputs.shape !== 'Rectangle') {
-        routerFee = inputs.shape === 'CNC Simple' ? parseFloat(config.Retail_Fee_Router_Easy || "30") : parseFloat(config.Retail_Fee_Router_Hard || "50");
-        R(`CNC Router Fee`, routerFee, `Shape Routing Fee`);
-    }
+                let rawUnitPrint = baseRate * billedSqFt;
+                if (rawUnitPrint < minSignPrice) {
+                    rawUnitPrint = minSignPrice;
+                }
 
-    let grandTotalRaw = ret.reduce((sum, i) => sum + i.total, 0);
-    const minOrder = parseFloat(config.Retail_Min_Order || "50");
-    let isMinApplied = false; let grandTotal = grandTotalRaw;
+                let rawUnitDS = reqSides === 2 ? rawUnitPrint * num('Retail_Adder_DS_Mult', 0.5) : 0;
+                unitPrice = rawUnitPrint + rawUnitDS;
+            }
 
-    if (grandTotalRaw < minOrder) {
-        R(`Shop Minimum`, minOrder - grandTotalRaw, `Difference`);
-        grandTotal = minOrder; isMinApplied = true;
-    }
+            // 1. Apply Bulk Discount for 10+
+            if (qty >= num('Tier_1_Qty', 10)) {
+                unitPrice = unitPrice * (1 - num('Tier_1_Disc', 0.05)); 
+            }
 
-    const cst: any[] = [];
-    const L = (label: string, total: number, formula: string) => { if(total > 0) cst.push({label, total, formula}); return total; };
-    const sheetCost = inputs.thickness === '6mm' ? parseFloat(config.Cost_Stock_6mm_4x8 || "58.37") : parseFloat(config.Cost_Stock_3mm_4x8 || "29.09");
-    
-    L(`PVC Substrate (${inputs.thickness})`, (totalActualSqFt / 32) * sheetCost, `(${totalActualSqFt.toFixed(1)} SF / 32) * $${sheetCost.toFixed(2)}/sht`);
-    L(`Flatbed Ink`, totalActualSqFt * parseFloat(config.Cost_Ink_Latex || "0.16") * multDS, `${totalActualSqFt.toFixed(1)} SF * $0.16/SF`);
+            // 2. Apply Laminate Deduction (-10%)
+            let lamDeductVal = 0;
+            if (inputs.laminate === 'None') {
+                const lamDeductPct = num('Retail_Lam_Deduct', 0.10);
+                lamDeductVal = unitPrice * lamDeductPct;
+                unitPrice = unitPrice - lamDeductVal;
+            }
 
-    const totalCost = cst.reduce((sum, i) => sum + i.total, 0) * parseFloat(config.Factor_Risk || "1.05");
-    const payload = { retail: { unitPrice: grandTotal / inputs.qty, grandTotal, breakdown: ret, isMinApplied, printTotal: unitPrintTotal, routerFee }, cost: { total: totalCost, breakdown: cst }, metrics: { margin: (grandTotal - totalCost) / grandTotal } };
-    return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-  } catch (error: any) { return new Response(JSON.stringify({ error: error.message }), { headers: corsHeaders, status: 400 }) }
-})
+            printTotal = unitPrice * qty;
+            
+            if (isMapped) {
+                R(`Sign Print (${thk} Mapped to ${mappedBox})`, printTotal, `${qty}x Signs @ $${unitPrice.toFixed(2)}/ea`);
+            } else {
+                R(`Base Print (${thk} Billed at ${billedW}"x${billedH}")`, printTotal, `${qty}x Signs @ $${unitPrice.toFixed(2)}/ea`);
+            }
+
+            // 3. Routing Fees
+            if (inputs.shape === 'CNC Simple') {
+                routerFee = num('Retail_Fee_Router_Easy', 30);
+                R(`CNC Router Fee`, routerFee, `Simple Shape Fee`);
+            } else if (inputs.shape === 'CNC Complex') {
+                routerFee = num('Retail_Fee_Router_Hard', 50);
+                R(`CNC Router Fee`, routerFee, `Complex Shape Fee`);
+            }
+            
+            let grandTotalRetailRaw = printTotal + routerFee;
+            const minOrder = num('Retail_Min_Order', 50);
+            grandTotalRetail = grandTotalRetailRaw;
+            let isMinApplied = false;
+
+            // 4. Shop Minimum Enforcement
+            if (grandTotalRetailRaw < minOrder) {
+                R(`Shop Minimum Surcharge`, minOrder - grandTotalRetailRaw, `Minimum order difference`);
+                grandTotalRetail = minOrder; 
+                isMinApplied = true;
+            }
+        }
+
+        return { 
+            retail: { unitPrice: grandTotalRetail / qty, grandTotal: grandTotalRetail, breakdown: ret, isMinApplied }, 
+            cost: { total: 0, breakdown: [] }, // Bypassed for retail rollout
+            metrics: { margin: 0 } 
+        };
+    });
+
+    const finalPayload = isArray ? results : results.shift();
+    return new Response(JSON.stringify(finalPayload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+  } catch (error: any) { 
+      return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders }); 
+  }
+});
