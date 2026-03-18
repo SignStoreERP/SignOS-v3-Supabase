@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Master Data Engine v3.0 | SignOS Admin</title>
+    <title>Master Data Engine v3.1 | SignOS Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <style>
@@ -20,7 +20,7 @@
     <div class="bg-gray-900 text-white border-b border-gray-800 px-6 py-4 flex justify-between items-center shadow-lg z-30 shrink-0">
         <div>
             <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
-                <span class="text-blue-400">🗄️</span> Master Data Engine <span class="text-gray-500 text-xs font-normal">v3.0</span>
+                <span class="text-blue-400">🗄️</span> Master Data Engine <span class="text-gray-500 text-xs font-normal">v3.1</span>
             </h1>
             <div class="text-[10px] font-bold text-gray-400 mt-0.5 tracking-wider uppercase">
                 Procurement & Database Routing Matrix
@@ -41,11 +41,14 @@
             <div class="p-4 border-b border-gray-100 bg-slate-50">
                 <h2 class="text-xs font-black text-gray-700 uppercase tracking-wider">Data Categories</h2>
             </div>
-            
             <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-4">
+                
                 <!-- VENDOR & PROCUREMENT -->
                 <div>
                     <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Procurement</span>
+                    <button onclick="loadTable('global_variables', 'ALL')" id="btn-tab-ALL" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
+                        All Variables (Super View)
+                    </button>
                     <button onclick="loadTable('global_variables', 'Material')" id="btn-tab-Material" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
                         Vendor Materials
                     </button>
@@ -53,7 +56,7 @@
                         Labor & Overheads
                     </button>
                 </div>
-                
+
                 <!-- ECONOMICS & LOGIC -->
                 <div class="border-t border-gray-100 pt-2">
                     <span class="block px-3 py-1 text-[9px] font-black text-gray-400 uppercase tracking-widest">Economics & Logic</span>
@@ -63,7 +66,7 @@
                     <button onclick="loadTable('retail_curves', 'Curves')" id="btn-tab-Curves" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
                         Retail Curves
                     </button>
-                        <button onclick="loadTable('ref_retail_history', 'Fixed')" id="btn-tab-Fixed" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
+                    <button onclick="loadTable('ref_retail_history', 'Fixed')" id="btn-tab-Fixed" class="w-full text-left px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold text-xs uppercase tracking-wide transition tab-btn">
                         Master Price Sheet
                     </button>
                 </div>
@@ -83,6 +86,7 @@
                         Workforce Manager ↗
                     </a>
                 </div>
+
             </div>
         </div>
 
@@ -110,591 +114,458 @@
         </div>
     </div>
 
-    <!-- OVERRIDE MODAL (For Global Variables) -->
-    <div id="override-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 flex flex-col">
-            <div class="p-4 bg-orange-50 border-b border-orange-200 flex justify-between items-center">
-                <h3 class="font-black text-orange-800 uppercase tracking-widest text-xs">Set Manual Override</h3>
-                <button onclick="closeModal()" class="text-orange-400 hover:text-red-500 font-bold transition">✕</button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div class="bg-gray-50 p-3 rounded border border-gray-200">
-                    <span class="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Variable</span>
-                    <span id="mod-id" class="text-sm font-black text-gray-800"></span>
-                    <span id="mod-desc" class="block text-[10px] text-gray-500 mt-1 italic"></span>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">System Actual</label>
-                        <input type="text" id="mod-actual" readonly class="w-full border border-gray-200 p-2 rounded font-mono text-gray-500 bg-gray-50 cursor-not-allowed">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Override Value</label>
-                        <input type="number" id="mod-override" step="0.01" class="w-full border border-orange-300 p-2 rounded font-black text-orange-900 bg-orange-50 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Audit Diagnostic Note (Optional)</label>
-                    <textarea id="mod-reason" placeholder="e.g. Supplier raised price, hidden freight cost, etc." class="w-full border border-gray-300 p-2 rounded text-xs font-medium text-gray-700 outline-none focus:border-blue-500 h-20 shadow-inner"></textarea>
-                </div>
-            </div>
-            <div class="p-4 bg-gray-50 border-t border-gray-200 flex gap-3">
-                <button onclick="clearOverride()" class="px-4 py-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold rounded text-xs uppercase tracking-wide transition shadow-sm">Clear Override</button>
-                <button onclick="saveOverride()" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-black py-2 rounded text-xs uppercase tracking-widest transition shadow-md">Apply Override</button>
-            </div>
-        </div>
-    </div>
+<script>
+const TAG_CATEGORIES = {
+    'System Roles': ['SALES', 'PROD', 'ADMIN', 'SUPER'],
+    'Department Silos': ['DEPT_SALES', 'DEPT_VINYL', 'DEPT_CNC', 'DEPT_DESIGN', 'DEPT_FAB_MTL', 'DEPT_INSTALL'],
+    'Competency Ranks': ['RANK_1', 'RANK_2', 'RANK_3']
+};
 
-    <script>
-        const TAG_DICT = {
-            'SALES': 'System Role: Sales & Quoting',
-            'PROD': 'System Role: Production Floor',
-            'ADMIN': 'System Role: Administration',
-            'SUPER': 'System Role: Overwatch & Global Override',
-            'DEPT_SALES': 'Silo: Sales & Accounts',
-            'DEPT_VINYL': 'Silo: Vinyl & Print',
-            'DEPT_CNC': 'Silo: CNC Routing',
-            'DEPT_DESIGN': 'Silo: Graphic Design',
-            'DEPT_FAB_MTL': 'Silo: Metal Fabrication',
-            'DEPT_INSTALL': 'Silo: Field Installation',
-            'RANK_1': 'Competency: Novice (Requires Shadowing)',
-            'RANK_2': 'Competency: Proficient (Independent)',
-            'RANK_3': 'Competency: Expert (Training Capable)'
-        };
+let tableData = [];
+let activeTable = 'global_variables';
+let activeFilterGroup = 'Material';
 
-        const TAG_CATEGORIES = {
-            'System Roles': ['SALES', 'PROD', 'ADMIN', 'SUPER'],
-            'Department Silos': ['DEPT_SALES', 'DEPT_VINYL', 'DEPT_CNC', 'DEPT_DESIGN', 'DEPT_FAB_MTL', 'DEPT_INSTALL'],
-            'Competency Ranks': ['RANK_1', 'RANK_2', 'RANK_3']
-        };
+window.onload = async function() {
+    const role = sessionStorage.getItem('signos_role');
+    if (role !== 'ADMIN' && role !== 'SUPER') {
+        alert("SECURITY VIOLATION: Master Data Engine is restricted to Administrators.");
+        window.location.href = 'menu.html';
+        return;
+    }
+    loadTable('global_variables', 'ALL'); // Default landing page
+};
+
+// --- DYNAMIC TABLE ROUTER ---
+async function loadTable(tableName, filterGroup) {
+    activeTable = tableName;
+    activeFilterGroup = filterGroup;
+
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('bg-gray-100', 'text-gray-900', 'border-l-4', 'border-blue-500');
+        b.classList.add('text-gray-500');
+    });
+
+    const activeBtn = document.getElementById(`btn-tab-${filterGroup}`);
+    if(activeBtn) {
+        activeBtn.classList.remove('text-gray-500');
+        activeBtn.classList.add('bg-gray-100', 'text-gray-900', 'border-l-4', 'border-blue-500');
+    }
+
+    document.getElementById('data-table').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-blue-500 font-bold animate-pulse text-xs uppercase tracking-widest">Fetching Data...</td></tr>`;
+    document.getElementById('search-filter').value = '';
+
+    try {
+        let queryUrl = `${SUPABASE_URL}/rest/v1/${tableName}?select=*`;
+        if(tableName === 'retail_curves') queryUrl += '&order=product_line.asc,sqft_min.asc';
+        else if(tableName === 'ref_retail_history') queryUrl += '&order=product_line.asc,dimensions.asc';
+
+        const res = await fetch(queryUrl, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+
+        if (!res.ok) throw new Error("Failed to connect to database");
+        tableData = await res.json();
+
+        if (tableName === 'global_variables') {
+            tableData.sort((a,b) => (a.category > b.category) ? 1 : ((b.category > a.category) ? -1 : 0));
+        }
+        renderTable();
+    } catch(e) {
+        document.getElementById('data-table').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold text-xs uppercase tracking-widest">Error: ${e.message}</td></tr>`;
+    }
+}
+
+// --- RENDER ENGINE ---
+function renderTable() {
+    const thead = document.getElementById('table-head');
+    const tbody = document.getElementById('data-table');
+    const legend = document.getElementById('table-legend');
+    const searchVal = document.getElementById('search-filter').value.toLowerCase();
+    let html = '';
+
+    let filteredData = tableData;
+
+    // VIEW: VENDOR & SYSTEM VARIABLES (With Inline Editing)
+    if (activeTable === 'global_variables') {
+        if (activeFilterGroup === 'ALL') filteredData = tableData;
+        else if (activeFilterGroup === 'Material') filteredData = tableData.filter(r => r.category === 'Material');
+        else if (activeFilterGroup === 'Labor') filteredData = tableData.filter(r => r.category === 'Labor' || r.category === 'Overhead');
+        else if (activeFilterGroup === 'System') filteredData = tableData.filter(r => r.category !== 'Material' && r.category !== 'Labor' && r.category !== 'Overhead');
+
+        if (searchVal) filteredData = filteredData.filter(r => r.id.toLowerCase().includes(searchVal) || (r.notes && r.notes.toLowerCase().includes(searchVal)));
+
+        legend.innerHTML = 'Note: Manual overrides supersede System Actuals instantly across all calculators.';
+        thead.innerHTML = `<tr>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Variable ID</th>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Category</th>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Unit</th>
+            <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">System Actual</th>
+            <th class="p-3 text-[10px] font-black text-orange-600 uppercase tracking-widest text-right">Manual Override</th>
+        </tr>`;
+
+        filteredData.forEach(row => {
+            const hasOverride = row.override_value !== null && row.override_value !== undefined && row.override_value !== '';
+            const cBadge = row.category === 'Material' ? 'bg-green-100 text-green-700' : (row.category === 'Labor' ? 'bg-purple-100 text-purple-700' : (row.category === 'Retail' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'));
+
+            html += `<tr class="hover:bg-blue-50/50 transition group ${hasOverride ? 'bg-orange-50/30' : ''}">
+                <td class="p-3">
+                    <div class="font-bold text-gray-800 text-xs">${row.id}</div>
+                    <div class="text-[9px] text-gray-500 mt-0.5 truncate max-w-[250px] italic">${row.notes || ''}</div>
+                </td>
+                <td class="p-3"><span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${cBadge}">${row.category}</span></td>
+                <td class="p-3 text-center text-[10px] font-bold text-gray-400">${row.unit || ''}</td>
+                <td class="p-3 text-right font-mono font-bold text-blue-600">${row.default_value}</td>
+                <td class="p-3 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                        <input type="number" step="0.01" id="gv-override-${row.id}" value="${hasOverride ? row.override_value : ''}" placeholder="${row.default_value}" class="w-24 text-right border rounded p-1.5 font-mono text-xs font-bold ${hasOverride ? 'text-orange-700 bg-orange-50' : 'text-gray-400 bg-white'} outline-none focus:border-orange-500 shadow-inner" oninput="document.getElementById('btn-gv-${row.id}').classList.remove('hidden')">
+                        <button id="btn-gv-${row.id}" onclick="saveInlineOverride('${row.id}')" class="hidden bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded shadow-sm text-[10px] font-black uppercase tracking-widest transition">Save</button>
+                        ${hasOverride ? `<button onclick="clearInlineOverride('${row.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 px-2 py-1.5 rounded shadow-sm text-[10px] font-black uppercase tracking-widest transition">Clear</button>` : '<div class="w-12"></div>'}
+                    </div>
+                </td>
+            </tr>`;
+        });
+    }
+    // VIEW: RETAIL CURVES
+    else if (activeTable === 'retail_curves') {
+        if (searchVal) filteredData = filteredData.filter(r => r.product_line.toLowerCase().includes(searchVal) || r.condition.toLowerCase().includes(searchVal));
+
+        legend.innerHTML = 'Note: These algorithms dictate the auto-scaling market prices for standard signs.';
+        thead.innerHTML = `<tr>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Product Line</th>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Tier Condition</th>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">SqFt Range</th>
+            <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">Price per SqFt ($)</th>
+            <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">Hard Min ($)</th>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Action</th>
+        </tr>`;
+
+        filteredData.forEach(row => {
+            html += `<tr class="hover:bg-blue-50/50 transition">
+                <td class="p-3">
+                    <div class="font-bold text-gray-800 text-xs">${row.product_line}</div>
+                    <div class="text-[9px] text-gray-400 mt-0.5 font-mono">${row.id}</div>
+                </td>
+                <td class="p-3 text-center"><span class="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded uppercase tracking-widest">${row.condition}</span></td>
+                <td class="p-3 text-center text-xs font-mono text-gray-500">${row.sqft_min} - ${row.sqft_max >= 999 ? 'MAX' : row.sqft_max}</td>
+                <td class="p-3 text-right">
+                    <input type="number" step="0.01" id="rc-price-${row.id}" value="${row.price_per_sqft}" class="w-20 text-right border rounded p-1.5 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-rc-${row.id}').classList.remove('hidden')">
+                </td>
+                <td class="p-3 text-right">
+                    <input type="number" step="0.01" id="rc-min-${row.id}" value="${row.min_price}" class="w-20 text-right border rounded p-1.5 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-rc-${row.id}').classList.remove('hidden')">
+                </td>
+                <td class="p-3 text-center">
+                    <button id="btn-rc-${row.id}" onclick="saveCurve('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">Update</button>
+                </td>
+            </tr>`;
+        });
+    }
+    // VIEW: MASTER PRICE SHEET (FIXED RETAIL DICTIONARY)
+    else if (activeTable === 'ref_retail_history') {
+        legend.innerHTML = 'Note: These are the exact, fixed prices used by dictionary-first calculators.';
+        window.fpProduct = window.fpProduct || '4mm Coroplast'; 
+        if (searchVal) filteredData = tableData.filter(r => r.dimensions.toLowerCase().includes(searchVal) || r.product_line.toLowerCase().includes(searchVal));
         
-        let tableData = [];
-        let activeTable = 'global_variables';
-        let activeFilterGroup = 'Material';
-        let activeRowId = null;
+        const products = [...new Set(tableData.map(r => r.product_line))].filter(Boolean).sort();
+        let btnHtml = products.map(p => 
+            `<button onclick="window.fpProduct='${p}'; renderTable();" class="px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded shadow-sm transition ${window.fpProduct === p ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'}">${p}</button>`
+        ).join('');
 
-        window.onload = async function() {
-            const role = sessionStorage.getItem('signos_role');
-            if (role !== 'ADMIN' && role !== 'SUPER') {
-                alert("SECURITY VIOLATION: Master Data Engine is restricted to Administrators.");
-                window.location.href = 'menu.html';
-                return;
-            }
-            loadTable('global_variables', 'Material'); // Default landing page
+        thead.innerHTML = `<tr><th colspan="6" class="p-4 bg-slate-100 border-b border-gray-300 shadow-inner"><div class="flex flex-wrap gap-2">${btnHtml}</div></th></tr>`;
+
+        let displayData = filteredData.filter(r => r.product_line === window.fpProduct);
+        let singleData = displayData.filter(r => r.sides === 'Single');
+        let doubleData = displayData.filter(r => r.sides === 'Double');
+
+        const getArea = (dim) => {
+            if(!dim) return 0;
+            const [w, h] = dim.toLowerCase().split('x').map(Number);
+            return (w || 0) * (h || 0);
+        };
+        singleData.sort((a,b) => getArea(a.dimensions) - getArea(b.dimensions));
+        doubleData.sort((a,b) => getArea(a.dimensions) - getArea(b.dimensions));
+
+        const buildRows = (dataArr) => {
+            if(dataArr.length === 0) return `<tr><td colspan="4" class="p-6 text-center text-gray-400 italic font-bold">No records found.</td></tr>`;
+            return dataArr.map(row => {
+                const bulkPrice = (parseFloat(row.legacy_price || 0) * 0.95).toFixed(2);
+                return `<tr class="hover:bg-blue-50/50 transition border-b border-gray-100">
+                    <td class="p-2 text-xs font-bold text-gray-800">${row.dimensions}</td>
+                    <td class="p-2">
+                        <input type="number" step="0.01" id="fp-price-${row.id}" value="${row.legacy_price}" class="w-20 text-center border rounded p-1 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-fp-${row.id}').classList.remove('hidden')">
+                    </td>
+                    <td class="p-2 text-center font-mono font-bold text-blue-500 bg-gray-50 border-x border-gray-100">$${bulkPrice}</td>
+                    <td class="p-2 text-center">
+                        <button id="btn-fp-${row.id}" onclick="saveFixedPrice('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-2 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition">Save</button>
+                    </td>
+                </tr>`;
+            }).join('');
         };
 
-        // --- DYNAMIC TABLE ROUTER ---
-        async function loadTable(tableName, filterGroup) {
-            activeTable = tableName;
-            activeFilterGroup = filterGroup;
-
-            // UI Button Highlighting
-            document.querySelectorAll('.tab-btn').forEach(b => {
-                b.classList.remove('bg-gray-100', 'text-gray-900', 'border-l-4', 'border-blue-500');
-                b.classList.add('text-gray-500');
-            });
-            const activeBtn = document.getElementById(`btn-tab-${filterGroup}`);
-            if(activeBtn) {
-                activeBtn.classList.remove('text-gray-500');
-                activeBtn.classList.add('bg-gray-100', 'text-gray-900', 'border-l-4', 'border-blue-500');
-            }
-
-            document.getElementById('data-table').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-blue-500 font-bold animate-pulse text-xs uppercase tracking-widest">Fetching Data...</td></tr>`;
-            document.getElementById('search-filter').value = '';
-
-            try {
-                let queryUrl = `${SUPABASE_URL}/rest/v1/${tableName}?select=*`;
-                if(tableName === 'retail_curves') queryUrl += '&order=product_line.asc,sqft_min.asc';
-                else if(tableName === 'ref_retail_history') queryUrl += '&order=product_line.asc,dimensions.asc';
-
-                const res = await fetch(queryUrl, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                });
-
-                if (!res.ok) throw new Error("Failed to connect to database");
-                
-                tableData = await res.json();
-
-                // Pre-sort global variables by category so they group nicely
-                if (tableName === 'global_variables') {
-                    tableData.sort((a,b) => (a.category > b.category) ? 1 : ((b.category > a.category) ? -1 : 0));
-                }
-
-                renderTable();
-
-            } catch(e) {
-                document.getElementById('data-table').innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold text-xs uppercase tracking-widest">Error: ${e.message}</td></tr>`;
-            }
-        }
-
-        // --- RENDER ENGINE ---
-        function renderTable() {
-            const thead = document.getElementById('table-head');
-            const tbody = document.getElementById('data-table');
-            const legend = document.getElementById('table-legend');
-            const searchVal = document.getElementById('search-filter').value.toLowerCase();
-            let html = '';
-
-            // Apply Category Filtering for Global Variables
-            let filteredData = tableData;
-            if (activeTable === 'global_variables') {
-                if (activeFilterGroup === 'Material') {
-                    filteredData = tableData.filter(r => r.category === 'Material');
-                } else if (activeFilterGroup === 'Labor') {
-                    filteredData = tableData.filter(r => r.category === 'Labor' || r.category === 'Overhead');
-                } else if (activeFilterGroup === 'System') {
-                    filteredData = tableData.filter(r => r.category !== 'Material' && r.category !== 'Labor' && r.category !== 'Overhead');
-                }
-            }
-
-            // Apply Text Search Filter
-            if (searchVal) {
-                filteredData = filteredData.filter(r => {
-                    return JSON.stringify(r).toLowerCase().includes(searchVal);
-                });
-            }
-
-            if (filteredData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400 font-bold text-xs uppercase tracking-widest">No matching records found.</td></tr>`;
-                return;
-            }
-
-            // VIEW: VENDOR & SYSTEM VARIABLES
-            if (activeTable === 'global_variables') {
-                legend.innerHTML = 'Note: Manual overrides supersede System Actuals until cleared.';
-                thead.innerHTML = `<tr>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Variable ID</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Category</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Unit</th>
-                    <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">System Actual</th>
-                    <th class="p-3 text-[10px] font-black text-orange-600 uppercase tracking-widest text-right">Manual Override</th>
-                    <th class="p-3 text-center"></th>
-                </tr>`;
-
-                filteredData.forEach(row => {
-                    const hasOverride = row.override_value !== null && row.override_value !== undefined && row.override_value !== '';
-                    const cBadge = row.category === 'Material' ? 'bg-green-100 text-green-700' : 
-                                  (row.category === 'Labor' ? 'bg-purple-100 text-purple-700' : 
-                                  (row.category === 'Retail' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'));
-                    
-                    html += `<tr class="hover:bg-blue-50/50 transition group ${hasOverride ? 'bg-orange-50/30' : ''}">
-                        <td class="p-3">
-                            <div class="font-bold text-gray-800 text-xs">${row.id}</div>
-                            <div class="text-[9px] text-gray-500 mt-0.5 truncate max-w-[250px] italic">${row.notes || ''}</div>
-                        </td>
-                        <td class="p-3"><span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${cBadge}">${row.category}</span></td>
-                        <td class="p-3 text-center text-[10px] font-bold text-gray-400">${row.unit || ''}</td>
-                        <td class="p-3 text-right font-mono font-bold text-blue-600">${row.default_value}</td>
-                        <td class="p-3 text-right font-mono font-black ${hasOverride ? 'text-orange-600' : 'text-gray-300'}">${hasOverride ? row.override_value : '---'}</td>
-                        <td class="p-3 text-center">
-                            <button onclick="openModal('${row.id}')" class="bg-white border border-gray-300 hover:border-gray-500 text-gray-600 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition">Edit</button>
-                        </td>
-                    </tr>`;
-                });
-            }
-            
-            // VIEW: RETAIL CURVES
-            else if (activeTable === 'retail_curves') {
-                legend.innerHTML = 'Note: These algorithms dictate the auto-scaling market prices for standard signs.';
-                thead.innerHTML = `<tr>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Product Line</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Tier Condition</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">SqFt Range</th>
-                    <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">Price per SqFt ($)</th>
-                    <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">Hard Min ($)</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Action</th>
-                </tr>`;
-
-                filteredData.forEach(row => {
-                    html += `<tr class="hover:bg-blue-50/50 transition">
-                        <td class="p-3">
-                            <div class="font-bold text-gray-800 text-xs">${row.product_line}</div>
-                            <div class="text-[9px] text-gray-400 mt-0.5 font-mono">${row.id}</div>
-                        </td>
-                        <td class="p-3 text-center"><span class="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded uppercase tracking-widest">${row.condition}</span></td>
-                        <td class="p-3 text-center text-xs font-mono text-gray-500">${row.sqft_min} - ${row.sqft_max >= 999 ? 'MAX' : row.sqft_max}</td>
-                        <td class="p-3 text-right">
-                            <input type="number" step="0.01" id="rc-price-${row.id}" value="${row.price_per_sqft}" class="w-20 text-right border rounded p-1.5 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-rc-${row.id}').classList.remove('hidden')">
-                        </td>
-                        <td class="p-3 text-right">
-                            <input type="number" step="0.01" id="rc-min-${row.id}" value="${row.min_price}" class="w-20 text-right border rounded p-1.5 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-rc-${row.id}').classList.remove('hidden')">
-                        </td>
-                        <td class="p-3 text-center">
-                            <button id="btn-rc-${row.id}" onclick="saveCurve('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">
-                                Update
-                            </button>
-                        </td>
-                    </tr>`;
-                });
-            }
-
-        // VIEW: MASTER PRICE SHEET (FIXED RETAIL DICTIONARY)
-        else if (activeTable === 'ref_retail_history') {
-            legend.innerHTML = 'Note: These are the exact, fixed prices used by dictionary-first calculators.';
-
-            // 1. Dynamic Product Filters
-            window.fpProduct = window.fpProduct || '4mm Coroplast'; // Default selection
-            const products = [...new Set(tableData.map(r => r.product_line))].filter(Boolean).sort();
-            let btnHtml = products.map(p =>
-                `<button onclick="window.fpProduct='${p}'; renderTable();" class="px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded shadow-sm transition ${window.fpProduct === p ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'}">${p}</button>`
-            ).join('');
-
-            // Hide the standard thead and replace with the Filter Bar
-            thead.innerHTML = `<tr><th colspan="6" class="p-4 bg-slate-100 border-b border-gray-300 shadow-inner"><div class="flex flex-wrap gap-2">${btnHtml}</div></th></tr>`;
-
-            let displayData = filteredData.filter(r => r.product_line === window.fpProduct);
-            let singleData = displayData.filter(r => r.sides === 'Single');
-            let doubleData = displayData.filter(r => r.sides === 'Double');
-
-            // Sort by Physical Area
-            const getArea = (dim) => {
-                if(!dim) return 0;
-                const [w, h] = dim.toLowerCase().split('x').map(Number);
-                return (w || 0) * (h || 0);
-            };
-            singleData.sort((a,b) => getArea(a.dimensions) - getArea(b.dimensions));
-            doubleData.sort((a,b) => getArea(a.dimensions) - getArea(b.dimensions));
-
-            // Inner Row Builder
-            const buildRows = (dataArr) => {
-                if(dataArr.length === 0) return `<tr><td colspan="4" class="p-6 text-center text-gray-400 italic font-bold">No records found.</td></tr>`;
-                return dataArr.map(row => {
-                    const bulkPrice = (parseFloat(row.legacy_price || 0) * 0.95).toFixed(2);
-                    return `<tr class="hover:bg-blue-50/50 transition border-b border-gray-100">
-                        <td class="p-2 text-xs font-bold text-gray-800">${row.dimensions}</td>
-                        <td class="p-2">
-                            <input type="number" step="0.01" id="fp-price-${row.id}" value="${row.legacy_price}" class="w-20 text-center border rounded p-1 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-fp-${row.id}').classList.remove('hidden')">
-                        </td>
-                        <td class="p-2 text-center font-mono font-bold text-blue-500 bg-gray-50 border-x border-gray-100">$${bulkPrice}</td>
-                        <td class="p-2 text-center">
-                            <button id="btn-fp-${row.id}" onclick="saveFixedPrice('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-2 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition">Save</button>
-                        </td>
-                    </tr>`;
-                }).join('');
-            };
-
-            // Inject the Side-by-Side Handout Layout
-            html = `<tr><td colspan="6" class="p-0 border-none bg-gray-100">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 p-4">
-                    <!-- SINGLE SIDED TABLE -->
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="bg-slate-800 text-white text-center py-2.5 text-[10px] font-black uppercase tracking-widest">Single Sided</div>
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-50 border-b border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                                <tr>
-                                    <th class="p-2 w-1/4">Size</th>
-                                    <th class="p-2 w-1/4 text-center">Qty 1-9 ($)</th>
-                                    <th class="p-2 w-1/4 text-center text-blue-600">Qty 10+ ($)</th>
-                                    <th class="p-2 w-1/4 text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                ${buildRows(singleData)}
-                            </tbody>
-                        </table>
-                    </div>
-                    <!-- DOUBLE SIDED TABLE -->
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="bg-slate-800 text-white text-center py-2.5 text-[10px] font-black uppercase tracking-widest">Double Sided</div>
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-50 border-b border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                                <tr>
-                                    <th class="p-2 w-1/4">Size</th>
-                                    <th class="p-2 w-1/4 text-center">Qty 1-9 ($)</th>
-                                    <th class="p-2 w-1/4 text-center text-blue-600">Qty 10+ ($)</th>
-                                    <th class="p-2 w-1/4 text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                ${buildRows(doubleData)}
-                            </tbody>
-                        </table>
-                    </div>
+        html = `<tr><td colspan="6" class="p-0 border-none bg-gray-100">
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 p-4">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-slate-800 text-white text-center py-2.5 text-[10px] font-black uppercase tracking-widest">Single Sided</div>
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-50 border-b border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                            <tr><th class="p-2 w-1/4">Size</th><th class="p-2 w-1/4 text-center">Qty 1-9 ($)</th><th class="p-2 w-1/4 text-center text-blue-600">Qty 10+ ($)</th><th class="p-2 w-1/4 text-center">Action</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">${buildRows(singleData)}</tbody>
+                    </table>
                 </div>
-            </td></tr>`;
-        }
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-slate-800 text-white text-center py-2.5 text-[10px] font-black uppercase tracking-widest">Double Sided</div>
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-50 border-b border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                            <tr><th class="p-2 w-1/4">Size</th><th class="p-2 w-1/4 text-center">Qty 1-9 ($)</th><th class="p-2 w-1/4 text-center text-blue-600">Qty 10+ ($)</th><th class="p-2 w-1/4 text-center">Action</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">${buildRows(doubleData)}</tbody>
+                    </table>
+                </div>
+            </div>
+        </td></tr>`;
+    }
+    // VIEW: SYSTEM MODULES
+    else if (activeTable === 'system_modules') {
+        if (searchVal) filteredData = filteredData.filter(r => r.display_name.toLowerCase().includes(searchVal) || r.id.toLowerCase().includes(searchVal));
+        
+        legend.innerHTML = 'Note: SUPER role bypasses tag matrices. Git commits are auto-synced via CI/CD.';
+        thead.innerHTML = `<tr>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Module Info</th>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Dev Status</th>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Active Commit</th>
+            <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-left">Access Tags</th>
+            <th class="p-3 text-center">Action</th>
+        </tr>`;
 
-            // VIEW: SYSTEM MODULES (ROUTING / VERSIONS / DEPLOYMENT)
-            else if (activeTable === 'system_modules') {
-                legend.innerHTML = 'Note: SUPER role bypasses tag matrices. Git commits are auto-synced via CI/CD.';
-                thead.innerHTML = `<tr>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Module Info</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Dev Status</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Active Commit</th>
-                    <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-left">Access Tags</th>
-                    <th class="p-3 text-center">Action</th>
-                </tr>`;
-
-                filteredData.forEach(row => {
-                    const activeTags = row.access_tags || [];
-                    
-                    let tagsHtml = `<div class="space-y-3" id="sm-tags-${row.id}">`;
-                    
-                    // Render structured categories
-                    for (const [catName, tags] of Object.entries(TAG_CATEGORIES)) {
-                        tagsHtml += `<div>
-                            <div class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">${catName}</div>
-                            <div class="flex flex-wrap gap-1">`;
-                        
-                        tags.forEach(tag => {
-                            const isActive = activeTags.includes(tag);
-                            const bgClass = isActive ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-400 border-gray-200';
-                            const tagDesc = TAG_DICT[tag] || 'System Access Tag';
-                            tagsHtml += `<button title="${tagDesc}" onclick="toggleTag(this, '${row.id}', '${tag}')" data-active="${isActive}" class="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition ${bgClass}">${tag}</button>`;
-                        });
-                        
-                        tagsHtml += `</div></div>`;
-                    }
-                    
-                    // Isolate any custom strings (like specific employee IDs) not in the standard categories
-                    const standardTags = Object.values(TAG_CATEGORIES).flat();
-                    const customTags = activeTags.filter(t => !standardTags.includes(t));
-                    
-                    if (customTags.length > 0) {
-                        tagsHtml += `<div>
-                            <div class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Custom / Direct User Access</div>
-                            <div class="flex flex-wrap gap-1">`;
-                        customTags.forEach(tag => {
-                            tagsHtml += `<button title="Custom Identifier or Employee ID" onclick="toggleTag(this, '${row.id}', '${tag}')" data-active="true" class="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition bg-blue-100 text-blue-700 border-blue-300">${tag}</button>`;
-                        });
-                        tagsHtml += `</div></div>`;
-                    }
-
-                    tagsHtml += `</div>`;
-
-                    html += `<tr class="hover:bg-blue-50/50 transition">
-                        <td class="p-3 align-top">
-                            <div class="font-bold text-gray-800 text-sm flex items-center gap-2">
-                                <span class="bg-gray-100 p-1 rounded border border-gray-200 shadow-inner">${row.icon || '⚡'}</span>
-                                ${row.display_name}
-                            </div>
-                            <div class="text-[9px] text-gray-400 font-mono mt-1">${row.id} <br/> ${row.file_link || ''}</div>
-                        </td>
-                        <td class="p-3 text-center align-top">
-                            <select id="sm-status-${row.id}" class="text-[10px] font-black uppercase tracking-widest border border-gray-300 rounded p-1.5 outline-none focus:border-blue-500 bg-white" onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')">
-                                <option value="LIVE" ${row.dev_status==='LIVE'?'selected':''}>LIVE</option>
-                                <option value="FIX PENDING" ${row.dev_status==='FIX PENDING'?'selected':''}>FIX PENDING</option>
-                                <option value="DEV ONLY" ${row.dev_status==='DEV ONLY'?'selected':''}>DEV ONLY</option>
-                                <option value="NOT APPROVED" ${row.dev_status==='NOT APPROVED'?'selected':''}>NOT APPROVED</option>
-                            </select>
-                        </td>
-                        <td class="p-3 text-center align-top">
-                            <span class="font-mono text-[10px] bg-slate-100 border border-slate-200 px-2 py-1 rounded text-slate-600 shadow-inner block w-max mx-auto">
-                                ${row.active_commit ? '#' + row.active_commit.substring(0,7) : 'Auto via CI/CD'}
-                            </span>
-                        </td>
-                        <td class="p-3 align-top">${tagsHtml}</td>
-                        <td class="p-3 text-center align-top">
-                            <button id="btn-sm-${row.id}" onclick="saveSystemModule('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-3 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">
-                                Update
-                            </button>
-                        </td>
-                    </tr>`;
-                });
-            }
-
-            tbody.innerHTML = html;
-        }
-
-        // --- TAG TOGGLE HELPER ---
-        function toggleTag(btn, rowId, tag) {
-            const isActive = btn.getAttribute('data-active') === 'true';
-            if (isActive) {
-                btn.setAttribute('data-active', 'false');
-                btn.className = "px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition bg-gray-50 text-gray-400 border-gray-200";
-            } else {
-                btn.setAttribute('data-active', 'true');
-                btn.className = "px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition bg-blue-100 text-blue-700 border-blue-300";
-            }
-            document.getElementById(`btn-sm-${rowId}`).classList.remove('hidden');
-        }
-
-        // --- SAVING LOGIC (Retail Curves) ---
-        async function saveCurve(id) {
-            const btn = document.getElementById(`btn-rc-${id}`);
-            btn.innerText = "SAVING..."; btn.disabled = true;
-
-            const payload = {
-                price_per_sqft: parseFloat(document.getElementById(`rc-price-${id}`).value),
-                min_price: parseFloat(document.getElementById(`rc-min-${id}`).value)
-            };
-
-            try {
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/retail_curves?id=eq.${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error("Failed to write to database.");
-
-                // Log the action
-                fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                    body: JSON.stringify({
-                        user_id: sessionStorage.getItem('signos_user') || 'Admin',
-                        role: sessionStorage.getItem('signos_role') || 'ADMIN',
-                        action: 'UPDATE_RETAIL_CURVE',
-                        target: id,
-                        meta_data: payload
-                    })
-                });
-
-                btn.innerText = "SAVED";
-                btn.classList.replace('bg-blue-600', 'bg-green-500');
-
-                // Update local memory so search/re-render holds the new data
-                const row = tableData.find(r => r.id === id);
-                if (row) {
-                    row.price_per_sqft = payload.price_per_sqft;
-                    row.min_price = payload.min_price;
-                }
-
-                setTimeout(() => {
-                    btn.classList.add('hidden');
-                    btn.classList.replace('bg-green-500', 'bg-blue-600');
-                    btn.innerText = "UPDATE";
-                    btn.disabled = false;
-                }, 1500);
-
-            } catch (e) {
-                alert(e.message);
-                btn.innerText = "ERROR";
-                btn.classList.replace('bg-blue-600', 'bg-red-500');
-                setTimeout(() => { 
-                    btn.innerText = "UPDATE"; 
-                    btn.disabled = false; 
-                }, 2000);
-            }
-        }
-
-        // --- SAVING LOGIC (System Modules) ---
-        async function saveSystemModule(id) {
-            const btn = document.getElementById(`btn-sm-${id}`);
-            btn.innerText = "SAVING..."; btn.disabled = true;
-
-            let parsedTags = [];
-            // Target any button inside the tag container that is marked as active
-            document.querySelectorAll(`#sm-tags-${id} button`).forEach(b => {
-                if(b.getAttribute('data-active') === 'true') parsedTags.push(b.innerText);
-            });
-
-            const payload = {
-                dev_status: document.getElementById(`sm-status-${id}`).value,
-                access_tags: parsedTags
-            };
-
-            try {
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?id=eq.${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error("Failed to write to database.");
-
-                // Log the action
-                fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                    body: JSON.stringify({
-                        user_id: sessionStorage.getItem('signos_user') || 'Admin',
-                        role: sessionStorage.getItem('signos_role') || 'ADMIN',
-                        action: 'UPDATE_MODULE',
-                        target: id,
-                        meta_data: payload
-                    })
-                });
-
-                btn.innerText = "SAVED";
-                btn.classList.replace('bg-blue-600', 'bg-green-500');
-
-                // Update local memory
-                const row = tableData.find(r => r.id === id);
-                if (row) {
-                    row.dev_status = payload.dev_status;
-                    row.access_tags = payload.access_tags;
-                }
-
-                setTimeout(() => {
-                    btn.classList.add('hidden');
-                    btn.classList.replace('bg-green-500', 'bg-blue-600');
-                    btn.innerText = "UPDATE";
-                    btn.disabled = false;
-                }, 1500);
-
-            } catch (e) {
-                alert(e.message);
-                btn.innerText = "ERROR";
-                btn.classList.replace('bg-blue-600', 'bg-red-500');
-                setTimeout(() => { btn.innerText = "UPDATE"; btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.disabled = false; }, 2000);
-            }
-        }
-
-        // --- SAVING LOGIC (Global Variables) ---
-        function openModal(id) {
-            activeRowId = id;
-            const row = tableData.find(r => r.id === id);
+        filteredData.forEach(row => {
+            const activeTags = row.access_tags || [];
+            let tagsHtml = `<div class="space-y-3" id="sm-tags-${row.id}">`;
             
-            document.getElementById('mod-id').innerText = row.id;
-            document.getElementById('mod-desc').innerText = row.notes;
-            document.getElementById('mod-actual').value = row.default_value;
-            document.getElementById('mod-override').value = row.override_value !== null ? row.override_value : '';
-            document.getElementById('mod-reason').value = '';
-            
-            document.getElementById('override-modal').classList.remove('hidden');
-        }
-
-        function closeModal() { document.getElementById('override-modal').classList.add('hidden'); }
-
-        async function saveOverride() {
-            const val = document.getElementById('mod-override').value;
-            const reason = document.getElementById('mod-reason').value.trim();
-            const user = sessionStorage.getItem('signos_user') || 'Admin';
-
-            const payload = {
-                override_value: val === '' ? null : parseFloat(val),
-                updated_at: new Date().toISOString()
-            };
-
-            try {
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?id=eq.${activeRowId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                    body: JSON.stringify(payload)
+            for (const [categoryName, categoryTags] of Object.entries(TAG_CATEGORIES)) {
+                tagsHtml += `<div><div class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">${categoryName}</div><div class="flex flex-wrap gap-1">`;
+                categoryTags.forEach(tag => {
+                    const isActive = activeTags.includes(tag);
+                    const btnClass = isActive ? "bg-blue-100 text-blue-700 border-blue-300" : "bg-gray-50 text-gray-400 border-gray-200";
+                    tagsHtml += `<button title="${TAG_DICT[tag] || tag}" onclick="toggleTag(this, '${row.id}', '${tag}')" data-active="${isActive}" class="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition ${btnClass}">${tag}</button>`;
                 });
+                tagsHtml += `</div></div>`;
+            }
 
-                if (!res.ok) throw new Error("Database update failed.");
-
-                const logPayload = {
-                    user_id: user,
-                    role: sessionStorage.getItem('signos_role') || 'ADMIN',
-                    action: val === '' ? 'CLEAR_OVERRIDE' : 'SET_OVERRIDE',
-                    target: activeRowId,
-                    meta_data: { new_value: payload.override_value, reason: reason }
-                };
-
-                await fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                    body: JSON.stringify(logPayload)
+            const standardTags = Object.values(TAG_CATEGORIES).flat();
+            const customTags = activeTags.filter(t => !standardTags.includes(t));
+            if (customTags.length > 0) {
+                tagsHtml += `<div><div class="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Custom / Direct User Access</div><div class="flex flex-wrap gap-1">`;
+                customTags.forEach(tag => {
+                    tagsHtml += `<button title="Custom Identifier or Employee ID" onclick="toggleTag(this, '${row.id}', '${tag}')" data-active="true" class="px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition bg-blue-100 text-blue-700 border-blue-300">${tag}</button>`;
                 });
+                tagsHtml += `</div></div>`;
+            }
+            tagsHtml += `</div>`;
 
-                closeModal();
-                loadTable('global_variables', activeFilterGroup); // Refresh specific tab
-                
-            } catch (e) { alert(e.message); }
-        }
+            html += `<tr class="hover:bg-blue-50/50 transition border-b border-gray-100">
+                <td class="p-3">
+                    <div class="font-bold text-gray-800 text-xs">${row.display_name}</div>
+                    <div class="text-[9px] text-gray-400 font-mono mt-1">${row.id} <br/> ${row.file_link || ''}</div>
+                </td>
+                <td class="p-3 text-center align-top">
+                    <select id="sm-status-${row.id}" class="text-[10px] font-black uppercase tracking-widest border border-gray-300 rounded p-1.5 outline-none focus:border-blue-500 bg-white" onchange="document.getElementById('btn-sm-${row.id}').classList.remove('hidden')">
+                        <option value="LIVE" ${row.dev_status==='LIVE'?'selected':''}>LIVE</option>
+                        <option value="FIX PENDING" ${row.dev_status==='FIX PENDING'?'selected':''}>FIX PENDING</option>
+                        <option value="DEV ONLY" ${row.dev_status==='DEV ONLY'?'selected':''}>DEV ONLY</option>
+                        <option value="NOT APPROVED" ${row.dev_status==='NOT APPROVED'?'selected':''}>NOT APPROVED</option>
+                    </select>
+                </td>
+                <td class="p-3 text-center align-top">
+                    <span class="font-mono text-[10px] bg-slate-100 border border-slate-200 px-2 py-1 rounded text-slate-600 shadow-inner block w-max mx-auto">
+                        ${row.active_commit ? '#' + row.active_commit.substring(0,7) : 'Auto via CI/CD'}
+                    </span>
+                </td>
+                <td class="p-3 align-top">${tagsHtml}</td>
+                <td class="p-3 text-center align-top">
+                    <button id="btn-sm-${row.id}" onclick="saveSystemModule('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-3 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">Update</button>
+                </td>
+            </tr>`;
+        });
+    }
 
-        // --- SAVING LOGIC (Master Price Sheet) ---
+    tbody.innerHTML = html || `<tr><td colspan="6" class="p-8 text-center text-gray-400 italic font-bold">No records match your search.</td></tr>`;
+}
+
+function toggleTag(btn, rowId, tag) {
+    const isActive = btn.getAttribute('data-active') === 'true';
+    if (isActive) {
+        btn.setAttribute('data-active', 'false');
+        btn.className = "px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition bg-gray-50 text-gray-400 border-gray-200";
+    } else {
+        btn.setAttribute('data-active', 'true');
+        btn.className = "px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest transition bg-blue-100 text-blue-700 border-blue-300";
+    }
+    document.getElementById(`btn-sm-${rowId}`).classList.remove('hidden');
+}
+
+// --- SAVING LOGIC (Inline Global Variables) ---
+async function saveInlineOverride(id) {
+    const btn = document.getElementById(`btn-gv-${id}`);
+    const input = document.getElementById(`gv-override-${id}`);
+    const val = input.value;
+
+    btn.innerText = "SAVING..."; btn.disabled = true;
+
+    const payload = { override_value: val === '' ? null : parseFloat(val) };
+
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?id=eq.${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Database update failed.");
+
+        await fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({
+                user_id: sessionStorage.getItem('signos_user') || 'Admin',
+                role: sessionStorage.getItem('signos_role') || 'ADMIN',
+                action: val === '' ? 'CLEAR_OVERRIDE' : 'SET_OVERRIDE',
+                target: id,
+                meta_data: { new_value: payload.override_value }
+            })
+        });
+
+        btn.innerText = "SAVED";
+        btn.classList.replace('bg-orange-600', 'bg-green-500');
+
+        const row = tableData.find(r => r.id === id);
+        if (row) row.override_value = payload.override_value;
+
+        setTimeout(() => {
+            btn.classList.add('hidden');
+            btn.classList.replace('bg-green-500', 'bg-orange-600');
+            btn.disabled = false;
+            renderTable();
+        }, 1000);
+
+    } catch (e) { 
+        alert(e.message); 
+        btn.innerText = "ERROR"; 
+        btn.disabled = false; 
+    }
+}
+
+async function clearInlineOverride(id) {
+    document.getElementById(`gv-override-${id}`).value = '';
+    saveInlineOverride(id);
+}
+
+// --- SAVING LOGIC (Retail Curves) ---
+async function saveCurve(id) {
+    const btn = document.getElementById(`btn-rc-${id}`);
+    btn.innerText = "SAVING..."; btn.disabled = true;
+
+    const payload = {
+        price_per_sqft: parseFloat(document.getElementById(`rc-price-${id}`).value),
+        min_price: parseFloat(document.getElementById(`rc-min-${id}`).value)
+    };
+
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/retail_curves?id=eq.${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Failed to write to database.");
+
+        fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({
+                user_id: sessionStorage.getItem('signos_user') || 'Admin',
+                role: sessionStorage.getItem('signos_role') || 'ADMIN',
+                action: 'UPDATE_RETAIL_CURVE',
+                target: id,
+                meta_data: payload
+            })
+        });
+
+        btn.innerText = "SAVED";
+        btn.classList.replace('bg-blue-600', 'bg-green-500');
+        const row = tableData.find(r => r.id === id);
+        if (row) { row.price_per_sqft = payload.price_per_sqft; row.min_price = payload.min_price; }
+
+        setTimeout(() => {
+            btn.classList.add('hidden');
+            btn.classList.replace('bg-green-500', 'bg-blue-600');
+            btn.disabled = false;
+        }, 1500);
+
+    } catch(e) {
+        alert("Error: " + e.message);
+        btn.innerText = "UPDATE"; btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.disabled = false;
+    }
+}
+
+// --- SAVING LOGIC (System Modules) ---
+async function saveSystemModule(id) {
+    const btn = document.getElementById(`btn-sm-${id}`);
+    btn.innerText = "SAVING..."; btn.disabled = true;
+    let parsedTags = [];
+
+    document.querySelectorAll(`#sm-tags-${id} button`).forEach(b => {
+        if(b.getAttribute('data-active') === 'true') parsedTags.push(b.innerText);
+    });
+
+    const payload = {
+        dev_status: document.getElementById(`sm-status-${id}`).value,
+        access_tags: parsedTags
+    };
+
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?id=eq.${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Failed to write to database.");
+
+        fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({
+                user_id: sessionStorage.getItem('signos_user') || 'Admin',
+                role: sessionStorage.getItem('signos_role') || 'ADMIN',
+                action: 'UPDATE_MODULE',
+                target: id,
+                meta_data: payload
+            })
+        });
+
+        btn.innerText = "SAVED";
+        btn.classList.replace('bg-blue-600', 'bg-green-500');
+        const row = tableData.find(r => r.id === id);
+        if (row) { row.dev_status = payload.dev_status; row.access_tags = payload.access_tags; }
+
+        setTimeout(() => {
+            btn.classList.add('hidden');
+            btn.classList.replace('bg-green-500', 'bg-blue-600');
+            btn.disabled = false;
+        }, 1500);
+
+    } catch(e) {
+        alert("Error: " + e.message);
+        btn.innerText = "UPDATE"; btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.disabled = false;
+    }
+}
+
+// --- SAVING LOGIC (Master Price Sheet) ---
 async function saveFixedPrice(id) {
     const btn = document.getElementById(`btn-fp-${id}`);
     btn.innerText = "SAVING..."; btn.disabled = true;
 
-    const payload = {
-        legacy_price: parseFloat(document.getElementById(`fp-price-${id}`).value)
-    };
+    const payload = { legacy_price: parseFloat(document.getElementById(`fp-price-${id}`).value) };
 
     try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?id=eq.${id}`, {
@@ -705,7 +576,6 @@ async function saveFixedPrice(id) {
 
         if (!res.ok) throw new Error("Failed to write to database.");
 
-        // Log the action securely
         fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
@@ -720,31 +590,22 @@ async function saveFixedPrice(id) {
 
         btn.innerText = "SAVED";
         btn.classList.replace('bg-blue-600', 'bg-green-500');
-
-        // Update local memory so search doesn't wipe the change
         const row = tableData.find(r => r.id === id);
         if (row) row.legacy_price = payload.legacy_price;
 
         setTimeout(() => {
             btn.classList.add('hidden');
             btn.classList.replace('bg-green-500', 'bg-blue-600');
-            btn.innerText = "Update";
             btn.disabled = false;
+            renderTable();
         }, 1500);
 
-    } catch (e) {
-        alert(e.message);
-        btn.innerText = "ERROR";
-        btn.classList.replace('bg-blue-600', 'bg-red-500');
-        setTimeout(() => { btn.innerText = "Update"; btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.disabled = false; }, 2000);
+    } catch(e) {
+        alert("Error: " + e.message);
+        btn.innerText = "Save"; btn.classList.replace('bg-red-500', 'bg-blue-600'); btn.disabled = false;
     }
 }
 
-        function clearOverride() {
-            document.getElementById('mod-override').value = '';
-            document.getElementById('mod-reason').value = '';
-            saveOverride();
-        }
-    </script>
+</script>
 </body>
 </html>
