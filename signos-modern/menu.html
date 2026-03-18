@@ -106,95 +106,101 @@
         };
 
         // 3. RENDER LOGIC
-        function renderMenu(data, role) {
-            const container = document.getElementById('menu-container');
-            container.innerHTML = "";
+function renderMenu(data, role) {
+    const container = document.getElementById('menu-container');
+    container.innerHTML = "";
 
-            const cats = [...new Set(data.map(i => val(i, 'Category')))].filter(c => c);
-            const sortOrder = ["Rigid Signs", "Roll Media", "ADA", "Services", "System"];
-            
-            cats.sort((a,b) => {
-                let ia = sortOrder.indexOf(a); let ib = sortOrder.indexOf(b);
-                if(ia === -1) ia = 99; if(ib === -1) ib = 99;
-                return ia - ib;
-            });
+    // 1. Setup our new Section Buckets
+    const sections = {
+        "Sales Hub": [],
+        "Production Hub": [],
+        "Administration Hub": [],
+        "Overwatch (Super)": []
+    };
 
-            cats.forEach(cat => {
-                const section = document.createElement('div');
-                section.innerHTML = `
-                    <div class="flex items-center gap-2 mb-3">
-                        <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${cat}</h2>
-                        <div class="h-px bg-gray-200 flex-1"></div>
-                    </div>
-                `;
-                const grid = document.createElement('div');
-                grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3";
+    // 2. Sort modules into buckets based on their Access Tags
+    data.forEach(mod => {
+        const tags = val(mod, 'Access_Tags') || [];
+        const devStatus = val(mod, 'Dev_Status');
+        let isAllowed = false;
 
-                data.filter(i => val(i, 'Category') === cat).forEach(mod => {
-                    const tags = val(mod, 'Access_Tags') || [];
-                    const devStatus = val(mod, 'Dev_Status');
-                    let isAllowed = false;
-                    
-                    // Retrieve full identity from session storage
-                    const userId = sessionStorage.getItem('signos_user_id');
-                    const deptId = sessionStorage.getItem('signos_dept');
+        const userId = sessionStorage.getItem('signos_user_id');
+        const deptId = sessionStorage.getItem('signos_dept');
 
-                    if (role === 'SUPER') {
-                        isAllowed = true; // Overwatch sees everything
-                    } else if (devStatus === 'LIVE') {
-                        // Check if user has access via their Role, Department, OR specific User ID
-                        if (tags.includes(role) || tags.includes(deptId) || tags.includes(userId)) {
-                            isAllowed = true;
-                        }
-                    }
-
-                    if (!isAllowed) return;
-
-                    // FIX: Replaced dropped manual versions with the Git Commit tracker
-                    const activeCommit = val(mod, 'Active_Commit');
-                    let verText = activeCommit ? '#' + activeCommit.substring(0,7) : "Auto-Sync";
-                    let verClass = devStatus === 'LIVE' ? "bg-green-100 text-green-800 border-green-200" : "bg-orange-100 text-orange-800 border-orange-200";
-
-                    if (devStatus !== 'LIVE' && devStatus !== 'DEV ONLY') {
-                         verText = devStatus; // Show "FIX PENDING" etc.
-                    }
-
-                    const displayName = val(mod, 'Display_Name');
-                    const fileLink = val(mod, 'File_Link');
-                    const iconRaw = val(mod, 'Icon') || 'blue';
-                    const iconClass = ICON_STYLES[iconRaw] || ICON_STYLES['blue'];
-                    const iconPath = val(mod, 'Icon_Path') || '<path d="M13 10V3L4 14h7v7l9-11h-7z"/>'; 
-
-                    const link = document.createElement('a');
-                    link.href = fileLink;
-                    link.className = "bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-blue-500 hover:shadow-md transition active:scale-[0.98] flex items-center justify-between group";
-                    link.innerHTML = `
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-lg ${iconClass} flex items-center justify-center shrink-0 border border-current/10">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    ${iconPath}
-                                </svg>
-                            </div>
-                            <div class="flex flex-col">
-                                <span class="font-black text-gray-800 text-sm tracking-tight group-hover:text-blue-600 transition">${displayName}</span>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${verClass}">${verText}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-gray-300">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7-7"></path></svg>
-                        </div>
-                    `;
-                    grid.appendChild(link);
-                });
-
-                if (grid.children.length > 0) {
-                    section.appendChild(grid);
-                    container.appendChild(section);
-                }
-            });
+        if (role === 'SUPER') {
+            isAllowed = true;
+        } else if (devStatus === 'LIVE') {
+            if (tags.includes(role) || tags.includes(deptId) || tags.includes(userId)) {
+                isAllowed = true;
+            }
         }
+
+        if (!isAllowed) return;
+
+        // Route to specific section
+        if (tags.includes('SALES')) sections["Sales Hub"].push(mod);
+        else if (tags.includes('PROD')) sections["Production Hub"].push(mod);
+        else if (tags.includes('ADMIN')) sections["Administration Hub"].push(mod);
+        else sections["Overwatch (Super)"].push(mod);
+    });
+
+    // 3. Render the sections
+    for (const [secName, mods] of Object.entries(sections)) {
+        if (mods.length === 0) continue;
+
+        const section = document.createElement('div');
+        section.innerHTML = `
+            <div class="flex items-center gap-2 mb-3">
+                <h2 class="text-[10px] font-black text-blue-500 uppercase tracking-widest">${secName}</h2>
+                <div class="h-px bg-gray-200 flex-1"></div>
+            </div>
+        `;
+
+        const grid = document.createElement('div');
+        grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3";
+
+        mods.forEach(mod => {
+            const devStatus = val(mod, 'Dev_Status');
+            const activeCommit = val(mod, 'Active_Commit');
+            let verText = activeCommit ? '#' + activeCommit.substring(0,7) : "Auto-Sync";
+            let verClass = devStatus === 'LIVE' ? "bg-green-100 text-green-800 border-green-200" : "bg-orange-100 text-orange-800 border-orange-200";
+            
+            if (devStatus !== 'LIVE' && devStatus !== 'DEV ONLY') {
+                verText = devStatus;
+                verClass = "bg-red-100 text-red-800 border-red-200";
+            }
+
+            const displayName = val(mod, 'Display_Name') || "Unnamed Module";
+            const fileLink = val(mod, 'File_Link') || "#";
+            const icon = val(mod, 'Icon') || 'slate';
+            const iconPath = val(mod, 'Icon_Path') || '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>';
+            const iStyle = ICON_STYLES[icon] || ICON_STYLES['slate'];
+
+            const link = document.createElement('a');
+            link.href = fileLink;
+            link.className = `bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-400 transition group flex justify-between items-center ${devStatus !== 'LIVE' && role !== 'SUPER' ? 'opacity-50 pointer-events-none' : ''}`;
+            
+            link.innerHTML = `
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center shadow-inner border border-gray-100 ${iStyle}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">${iconPath}</svg>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-black text-gray-800 text-sm tracking-tight group-hover:text-blue-600 transition">${displayName}</span>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${verClass}">${verText}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-gray-300"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7-7"></path></svg></div>
+            `;
+            grid.appendChild(link);
+        });
+
+        section.appendChild(grid);
+        container.appendChild(section);
+    }
+}
 
         // 4. MAIN INIT
         window.onload = async function() {
