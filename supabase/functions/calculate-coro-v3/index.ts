@@ -32,8 +32,10 @@ Deno.serve(async (req: any) => {
         
         const ret: any[] = [];
         const cst: any[] = [];
+        
         const R = (label: string, total: number, formula: string) => { if (total > 0) ret.push({label, total, formula}); return total; };
-        const L = (label: string, total: number, formula: string) => { if (total > 0) cst.push({label, total, formula}); return total; };
+        // UPGRADED: Added the 'category' parameter to group hard costs
+        const L = (label: string, total: number, formula: string, category: string) => { if (total > 0) cst.push({label, total, formula, category}); return total; };
 
         let grandTotalRetail = 0;
         let totalHardCost = 0;
@@ -42,7 +44,7 @@ Deno.serve(async (req: any) => {
         let stakeTotal = 0;
 
         // ==========================================
-        // TIER 1: RETAIL ENGINE
+        // TIER 1: RETAIL ENGINE (Strict Dictionary)
         // ==========================================
         if (auditMode === 'full' || auditMode === 'retail_only') {
             let exactPrice = 0; 
@@ -86,7 +88,6 @@ Deno.serve(async (req: any) => {
                 R(`Oversized Print (${billedSqFt} SF)`, printTotal, `Area Fallback Math`);
             }
 
-            // DYNAMIC ADD-ONS
             if (inputs.shape === 'CNC Simple') {
                 routerFee = parseFloat(config.Retail_Fee_Router_Easy || "30");
                 R(`CNC Router Fee`, routerFee, `Simple Shape Fee`);
@@ -118,7 +119,7 @@ Deno.serve(async (req: any) => {
         }
 
         // ==========================================
-        // TIER 2: PHYSICS ENGINE (HARD COST)
+        // TIER 2: PHYSICS ENGINE (HARD COST WITH LABOR)
         // ==========================================
         if (auditMode === 'full' || auditMode === 'cost_only') {
             const actualSqFt = (reqW * reqH) / 144;
@@ -126,19 +127,41 @@ Deno.serve(async (req: any) => {
             const sheetCost = is10mm ? parseFloat(config.Cost_Stock_10mm_4x8 || "33.49") : parseFloat(config.Cost_Stock_4mm_4x8 || "8.40");
             const wastePct = parseFloat(config.Waste_Factor || "1.15");
             const riskFactor = parseFloat(config.Factor_Risk || "1.05");
+            const rateOp = parseFloat(config.Rate_Operator || "25");
+            const rateShop = parseFloat(config.Rate_Shop_Labor || "20");
 
             const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
             const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
             const bestYield = Math.max(yieldX, yieldY, 1);
             const rawBlanks = (qty / bestYield) * sheetCost;
 
-            L(`Coroplast Blanks (${thk})`, rawBlanks * wastePct, `${qty} Qty / ${bestYield} Yield * $${sheetCost.toFixed(2)}/Sht * Waste`);
-            L(`Flatbed Ink`, totalActualSqFt * parseFloat(config.Cost_Ink_Latex || "0.16") * reqSides * wastePct, `Actual SF * Ink Cost * Sides * Waste`);
+            // 1. Materials
+            L(`Coroplast Blanks (${thk})`, rawBlanks * wastePct, `${qty} Qty / ${bestYield} Yield * $${sheetCost.toFixed(2)}/Sht * Waste`, 'Materials');
+            L(`Flatbed Ink`, totalActualSqFt * parseFloat(config.Cost_Ink_Latex || "0.16") * reqSides * wastePct, `Actual SF * Ink Cost * Sides * Waste`, 'Materials');
 
+            // 2. Hardware
             if (inputs.hardware === 'H-Stakes') {
-                L(`Standard H-Stakes`, qty * parseFloat(config.Cost_Stake_Std || "0.65"), `${qty}x Stakes * Cost`);
+                L(`Standard H-Stakes`, qty * parseFloat(config.Cost_Stake_Std || "0.65"), `${qty}x Stakes * Cost`, 'Hardware');
             } else if (inputs.hardware === 'HD-Stakes') {
-                L(`Heavy Duty Stakes`, qty * parseFloat(config.Cost_Stake_HD || "1.85"), `${qty}x Stakes * Cost`);
+                L(`Heavy Duty Stakes`, qty * parseFloat(config.Cost_Stake_HD || "1.85"), `${qty}x Stakes * Cost`, 'Hardware');
+            }
+
+            // 3. Labor
+            L(`Job Setup (File RIP)`, (parseFloat(config.Time_Setup_Job || "15") / 60) * rateOp, `15 Mins * $${rateOp}/hr`, 'Labor');
+            
+            const printHrs = ((reqH / 12) * qty / parseFloat(config.Machine_Speed_LF_Hr || "25")) * reqSides;
+            L(`Flatbed Operator (10% Attn)`, printHrs * rateOp * parseFloat(config.Labor_Attendance_Ratio || "0.10"), `${printHrs.toFixed(2)} Hrs * $${rateOp}/hr * 10%`, 'Labor');
+            L(`Flatbed Machine Run`, printHrs * parseFloat(config.Rate_Machine_Flatbed || "10"), `${printHrs.toFixed(2)} Hrs * $10/hr`, 'Labor');
+
+            if (inputs.shape === 'CNC Simple' || inputs.shape === 'CNC Complex') {
+                const cncTime = inputs.shape === 'CNC Simple' ? parseFloat(config.Time_CNC_Easy_SqFt || "1") : parseFloat(config.Time_CNC_Complex_SqFt || "2");
+                const cutHrs = (totalActualSqFt * cncTime) / 60;
+                L(`CNC Router Setup`, (parseFloat(config.Time_Setup_CNC || "10") / 60) * parseFloat(config.Rate_CNC_Labor || "25"), `10 Mins * $25/hr`, 'Labor');
+                L(`CNC Router Run`, cutHrs * parseFloat(config.Rate_Machine_CNC || "10"), `${cutHrs.toFixed(2)} Hrs * $10/hr`, 'Labor');
+            } else {
+                const shearSetup = parseFloat(config.Time_Shear_Setup || "5");
+                L(`Shear Machine Setup`, (shearSetup / 60) * rateShop, `${shearSetup} Mins * $${rateShop}/hr`, 'Labor');
+                L(`Shear Run (4 Cuts/Ea)`, ((qty * 4 * parseFloat(config.Time_Shear_Cut || "1")) / 60) * rateShop, `${qty * 4} Cuts * 1 Min * $${rateShop}/hr`, 'Labor');
             }
 
             totalHardCost = cst.reduce((sum, i) => sum + i.total, 0) * riskFactor;
