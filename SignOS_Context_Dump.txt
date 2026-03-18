@@ -1,7 +1,13 @@
 SIGNOS REPOSITORY STATE
-Generated: 2026-03-14T13:22:38.524Z
+Generated: 2026-03-18T12:02:32.991Z
 
 ├── .cursorrules
+├── .github
+│   └── workflows
+│       ├── deploy-functions.yml
+│       ├── nightly-health-check.yml
+│       ├── sync-changelog.yml
+│       └── sync-roadmap.yml
 ├── .vscode
 │   ├── extensions.json
 │   └── settings.json
@@ -9,35 +15,38 @@ Generated: 2026-03-14T13:22:38.524Z
 ├── SignOS_Context_Dump.txt
 ├── docs
 │   └── 6430_Repository_Architecture.md
+├── live_database_export.sql
 ├── package.json
 ├── signos-modern
-│   ├── .github
-│   │   └── workflows
-│   │       └── deploy-functions.yml
 │   ├── .gitignore
 │   ├── Calculator_ACM.html
 │   ├── Calculator_ADA.html
 │   ├── Calculator_Acrylic.html
 │   ├── Calculator_Banner.html
 │   ├── Calculator_BulkNameplates.html
-│   ├── Calculator_BulkNameplates_SVGTest.html
 │   ├── Calculator_Coro.html
 │   ├── Calculator_CutVinyl.html
 │   ├── Calculator_Decal.html
 │   ├── Calculator_Engraved.html
 │   ├── Calculator_Foam.html
 │   ├── Calculator_Nameplate.html
-│   ├── Calculator_Nameplate_Quote.html
-│   ├── Calculator_Nameplate_SVGTest.html
 │   ├── Calculator_PVC.html
 │   ├── Calculator_PostPanel.html
 │   ├── Calculator_Wall.html
 │   ├── Calculator_Wrap.html
 │   ├── Calculator_YardSign.html
+│   ├── Omni_Terminal.html
 │   ├── admin_analytics.html
+│   ├── admin_audit.html
 │   ├── admin_backup.html
 │   ├── admin_changelog.html
+│   ├── admin_database.html
+│   ├── admin_product_forge.html
 │   ├── admin_roadmap.html
+│   ├── admin_security_matrix.html
+│   ├── admin_simulator.html
+│   ├── admin_staff.html
+│   ├── admin_system.html
 │   ├── admin_viewer.html
 │   ├── docs.html
 │   ├── fonts
@@ -54,6 +63,9 @@ Generated: 2026-03-14T13:22:38.524Z
 │   ├── signos-builder.js
 │   ├── signos-canvas.js
 │   ├── signos-core.js
+│   ├── signos-sandbox.js
+│   ├── signos-ui.js
+│   ├── signos-view-svg.js
 ├── supabase
 │   ├── .branches
 │   │   └── _current_branch
@@ -63,11 +75,51 @@ Generated: 2026-03-14T13:22:38.524Z
 │   │   │   ├── .npmrc
 │   │   │   ├── deno.json
 │   │   │   └── index.ts
+│   │   ├── calculate-acrylic
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
 │   │   ├── calculate-ada
 │   │   │   ├── .npmrc
 │   │   │   ├── deno.json
 │   │   │   └── index.ts
+│   │   ├── calculate-banner
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
 │   │   ├── calculate-coro
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   ├── calculate-cut
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   ├── calculate-decal
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   ├── calculate-foam
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   ├── calculate-nameplate
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   ├── calculate-post-panel
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   ├── calculate-pvc
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   ├── calculate-wall
+│   │   │   ├── .npmrc
+│   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   ├── calculate-wrap
 │   │   │   ├── .npmrc
 │   │   │   ├── deno.json
 │   │   │   └── index.ts
@@ -79,4 +131,5 @@ Generated: 2026-03-14T13:22:38.524Z
 │       ├── 20260312175500_remote_schema.sql
 │       └── 20260312184436_remote_schema.sql
 └── tools
+    ├── backfill-commits.cjs
     └── generate-context.cjs
