@@ -9,128 +9,93 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         if (sessionStorage.getItem("signos_user")) {
-            const role = sessionStorage.getItem("signos_role");
-            let mode = (role === 'PROD') ? 'production' : (role === 'ADMIN' || role === 'SUPER' ? 'admin' : 'sales');
-            window.location.href = `menu.html?mode=${mode}`;
+            window.location.href = "menu.html";
         }
     </script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 font-sans">
+<body class="bg-gray-100 h-screen flex items-center justify-center font-sans">
 
-    <div class="max-w-sm w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200" id="login-card">
-        <div class="bg-gray-900 px-6 py-8 text-center flex flex-col items-center">
-            <!-- REPLACE THE SRC ATTRIBUTE WITH YOUR ACTUAL LOGO URL -->
-            <img src="https://signos.zublinsystems.com/sign_store_logo_cloudflare_v02.svg" alt="The Sign Store" class="h-10 mb-4 object-contain">
-            <h1 class="text-2xl font-black text-white tracking-tight leading-none">SignOS ERP <span class="text-blue-500 text-sm">v4.0</span></h1>
-            <div class="text-[9px] font-bold text-gray-400 mt-2 tracking-widest uppercase">Secure Access Gateway</div>
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-200">
+        
+        <div class="bg-gray-900 text-white p-6 text-center border-b border-gray-800">
+            <div class="w-16 h-16 mx-auto bg-blue-600 rounded-full flex items-center justify-center font-black text-2xl shadow-inner border-2 border-blue-400 mb-3">OS</div>
+            <h1 class="text-2xl font-black tracking-tight">SignOS v4.0</h1>
+            <div class="text-[10px] font-bold text-gray-400 mt-1 tracking-widest uppercase">Secure Access Gateway</div>
         </div>
 
-        <form id="login-form" class="p-6 space-y-5 relative">
-            <div id="reset-success" class="hidden absolute top-0 left-0 right-0 bg-green-100 text-green-800 text-[10px] font-black p-2 text-center uppercase tracking-widest border-b border-green-200">Reset Link Sent to Email</div>
-            
+        <form id="login-form" class="p-6 space-y-5">
             <div>
-                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Company Email</label>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email / Access ID</label>
                 <input type="email" id="email" required class="w-full border border-gray-300 p-3 rounded-lg text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-inner bg-gray-50" placeholder="user@signstoremacon.com">
             </div>
-            
             <div>
-                <div class="flex justify-between items-end mb-1">
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase">Secure Password</label>
-                    <button type="button" onclick="triggerPasswordReset()" class="text-[10px] font-bold text-blue-600 hover:text-blue-800 transition">Forgot Password?</button>
-                </div>
-                <input type="password" id="password" required class="w-full border border-gray-300 p-3 rounded-lg text-sm font-bold text-center tracking-widest text-gray-800 focus:border-blue-500 shadow-inner bg-gray-50">
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Password</label>
+                <input type="password" id="password" required class="w-full border border-gray-300 p-3 rounded-lg text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-inner bg-gray-50" placeholder="••••••••">
             </div>
 
-            <button type="submit" id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-lg shadow-md transition uppercase tracking-widest text-xs flex justify-center items-center gap-2">
-                Authenticate
+            <button type="submit" id="btn-go" class="w-full h-12 mt-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-bold text-white shadow-md transition uppercase tracking-widest">
+                Authorize
             </button>
 
             <div id="status-msg" class="mt-4 text-center text-[10px] font-bold text-gray-400 h-4 uppercase tracking-wide">AWAITING CREDENTIALS</div>
         </form>
     </div>
 
-    <script>
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // --- PASSWORD RESET LOGIC ---
-        async function triggerPasswordReset() {
-            const email = document.getElementById('email').value.trim();
-            const msg = document.getElementById('status-msg');
-            if (!email) {
-                msg.innerText = "ENTER EMAIL ABOVE FIRST";
-                msg.className = "mt-4 text-center text-[10px] font-bold text-red-500 h-4 uppercase tracking-wide";
-                return;
-            }
-            msg.innerText = "SENDING RESET LINK...";
-            msg.className = "mt-4 text-center text-[10px] font-bold text-blue-500 h-4 uppercase tracking-wide";
-            
-            const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: 'https://signos-v3-supabase.vercel.app/index.html',
-            });
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('btn-go');
+    const msg = document.getElementById('status-msg');
 
-            if (error) {
-                msg.innerText = error.message.toUpperCase();
-                msg.className = "mt-4 text-center text-[10px] font-bold text-red-500 h-4 uppercase tracking-wide";
-            } else {
-                document.getElementById('reset-success').classList.remove('hidden');
-                msg.innerText = "AWAITING CREDENTIALS";
-                msg.className = "mt-4 text-center text-[10px] font-bold text-gray-400 h-4 uppercase tracking-wide";
-            }
-        }
+    btn.disabled = true;
+    msg.innerText = "AUTHENTICATING...";
+    msg.className = "mt-4 text-center text-[10px] font-bold text-blue-500 h-4 uppercase tracking-wide animate-pulse";
 
-        // --- LOGIN LOGIC ---
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('login-btn');
-            const msg = document.getElementById('status-msg');
-            const email = document.getElementById('email').value.trim();
-            const pass = document.getElementById('password').value;
+    // 1. Authenticate with Supabase Auth
+    const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+    });
 
-            btn.disabled = true;
-            btn.innerHTML = `<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> DECRYPTING...`;
-            msg.innerText = "ESTABLISHING SECURE CONNECTION";
-            msg.className = "mt-4 text-center text-[10px] font-bold text-blue-500 h-4 uppercase tracking-wide animate-pulse";
+    if (authError || !authData.user) {
+        msg.innerText = "ACCESS DENIED";
+        msg.className = "mt-4 text-center text-[10px] font-bold text-red-500 h-4 uppercase tracking-wide";
+        btn.disabled = false;
+        return;
+    }
 
-            // 1. Authenticate via Supabase Auth
-            const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email: email, password: pass });
+    // 2. Fetch specific role, ID, last name, and department
+    const { data: staffData, error: staffError } = await supabaseClient
+        .from('staff')
+        .select('id, first_name, last_name, role, department_id')
+        .eq('id', authData.user.id)
+        .single();
 
-            if (authError || !authData.user) {
-                msg.innerText = "ACCESS DENIED: INVALID CREDENTIALS";
-                msg.className = "mt-4 text-center text-[10px] font-bold text-red-500 h-4 uppercase tracking-wide";
-                btn.innerHTML = "AUTHENTICATE";
-                btn.disabled = false;
-                return;
-            }
+    if (staffError || !staffData) {
+        msg.innerText = "ACCOUNT NOT MAPPED";
+        msg.className = "mt-4 text-center text-[10px] font-bold text-red-500 h-4 uppercase tracking-wide";
+        btn.disabled = false;
+        return;
+    }
 
-            // 2. Fetch specific role, ID, and department from staff table
-            const { data: staffData, error: staffError } = await supabaseClient
-                .from('staff')
-                .select('id, first_name, role, department_id')
-                .eq('id', authData.user.id)
-                .single();
+    // 3. Set Session Storage and Forward
+    msg.innerText = `WELCOME, ${staffData.first_name.toUpperCase()}`;
+    msg.className = "mt-4 text-center text-[10px] font-bold text-green-600 h-4 uppercase tracking-wide";
 
-            if (staffError || !staffData) {
-                msg.innerText = "ACCOUNT NOT MAPPED";
-                msg.className = "mt-4 text-center text-[10px] font-bold text-red-500 h-4 uppercase tracking-wide";
-                btn.innerHTML = "AUTHENTICATE";
-                btn.disabled = false;
-                return;
-            }
+    sessionStorage.setItem("signos_user", staffData.first_name);
+    sessionStorage.setItem("signos_user_last", staffData.last_name || ""); 
+    sessionStorage.setItem("signos_user_id", staffData.id);
+    sessionStorage.setItem("signos_dept", staffData.department_id || "UNASSIGNED");
+    sessionStorage.setItem("signos_role", staffData.role);
+    sessionStorage.setItem("supabase.auth.token", authData.session.access_token);
 
-            // 3. Set Session Storage and Forward
-            msg.innerText = `WELCOME, ${staffData.first_name.toUpperCase()}`;
-            msg.className = "mt-4 text-center text-[10px] font-bold text-green-600 h-4 uppercase tracking-wide";
-            
-            sessionStorage.setItem("signos_user", staffData.first_name);
-            sessionStorage.setItem("signos_user_id", staffData.id);
-            sessionStorage.setItem("signos_dept", staffData.department_id);
-            sessionStorage.setItem("signos_role", staffData.role);
-
-            setTimeout(() => {
-                let mode = (staffData.role === 'PROD') ? 'production' : (staffData.role === 'ADMIN' || staffData.role === 'SUPER' ? 'admin' : 'sales');
-                window.location.href = `menu.html?mode=${mode}`;
-            }, 800);
-        });
-    </script>
+    setTimeout(() => { window.location.href = "menu.html"; }, 800);
+});
+</script>
 </body>
 </html>

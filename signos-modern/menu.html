@@ -9,17 +9,8 @@
 </head>
 <body class="bg-gray-50 min-h-screen font-sans flex flex-col pb-10">
 
-    <!-- TOP UTILITY BAR (Matches Calculators) -->
-    <div class="bg-gray-800 px-4 py-1 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700 shrink-0">
-        <div class="flex gap-2 items-center">
-            <span>USER: <a href="user_profile.html" class="text-gray-200 uppercase hover:text-white hover:underline transition" id="auth-user">---</a></span>
-            <span>ROLE: <b class="text-blue-400 uppercase" id="auth-role">---</b></span>
-            <span id="super-badge" class="hidden text-[8px] font-black bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 ml-2 leading-none">OVERWATCH</span>
-        </div>
-        <button onclick="logout()" class="hover:text-white font-bold uppercase transition flex items-center gap-1">
-            Logout
-        </button>
-    </div>
+    <!-- TOP UTILITY BAR (Injected via JS below to match Avatar system) -->
+    <div id="menu-header-container"></div>
 
     <!-- MAIN NAV BAR (Matches Calculators) -->
     <div class="bg-gray-900 px-6 py-4 text-white flex justify-between items-center shadow-md shrink-0 sticky top-0 z-50">
@@ -50,7 +41,6 @@
                 <h2 class="text-xs font-black text-gray-800 uppercase tracking-widest">Admin Hub</h2>
                 <div class="h-px bg-gray-200 flex-1"></div>
             </div>
-            
             <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <a href="admin_system.html" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:border-blue-500 active:scale-95 transition flex flex-col items-center text-center gap-2">
                     <span class="text-2xl">👁️‍🗨️</span>
@@ -76,8 +66,12 @@
                     <span class="text-2xl">🤖</span>
                     <span class="text-xs font-bold text-gray-700">Simulator</span>
                 </a>
-                <a href="admin_audit.html" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:border-blue-500 active:scale-95 transition flex flex-col items-center text-center gap-2">
-                    <span class="text-2xl">📊</span>
+                <a href="admin_security_matrix.html" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:border-red-500 active:scale-95 transition flex flex-col items-center text-center gap-2">
+                    <span class="text-2xl">🛡️</span>
+                    <span class="text-xs font-bold text-gray-700">RLS Auditor</span>
+                </a>
+                <a href="admin_audit.html" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:border-emerald-500 active:scale-95 transition flex flex-col items-center text-center gap-2">
+                    <span class="text-2xl">⚖️</span>
                     <span class="text-xs font-bold text-gray-700">Price Auditor</span>
                 </a>
                 <a href="admin_viewer.html" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:border-purple-500 active:scale-95 transition flex flex-col items-center text-center gap-2">
@@ -92,34 +86,33 @@
         </div>
     </div>
 
-    <script>
-        // 1. SAFETY VALVE
-        function val(obj, key) {
-            if (!obj) return "";
-            return obj[key] || obj[key.toUpperCase()] || obj[key.toLowerCase()] || "";
-        }
+<script>
+// 1. SAFETY VALVE
+function val(obj, key) {
+    if (!obj) return "";
+    return obj[key] || obj[key.toUpperCase()] || obj[key.toLowerCase()] || "";
+}
 
-        // 2. STYLE MAP
-        const ICON_STYLES = {
-            blue: "bg-blue-50 text-blue-600",
-            green: "bg-green-50 text-green-600",
-            purple: "bg-purple-50 text-purple-600",
-            red: "bg-red-50 text-red-600",
-            orange: "bg-orange-50 text-orange-600",
-            slate: "bg-slate-50 text-slate-600",
-            teal: "bg-teal-50 text-teal-600",
-            indigo: "bg-indigo-50 text-indigo-600",
-            pink: "bg-pink-50 text-pink-600",
-            yellow: "bg-yellow-50 text-yellow-600",
-            gray: "bg-gray-100 text-gray-600"
-        };
+// 2. STYLE MAP
+const ICON_STYLES = {
+    blue: "bg-blue-50 text-blue-600",
+    green: "bg-green-50 text-green-600",
+    purple: "bg-purple-50 text-purple-600",
+    red: "bg-red-50 text-red-600",
+    orange: "bg-orange-50 text-orange-600",
+    slate: "bg-slate-50 text-slate-600",
+    teal: "bg-teal-50 text-teal-600",
+    indigo: "bg-indigo-50 text-indigo-600",
+    pink: "bg-pink-50 text-pink-600",
+    yellow: "bg-yellow-50 text-yellow-600",
+    gray: "bg-gray-100 text-gray-600"
+};
 
-        // 3. RENDER LOGIC
+// 3. RENDER LOGIC WITH SUB-CATEGORIES
 function renderMenu(data, role) {
     const container = document.getElementById('menu-container');
     container.innerHTML = "";
 
-    // 1. Setup our Main Section Buckets
     const sections = {
         "Sales Hub": [],
         "Production Hub": [],
@@ -127,7 +120,6 @@ function renderMenu(data, role) {
         "Overwatch (Super)": []
     };
 
-    // 2. Sort modules into buckets based on their Access Tags
     data.forEach(mod => {
         const tags = val(mod, 'Access_Tags') || [];
         const devStatus = val(mod, 'Dev_Status');
@@ -146,14 +138,12 @@ function renderMenu(data, role) {
 
         if (!isAllowed) return;
 
-        // Route to specific section
         if (tags.includes('SALES')) sections["Sales Hub"].push(mod);
         else if (tags.includes('PROD')) sections["Production Hub"].push(mod);
         else if (tags.includes('ADMIN')) sections["Administration Hub"].push(mod);
         else sections["Overwatch (Super)"].push(mod);
     });
 
-    // 3. Render the sections with visual Sub-Categories
     for (const [secName, mods] of Object.entries(sections)) {
         if (mods.length === 0) continue;
 
@@ -166,7 +156,6 @@ function renderMenu(data, role) {
             </div>
         `;
 
-        // Group modules dynamically by their database 'Category'
         const groupedMods = {};
         mods.forEach(mod => {
             const cat = val(mod, 'Category') || 'General';
@@ -174,18 +163,15 @@ function renderMenu(data, role) {
             groupedMods[cat].push(mod);
         });
 
-        // Sort categories alphabetically so they always appear in a predictable order
         const sortedCats = Object.keys(groupedMods).sort();
 
         sortedCats.forEach(catName => {
-            // Sort individual modules within the category alphabetically by their Display Name
             groupedMods[catName].sort((a, b) => {
                 const nameA = val(a, 'Display_Name') || '';
                 const nameB = val(b, 'Display_Name') || '';
                 return nameA.localeCompare(nameB);
             });
 
-            // Create the Sub-Category Header (e.g., "RIGID SIGNS" or "ROLL MEDIA")
             const subSection = document.createElement('div');
             subSection.innerHTML = `<h3 class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-4 mb-2 pl-1">${catName}</h3>`;
             
@@ -236,81 +222,84 @@ function renderMenu(data, role) {
         container.appendChild(section);
     }
 }
-        // 4. MAIN INIT
-        window.onload = async function() {
-            const user = sessionStorage.getItem('signos_user');
-            const role = sessionStorage.getItem('signos_role');
 
-            if (!user) {
-                window.location.href = 'index.html';
-                return;
+// 4. MAIN INIT
+window.onload = async function() {
+    const uFirst = sessionStorage.getItem('signos_user');
+    const uLast = sessionStorage.getItem('signos_user_last') || '';
+    const r = sessionStorage.getItem('signos_role');
+    const dept = (sessionStorage.getItem('signos_dept') || 'UNASSIGNED').replace('DEPT_', '');
+
+    if (!uFirst) { window.location.href = 'index.html'; return; }
+
+    const initials = (uFirst.charAt(0) + (uLast ? uLast.charAt(0) : '')).toUpperCase();
+    const fullName = `${uFirst} ${uLast}`.trim().toUpperCase();
+
+    let roleBg = "bg-gray-600"; let roleText = "text-gray-400";
+    if (r === 'SUPER') { roleBg = "bg-purple-600"; roleText = "text-purple-400"; }
+    else if (r === 'ADMIN') { roleBg = "bg-red-600"; roleText = "text-red-400"; }
+    else if (r === 'SALES') { roleBg = "bg-blue-600"; roleText = "text-blue-400"; }
+    else if (r === 'PROD') { roleBg = "bg-green-600"; roleText = "text-green-400"; }
+
+    // Inject Avatar Header
+    document.getElementById('menu-header-container').innerHTML = `
+    <div class="bg-gray-800 px-4 py-2 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700 shrink-0 shadow-sm z-50">
+        <div class="flex items-center gap-3">
+            <a href="user_profile.html" class="w-8 h-8 rounded-full ${roleBg} text-white flex items-center justify-center font-black shadow-inner border-2 border-gray-700 hover:scale-105 transition hover:border-white" title="Edit Profile">
+                ${initials}
+            </a>
+            <div class="flex flex-col leading-none justify-center">
+                <a href="user_profile.html" class="text-gray-200 font-bold uppercase hover:text-white hover:underline transition mb-1">${fullName}</a>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[8px] font-black uppercase tracking-widest ${roleText}">${r}</span>
+                    <span class="text-gray-600 font-black">|</span>
+                    <span class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">${dept}</span>
+                    ${r === 'SUPER' ? '<span class="ml-1 text-[8px] font-black bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 leading-none">OVERWATCH</span>' : ''}
+                </div>
+            </div>
+        </div>
+        <button onclick="logout()" class="hover:text-white font-bold uppercase tracking-widest transition flex items-center gap-1">Logout</button>
+    </div>`;
+
+    // Force inject universal footer to the bottom of the menu
+    if(typeof injectFooter === 'function') injectFooter();
+
+    const envEl = document.getElementById('env-badge');
+    const setEnvBadge = () => {
+        if (typeof IS_DEV_ENV !== 'undefined' && IS_DEV_ENV) {
+            envEl.innerHTML = `<span class="text-orange-600 font-bold">⚠️ DEV MODE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${typeof clientIP !== 'undefined' ? clientIP : ''}</span>`;
+        } else {
+            envEl.innerHTML = `<span class="text-green-500 font-bold">🟢 SECURE CONNECTION</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${typeof clientIP !== 'undefined' ? clientIP : ''}</span>`;
+        }
+    };
+    setEnvBadge();
+
+    if (r === 'ADMIN' || r === 'SUPER') {
+        document.getElementById('admin-workflow').classList.remove('hidden');
+        
+        const perms = JSON.parse(sessionStorage.getItem('signos_perms') || '{}');
+        const btnBackup = document.getElementById('btn-backup');
+        if (r !== 'SUPER' && perms.backup !== 'Run' && perms.backup !== 'Full') {
+            if(btnBackup) btnBackup.classList.add('hidden');
+        }
+    }
+
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=*`, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
             }
+        });
 
-            document.getElementById('auth-user').innerText = user;
-            document.getElementById('auth-role').innerText = role;
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        const data = await response.json();
 
-            const envEl = document.getElementById('env-badge');
-            const setEnvBadge = () => {
-                if (typeof IS_DEV_ENV !== 'undefined' && IS_DEV_ENV) {
-                    envEl.innerHTML = `<span class="text-orange-600 font-bold">⚠️ DEV MODE</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${typeof clientIP !== 'undefined' ? clientIP : ''}</span>`;
-                } else {
-                    envEl.innerHTML = `<span class="text-green-500 font-bold">🟢 SECURE CONNECTION</span> <span class="text-gray-300 mx-1">|</span> <span class="text-gray-400">${typeof clientIP !== 'undefined' ? clientIP : ''}</span>`;
-                }
-            };
-            
-            setEnvBadge();
-            let ipWatcher = setInterval(() => {
-                if (typeof clientIP !== 'undefined' && clientIP !== "Unknown") {
-                    setEnvBadge();
-                    clearInterval(ipWatcher);
-                }
-            }, 100);
-            setTimeout(() => clearInterval(ipWatcher), 5000);
-
-            // Admin Visibility
-            if (role === 'ADMIN' || role === 'SUPER') {
-                document.getElementById('admin-workflow').classList.remove('hidden');
-                if (role === 'SUPER') document.getElementById('super-badge').classList.remove('hidden');
-
-                const perms = JSON.parse(sessionStorage.getItem('signos_perms') || '{}');
-                const btnBackup = document.getElementById('btn-backup');
-                if (role !== 'SUPER' && perms.backup !== 'Run' && perms.backup !== 'Full') {
-                    if(btnBackup) btnBackup.classList.add('hidden');
-                }
-            }
-
-            // --- FETCH MENU DATA FROM SUPABASE ---
-            try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/system_modules?select=*`, {
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                    }
-                });
-
-                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-                
-                const rawData = await response.json();
-                
-                // FIX: Removed mapped manual versions to pull the active_commit
-                const data = rawData.map(item => ({
-                    Module_ID: item.id,
-                    Display_Name: item.display_name,
-                    File_Link: item.file_link,
-                    Dev_Status: item.dev_status,
-                    Active_Commit: item.active_commit,
-                    Access_Tags: item.access_tags || [],
-                    Category: item.category,
-                    Icon: item.icon,
-                    Icon_Path: item.icon_path
-                }));
-
-                renderMenu(data, role);
-
-            } catch (e) {
-                document.getElementById('menu-container').innerHTML = `<div class="p-8 text-center text-red-500 font-bold text-xs uppercase tracking-widest">Error Loading Menu: ${e.message}</div>`;
-            }
-        };
-    </script>
+        renderMenu(data, r);
+    } catch (e) {
+        document.getElementById('menu-container').innerHTML = `<div class="p-8 text-center text-red-500 font-bold text-xs uppercase tracking-widest">Error Loading Menu: ${e.message}</div>`;
+    }
+};
+</script>
 </body>
 </html>
