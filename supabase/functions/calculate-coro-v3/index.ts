@@ -43,6 +43,7 @@ Deno.serve(async (req: any) => {
         const V = (k: string) => `<span class="text-blue-600 font-bold" title="${k}">[${k}: ${config[k]}]</span>`;
         
         const R = (label: string, total: number, formula: string) => { if (total > 0) ret.push({label, total, formula}); return total; };
+        // NOTE: If a calculation returns 0, it is intentionally excluded from the ledger.
         const L = (label: string, total: number, formula: string, category: string) => { if (total > 0) cst.push({label, total, formula, category}); return total; };
 
         let grandTotalRetail = 0;
@@ -178,7 +179,7 @@ Deno.serve(async (req: any) => {
                 const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
                 const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
                 const bestYield = Math.max(yieldX, yieldY, 1);
-                // FIXED: Removed "Blanks" nomenclature for parent sheets
+                
                 L(`Coroplast (${thk})`, (qty / bestYield) * sheetCost * wastePct, `(${qty} Qty / ${bestYield} Yield) * ${V(sheetCostKey)}/Sht * ${V('Waste_Factor')}`, 'Materials');
             }
 
@@ -199,13 +200,17 @@ Deno.serve(async (req: any) => {
                 L(`Latex Ink`, totalActualSqFt * num('Cost_Ink_Latex') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
 
                 L(`Print Setup (Roll Media)`, (num('Time_Setup_Printer') / 60) * rateOp, `${V('Time_Setup_Printer')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
+                
                 const printHrs = (totalActualSqFt / num('Speed_Print_Roll')) * reqSides;
+                
+                // Attendance Ratio evaluates to 0 and auto-hides from the ledger natively
                 L(`Roll Printer Operator (Attn)`, printHrs * rateOp * num('Labor_Attendance_Ratio'), `${totalActualSqFt.toFixed(1)} SF / ${V('Speed_Print_Roll')} SF/hr * ${reqSides} Sides * ${V('Rate_Operator')}/hr * ${V('Labor_Attendance_Ratio')}`, 'Labor');
                 L(`Roll Printer Machine Run`, printHrs * num('Rate_Machine_Print'), `${printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Print')}/hr`, 'Labor');
 
                 const lamHrs = (totalActualSqFt / num('Speed_Lam_Roll')) * reqSides;
                 L(`Lamination Run`, lamHrs * rateShop, `${totalActualSqFt.toFixed(1)} SF / ${V('Speed_Lam_Roll')} SF/hr * ${reqSides} Sides * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
 
+                // Mount Time globally pulls the Laminator feed rate (0.20 mins/sqft)
                 const mountMins = totalActualSqFt * num('Time_Mount_Flat_SqFt') * reqSides;
                 L(`Mount Vinyl to Substrate`, (mountMins / 60) * rateShop, `${totalActualSqFt.toFixed(1)} SF * ${V('Time_Mount_Flat_SqFt')} Mins/SF * ${reqSides} Sides * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
             } else {
@@ -216,6 +221,7 @@ Deno.serve(async (req: any) => {
                 const speed = num('Machine_Speed_LF_Hr');
                 const printStrat = Agent_Flatbed_Print.calculatePrintTime(reqW, reqH, qty, speed, reqSides, 60);
                 
+                // Attendance Ratio evaluates to 0 and auto-hides from the ledger natively
                 L(`Flatbed Operator (Attn)`, printStrat.printHrs * rateOp * num('Labor_Attendance_Ratio'), `${printStrat.logic} -> ${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Operator')}/hr * ${V('Labor_Attendance_Ratio')}`, 'Labor');
                 L(`Flatbed Machine Run`, printStrat.printHrs * num('Rate_Machine_Flatbed'), `${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Flatbed')}/hr`, 'Labor');
             }
