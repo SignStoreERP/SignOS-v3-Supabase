@@ -48,6 +48,7 @@ Deno.serve(async (req: any) => {
         let grandTotalRetail = 0;
         let printTotal = 0;
         let routerFee = 0;
+        let isMinApplied = false; // DECLARED GLOBALLY TO PREVENT 400 SCOPE CRASH
 
         // ==========================================
         // TIER 1: RETAIL ENGINE (Strict Dictionary)
@@ -147,7 +148,6 @@ Deno.serve(async (req: any) => {
             let grandTotalRetailRaw = printTotal + routerFee;
             const minOrder = num('Retail_Min_Order', 50);
             grandTotalRetail = grandTotalRetailRaw;
-            let isMinApplied = false;
 
             // 4. Shop Minimum Enforcement
             if (grandTotalRetailRaw < minOrder) {
