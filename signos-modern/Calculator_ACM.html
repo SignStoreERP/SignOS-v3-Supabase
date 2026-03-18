@@ -85,7 +85,7 @@
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Laminate</label>
                         <select id="laminate" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
                             <option value="None">None (Raw Latex)</option>
-                            <option value="Standard">Standard (Gloss/Matte)</option>
+                            <option value="Standard" selected>Standard (Gloss/Matte)</option>
                         </select>
                     </div>
                 </div>
@@ -227,7 +227,7 @@ function handleAdminToggle() {
 // Sheet View Logic
 async function fetchSheetData() {
     try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?product_line=ilike.*ACM*&select=*`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/master_retail_blue_sheet?product_line=ilike.*ACM*&select=*`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
         if(res.ok) {
@@ -275,8 +275,8 @@ function renderSheet() {
         html = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic font-bold">No pricing matrix defined for this combination yet.</td></tr>`;
     } else {
         filtered.forEach((row, idx) => {
-            const basePrice = parseFloat(row.legacy_price || 0);
-            const bulkPrice = basePrice * 0.95; 
+            const basePrice = parseFloat(row.price_qty_1 || row.legacy_price || 0);
+            const bulkPrice = parseFloat(row.price_qty_10_plus || row.price_qty_10 || (basePrice * 0.95)); 
             
             html += `<tr class="even:bg-gray-50 hover:bg-blue-50 transition-colors cursor-default">
                 <td class="p-3 font-bold text-gray-800">${row.dimensions}</td>
@@ -304,8 +304,8 @@ async function fetchSheetCosts() {
         const sides = row.sides === 'Double' ? 2 : 1;
         const thickness = row.product_line.includes('6mm') ? '6mm' : '3mm';
         
-        payloadInputs.push({ idx, isBulk: false, qty: 1, w, h, sides, thickness, shape: 'Rectangle', laminate: 'None' });
-        payloadInputs.push({ idx, isBulk: true, qty: 10, w, h, sides, thickness, shape: 'Rectangle', laminate: 'None' });
+        payloadInputs.push({ idx, isBulk: false, qty: 1, w, h, sides, thickness, shape: 'Rectangle', laminate: 'Standard' });
+        payloadInputs.push({ idx, isBulk: true, qty: 10, w, h, sides, thickness, shape: 'Rectangle', laminate: 'Standard' });
     });
 
     try {
@@ -402,7 +402,12 @@ function runCalc() {
                 body: JSON.stringify({ inputs: inputs, config: backendData, audit_mode: activeAuditMode })
             });
 
-            if (!response.ok) throw new Error("Server Rejected Request");
+            // STRICT ERROR INTERCEPTION
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Server Error");
+            }
+            
             const result = await response.json();
             
             if (!result || !result.retail) return;
@@ -412,6 +417,7 @@ function runCalc() {
             unitEl.innerText = fmt(ret.unitPrice);
             totalEl.innerText = fmt(ret.grandTotal);
 
+            // Render Dynamic Line Items
             let lineItemsHtml = '';
             ret.breakdown.forEach(item => {
                 if(item.label !== 'Shop Minimum Surcharge' && item.label !== 'Shop Minimum') {
@@ -435,6 +441,10 @@ function runCalc() {
 
         } catch(e) { 
             console.error("Engine Error:", e); 
+            document.getElementById('job-desc').value = `🚨 CALCULATION HALTED:\n${e.message}\n\nPlease add this missing variable to the Master Data Engine (Global Variables) to restore operations.`;
+            if(totalEl) totalEl.innerText = "ERR";
+            if(unitEl) unitEl.innerText = "ERR";
+            document.getElementById('ui-line-items').innerHTML = `<div class="text-red-500 font-bold text-center py-2">Math Engine Halted.</div>`;
         } finally {
             if(totalEl) totalEl.classList.remove('opacity-50');
             if(unitEl) unitEl.classList.remove('opacity-50');
