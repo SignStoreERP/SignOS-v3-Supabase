@@ -26,11 +26,11 @@ Deno.serve(async (req: any) => {
 
     const results = inputPayload.map((inputs: any) => {
         const reqW = parseFloat(inputs.w) || 24;
-        const reqH = parseFloat(inputs.h) || 18;
+        const reqH = parseFloat(inputs.h) || 24;
         const qty = parseFloat(inputs.qty) || 1;
         const reqSides = inputs.sides === 2 ? 2 : 1;
-        const thk = String(inputs.thickness || '3mm');
-        const is6mm = thk.includes('6');
+        const thk = String(inputs.thickness || '4mm');
+        const is10mm = thk.includes('10');
         
         const ret: any[] = [];
         const cst: any[] = [];
@@ -53,6 +53,7 @@ Deno.serve(async (req: any) => {
         let totalHardCost = 0;
         let printTotal = 0;
         let routerFee = 0;
+        let stakeTotal = 0;
 
         // ==========================================
         // TIER 1: RETAIL ENGINE (Strict Dictionary)
@@ -62,7 +63,7 @@ Deno.serve(async (req: any) => {
             let mappedBox = "";
             let bestArea = Infinity; 
             
-            const targetLine = is6mm ? '6mm ACM' : '3mm ACM';
+            const targetLine = is10mm ? '10mm Coroplast' : '4mm Coroplast';
             const targetSides = reqSides === 2 ? 'Double' : 'Single';
             const validRows = dictionary.filter((r: any) => r.product_line === targetLine && r.sides === targetSides);
             
@@ -87,7 +88,6 @@ Deno.serve(async (req: any) => {
             
             if (exactPrice > 0) {
                 let unitPrice = exactPrice;
-                // Automatically reads the Tier 1 Volume quantities and discounts from Supabase
                 if (qty >= num('Tier_1_Qty')) unitPrice = unitPrice * (1 - num('Tier_1_Disc')); 
                 printTotal = unitPrice * qty;
                 R(`Sign Print (${thk} Rounded to ${mappedBox})`, printTotal, `${qty}x Signs @ $${unitPrice.toFixed(2)}/ea`);
@@ -101,23 +101,21 @@ Deno.serve(async (req: any) => {
                 let baseRate = 0;
                 let minSignPrice = 0;
 
-                if (is6mm) {
-                    if (billedSqFt < 3) { baseRate = num('ACM6_T1_Rate'); minSignPrice = num('ACM6_T1_Min'); }
-                    else if (billedSqFt < 6) baseRate = num('ACM6_T2_Rate');
-                    else if (billedSqFt < 12) baseRate = num('ACM6_T3_Rate');
-                    else if (billedSqFt < 32) baseRate = num('ACM6_T4_Rate');
-                    else baseRate = num('ACM6_T5_Rate');
+                if (is10mm) {
+                    if (billedSqFt < 4) { baseRate = num('COR10_T1_Rate'); minSignPrice = num('COR10_T1_Min'); }
+                    else if (billedSqFt < 16) baseRate = num('COR10_T2_Rate');
+                    else if (billedSqFt < 32) baseRate = num('COR10_T3_Rate');
+                    else baseRate = num('COR10_T4_Rate');
                 } else {
-                    if (billedSqFt < 3) { baseRate = num('ACM3_T1_Rate'); minSignPrice = num('ACM3_T1_Min'); }
-                    else if (billedSqFt < 6) baseRate = num('ACM3_T2_Rate');
-                    else if (billedSqFt < 12) baseRate = num('ACM3_T3_Rate');
-                    else if (billedSqFt < 32) baseRate = num('ACM3_T4_Rate');
-                    else baseRate = num('ACM3_T5_Rate');
+                    if (billedSqFt < 4) { baseRate = num('COR4_T1_Rate'); minSignPrice = num('COR4_T1_Min'); }
+                    else if (billedSqFt < 16) baseRate = num('COR4_T2_Rate');
+                    else if (billedSqFt < 32) baseRate = num('COR4_T3_Rate');
+                    else baseRate = num('COR4_T4_Rate');
                 }
 
                 let rawUnitPrint = baseRate * billedSqFt;
                 
-                // Enforce the T1 Minimum Sign Price (e.g., $25 for 3mm)
+                // Enforce the T1 Minimum Sign Price (e.g., $25 for 4mm)
                 if (rawUnitPrint < minSignPrice) {
                     rawUnitPrint = minSignPrice;
                 }
@@ -138,8 +136,18 @@ Deno.serve(async (req: any) => {
                 routerFee = num('Retail_Fee_Router_Hard');
                 R(`CNC Router Fee`, routerFee, `Complex Shape Fee`);
             }
+
+            if (inputs.hardware === 'H-Stakes') {
+                const stkRate = num('Retail_Stake_Std');
+                stakeTotal = stkRate * qty;
+                R(`Standard H-Stakes`, stakeTotal, `${qty}x Stakes @ $${stkRate.toFixed(2)}/ea`);
+            } else if (inputs.hardware === 'HD-Stakes') {
+                const stkRate = num('Retail_Stake_HD');
+                stakeTotal = stkRate * qty;
+                R(`Heavy Duty Stakes`, stakeTotal, `${qty}x Stakes @ $${stkRate.toFixed(2)}/ea`);
+            }
             
-            let grandTotalRetailRaw = printTotal + routerFee;
+            let grandTotalRetailRaw = printTotal + routerFee + stakeTotal;
             const minOrder = num('Retail_Min_Order');
             grandTotalRetail = grandTotalRetailRaw;
             let isMinApplied = false;
@@ -157,26 +165,38 @@ Deno.serve(async (req: any) => {
         if (auditMode === 'full' || auditMode === 'cost_only') {
             const actualSqFt = (reqW * reqH) / 144;
             const totalActualSqFt = actualSqFt * qty;
+            
             const wastePct = num('Waste_Factor');
             const riskFactor = num('Factor_Risk');
             const rateOp = num('Rate_Operator');
             const rateShop = num('Rate_Shop_Labor');
 
-            // 1. Materials
-            const sheetCostKey = is6mm ? 'Cost_Stock_6mm_4x8' : 'Cost_Stock_3mm_4x8';
-            const sheetCost = num(sheetCostKey);
-            const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
-            const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
-            const bestYield = Math.max(yieldX, yieldY, 1);
-            
-            L(`ACM Blanks (${thk})`, (qty / bestYield) * sheetCost * wastePct, `(${qty} Qty / ${bestYield} Yield) * ${V(sheetCostKey)}/Sht * ${V('Waste_Factor')}`, 'Materials');
-            L(`Flatbed Ink`, totalActualSqFt * num('Cost_Ink_Latex') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+            // 1. Materials & Blank Bypass Logic
+            const isStandardBlank = (reqW === 24 && reqH === 18) || (reqW === 18 && reqH === 24);
+            const is4mmBlank = thk === '4mm' && isStandardBlank;
 
-            if (inputs.laminate === 'Standard') {
-                L(`Gloss/Matte Laminate`, totalActualSqFt * num('Cost_Lam_SqFt') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Lam_SqFt')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+            if (is4mmBlank) {
+                const blankCost = num('Cost_Blank_Standard');
+                L(`Precut Coro Blanks (24x18)`, qty * blankCost * wastePct, `Bypass Yield: ${qty} Blanks * ${V('Cost_Blank_Standard')}/Ea * ${V('Waste_Factor')}`, 'Materials');
+            } else {
+                const sheetCostKey = is10mm ? 'Cost_Stock_10mm_4x8' : 'Cost_Stock_4mm_4x8';
+                const sheetCost = num(sheetCostKey);
+                const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
+                const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
+                const bestYield = Math.max(yieldX, yieldY, 1);
+                L(`Coroplast Blanks (${thk})`, (qty / bestYield) * sheetCost * wastePct, `(${qty} Qty / ${bestYield} Yield) * ${V(sheetCostKey)}/Sht * ${V('Waste_Factor')}`, 'Materials');
             }
 
-            // 2. Labor (SHARED AGENT HANDOFF)
+            L(`Flatbed Ink`, totalActualSqFt * num('Cost_Ink_Latex') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
+
+            // 2. Hardware
+            if (inputs.hardware === 'H-Stakes') {
+                L(`Standard H-Stakes`, qty * num('Cost_Stake_Std'), `${qty}x Stakes * ${V('Cost_Stake_Std')}`, 'Hardware');
+            } else if (inputs.hardware === 'HD-Stakes') {
+                L(`Heavy Duty Stakes`, qty * num('Cost_Stake_HD'), `${qty}x Stakes * ${V('Cost_Stake_HD')}`, 'Hardware');
+            }
+
+            // 3. Labor (SHARED AGENT HANDOFF)
             L(`Print Setup (Load Media)`, (num('Time_Setup_Printer') / 60) * rateOp, `${V('Time_Setup_Printer')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
             
             const speed = num('Machine_Speed_LF_Hr');
@@ -185,21 +205,17 @@ Deno.serve(async (req: any) => {
             L(`Flatbed Operator (Attn)`, printStrat.printHrs * rateOp * num('Labor_Attendance_Ratio'), `${printStrat.logic} -> ${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Operator')}/hr * ${V('Labor_Attendance_Ratio')}`, 'Labor');
             L(`Flatbed Machine Run`, printStrat.printHrs * num('Rate_Machine_Flatbed'), `${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Flatbed')}/hr`, 'Labor');
 
-            if (inputs.laminate === 'Standard') {
-                const lamHrs = (totalActualSqFt / num('Speed_Lam_Roll')) * reqSides;
-                L(`Lamination Run`, lamHrs * rateShop, `${totalActualSqFt.toFixed(1)} SF / ${V('Speed_Lam_Roll')} SF/hr * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
-            }
-
-            // 3. Finishing / Routing
+            // 4. Finishing / Routing
             if (inputs.shape === 'CNC Simple' || inputs.shape === 'CNC Complex') {
                 const cncTimeKey = inputs.shape === 'CNC Simple' ? 'Time_CNC_Easy_SqFt' : 'Time_CNC_Complex_SqFt';
                 const cncTime = num(cncTimeKey);
                 const cutHrs = (totalActualSqFt * cncTime) / 60;
                 L(`CNC Router Setup`, (num('Time_Setup_CNC') / 60) * num('Rate_CNC_Labor'), `${V('Time_Setup_CNC')} Mins * ${V('Rate_CNC_Labor')}/hr`, 'Labor');
                 L(`CNC Router Run`, cutHrs * num('Rate_Machine_CNC'), `${cutHrs.toFixed(2)} Hrs * ${V('Rate_Machine_CNC')}/hr`, 'Labor');
-            } else {
-                L(`Shear/Saw Setup`, (num('Time_Shear_Setup') / 60) * rateShop, `${V('Time_Shear_Setup')} Mins * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
-                L(`Shear/Saw Run`, ((qty * 2 * num('Time_Shear_Cut')) / 60) * rateShop, `${qty} Qty * 2 Cuts * ${V('Time_Shear_Cut')} Min/Cut * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+            } else if (!is4mmBlank) {
+                // Hand Cutting Engine (2-Cuts per piece bypassing Shear)
+                L(`Hand Cutting Setup`, (num('Time_Shear_Setup') / 60) * rateShop, `${V('Time_Shear_Setup')} Mins (Ruler/Razor) * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
+                L(`Hand Cutting Run (2 Cuts/Ea)`, ((qty * 2 * num('Time_Shear_Cut')) / 60) * rateShop, `${qty} Qty * 2 Cuts * ${V('Time_Shear_Cut')} Min/Cut * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
             }
 
             totalHardCost = cst.reduce((sum, i) => sum + i.total, 0) * riskFactor;
