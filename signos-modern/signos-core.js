@@ -25,7 +25,7 @@ function goBack() {
     window.location.href = 'menu.html';
 }
 
-// 5. Global Header Injector (With Profile Avatars)
+// 5. Global Header Injector (Floating Island Style)
 function injectHeader(title, showMenu = true) {
     const uFirst = sessionStorage.getItem('signos_user') || 'GUEST';
     const uLast = sessionStorage.getItem('signos_user_last') || '';
@@ -47,44 +47,47 @@ function injectHeader(title, showMenu = true) {
     const container = document.body;
 
     const html = `
-    <!-- TOP UTILITY BAR (NEW AVATAR SYSTEM) -->
-    <div class="bg-gray-800 px-4 py-2 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700 shrink-0 shadow-sm z-50">
-        <div class="flex items-center gap-3">
-            <a href="user_profile.html" class="w-8 h-8 rounded-full ${roleBg} text-white flex items-center justify-center font-black shadow-inner border-2 border-gray-700 hover:scale-105 transition hover:border-white" title="Edit Profile">
-                ${initials}
-            </a>
-            <div class="flex flex-col leading-none justify-center">
-                <a href="user_profile.html" class="text-gray-200 font-bold uppercase hover:text-white hover:underline transition mb-1">${fullName}</a>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-[8px] font-black uppercase tracking-widest ${roleText}">${r}</span>
-                    <span class="text-gray-600 font-black">|</span>
-                    <span class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">${dept}</span>
-                    ${r === 'SUPER' ? '<span class="ml-1 text-[8px] font-black bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 leading-none">OVERWATCH</span>' : ''}
+    <!-- FLOATING ISLAND HEADER -->
+    <div class="w-[calc(100%-2rem)] max-w-5xl mx-auto mt-4 mb-6 rounded-2xl overflow-hidden shadow-2xl shrink-0 z-50 flex flex-col border border-gray-800 sticky top-4 transition-all">
+        <!-- TOP UTILITY BAR (NEW AVATAR SYSTEM) -->
+        <div class="bg-gray-800 px-4 py-2 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700">
+            <div class="flex items-center gap-3">
+                <a href="user_profile.html" class="w-8 h-8 rounded-full ${roleBg} text-white flex items-center justify-center font-black shadow-inner border-2 border-gray-700 hover:scale-105 transition hover:border-white" title="Edit Profile">
+                    ${initials}
+                </a>
+                <div class="flex flex-col leading-none justify-center">
+                    <a href="user_profile.html" class="text-gray-200 font-bold uppercase hover:text-white hover:underline transition mb-1">${fullName}</a>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[8px] font-black uppercase tracking-widest ${roleText}">${r}</span>
+                        <span class="text-gray-600 font-black">|</span>
+                        <span class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">${dept}</span>
+                        ${r === 'SUPER' ? '<span class="ml-1 text-[8px] font-black bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 leading-none">OVERWATCH</span>' : ''}
+                    </div>
                 </div>
             </div>
+            <button onclick="logout()" class="hover:text-white font-bold uppercase tracking-widest transition flex items-center gap-1">
+                Logout
+            </button>
         </div>
-        <button onclick="logout()" class="hover:text-white font-bold uppercase tracking-widest transition flex items-center gap-1">
-            Logout
-        </button>
-    </div>
 
-    <!-- MAIN NAV BAR -->
-    <div class="bg-gray-900 px-6 py-4 text-white flex justify-between items-center shrink-0 z-40 shadow-md">
-        ${showMenu ? `
-        <a href="#" onclick="goBack()" class="text-gray-400 hover:text-white text-xs font-bold uppercase flex items-center gap-1 transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg> MENU
-        </a>` : '<div></div>'}
-        <div class="text-center">
-            <h2 class="text-lg font-bold">${title}</h2>
-            <div class="flex items-center justify-center gap-2 text-[10px] mt-0.5">
-                <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                <span id="status-text" class="font-bold text-gray-400">CONNECTING...</span>
-                <span id="version-display" class="text-gray-500 font-mono hidden"></span>
+        <!-- MAIN NAV BAR -->
+        <div class="bg-gray-900 px-6 py-4 text-white flex justify-between items-center relative">
+            ${showMenu ? `
+            <a href="#" onclick="goBack()" class="text-gray-400 hover:text-white text-xs font-bold uppercase flex items-center gap-1 transition relative z-10">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg> MENU
+            </a>` : '<div class="relative z-10 w-16"></div>'}
+            <div class="text-center absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <h2 class="text-lg font-bold pointer-events-auto">${title}</h2>
+                <div class="flex items-center justify-center gap-2 text-[10px] mt-0.5 pointer-events-auto">
+                    <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    <span id="status-text" class="font-bold text-gray-400">CONNECTING...</span>
+                    <span id="version-display" class="text-gray-500 font-mono hidden"></span>
+                </div>
             </div>
+            <button onclick="location.reload()" class="text-gray-400 hover:text-white transition relative z-10" title="Refresh Data">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
         </div>
-        <button onclick="location.reload()" class="text-gray-400 hover:text-white transition" title="Refresh Data">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-        </button>
     </div>`;
 
     container.insertAdjacentHTML('afterbegin', html);
@@ -93,31 +96,34 @@ function injectHeader(title, showMenu = true) {
     injectFooter();
 }
 
-// 6. UNIVERSAL FOOTER INJECTOR
+// 6. UNIVERSAL FOOTER INJECTOR (Floating Island Style)
 function injectFooter() {
     if (document.getElementById('signos-universal-footer')) return;
 
-    // 1. Clean up legacy body padding so the footer docks perfectly flush to the bottom edge
+    // 1. Clean up legacy body padding so the footer docks perfectly
     document.body.classList.remove('pb-10');
 
-    // 2. Ensure the Island Card doesn't touch the footer by giving it a bottom margin instead
+    // 2. Ensure the Main Island Card doesn't touch the footer
     const mainCard = document.getElementById('main-card') || document.querySelector('.max-w-md, .max-w-2xl, .max-w-4xl');
     if (mainCard) {
-        mainCard.classList.add('mb-12');
+        mainCard.classList.add('mb-8');
     }
 
     const footerHtml = `
-    <div id="signos-universal-footer" class="mt-auto bg-gray-900 border-t border-gray-800 px-6 py-4 flex justify-between items-center shrink-0 w-full z-40">
-        <a href="menu.html" class="text-[10px] font-bold text-gray-400 hover:text-white uppercase tracking-widest transition flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            System Menu
-        </a>
-        <div class="flex items-center gap-4">
-            <span class="text-[9px] text-gray-600 font-mono font-bold tracking-widest uppercase">SignOS v4.0</span>
-            <button onclick="if(typeof openFeedback === 'function') openFeedback(); else alert('Feedback module not loaded.');" class="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest transition border border-red-900/50 bg-red-950/20 px-3 py-1.5 rounded flex items-center gap-1.5">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                Report Issue
-            </button>
+    <!-- FLOATING ISLAND FOOTER -->
+    <div id="signos-universal-footer" class="w-[calc(100%-2rem)] max-w-5xl mx-auto mb-6 mt-auto rounded-2xl overflow-hidden shadow-2xl shrink-0 z-40 border border-gray-800 flex flex-col">
+        <div class="bg-gray-900 px-6 py-4 flex justify-between items-center w-full">
+            <a href="menu.html" class="text-[10px] font-bold text-gray-400 hover:text-white uppercase tracking-widest transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                System Menu
+            </a>
+            <div class="flex items-center gap-4">
+                <span class="text-[9px] text-gray-600 font-mono font-bold tracking-widest uppercase">SignOS v4.0</span>
+                <button onclick="if(typeof openFeedback === 'function') openFeedback(); else alert('Feedback module not loaded.');" class="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest transition border border-red-900/50 bg-red-950/20 px-3 py-1.5 rounded flex items-center gap-1.5">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    Report Issue
+                </button>
+            </div>
         </div>
     </div>`;
     
@@ -132,7 +138,6 @@ window.addEventListener('load', function() {
 });
 
 function injectFeedbackUI() {
-    // Injects the hidden modal (but no floating button, as the footer triggers it)
     const modalHtml = `
     <div id="glb-feedback-modal" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden">

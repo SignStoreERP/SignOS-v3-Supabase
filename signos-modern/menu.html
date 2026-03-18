@@ -9,24 +9,27 @@
 </head>
 <body class="bg-gray-50 min-h-screen font-sans flex flex-col pb-10">
 
-    <!-- TOP UTILITY BAR (Injected via JS below to match Avatar system) -->
-    <div id="menu-header-container"></div>
+    <!-- FLOATING ISLAND HEADER -->
+    <div class="w-[calc(100%-2rem)] max-w-5xl mx-auto mt-4 mb-6 rounded-2xl overflow-hidden shadow-2xl shrink-0 z-50 flex flex-col border border-gray-800 sticky top-4 transition-all">
+        <!-- TOP UTILITY BAR (Injected via JS below to match Avatar system) -->
+        <div id="menu-header-container"></div>
 
-    <!-- MAIN NAV BAR (Matches Calculators) -->
-    <div class="bg-gray-900 px-6 py-4 text-white flex justify-between items-center shadow-md shrink-0 sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-black shadow-inner border border-blue-400">OS</div>
-            <div class="flex flex-col text-left">
-                <h2 class="text-lg font-bold leading-tight">The Sign Store</h2>
-                <div class="flex items-center gap-2 text-[10px] mt-0.5">
-                    <span class="font-bold text-gray-400 tracking-widest uppercase">System Hub v6.0</span>
+        <!-- MAIN NAV BAR (Matches Calculators) -->
+        <div class="bg-gray-900 px-6 py-4 text-white flex justify-between items-center relative">
+            <div class="flex items-center gap-3 relative z-10">
+                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-black shadow-inner border border-blue-400">OS</div>
+                <div class="flex flex-col text-left">
+                    <h2 class="text-lg font-bold leading-tight">The Sign Store</h2>
+                    <div class="flex items-center gap-2 text-[10px] mt-0.5">
+                        <span class="font-bold text-gray-400 tracking-widest uppercase">System Hub v6.0</span>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <div id="env-badge" class="text-[10px] font-bold py-1 px-3 rounded tracking-widest flex items-center gap-2 shadow-inner bg-slate-800 text-slate-400 border border-slate-700">
-            <!-- Injected via JS -->
-            SCANNING ENV...
+            
+            <div id="env-badge" class="text-[10px] font-bold py-1 px-3 rounded tracking-widest flex items-center gap-2 shadow-inner bg-slate-800 text-slate-400 border border-slate-700 relative z-10">
+                <!-- Injected via JS -->
+                SCANNING ENV...
+            </div>
         </div>
     </div>
 
@@ -241,9 +244,9 @@ window.onload = async function() {
     else if (r === 'SALES') { roleBg = "bg-blue-600"; roleText = "text-blue-400"; }
     else if (r === 'PROD') { roleBg = "bg-green-600"; roleText = "text-green-400"; }
 
-    // Inject Avatar Header
+    // Inject Avatar Header (Inner shadow/border removed since parent floating island wraps it)
     document.getElementById('menu-header-container').innerHTML = `
-    <div class="bg-gray-800 px-4 py-2 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700 shrink-0 shadow-sm z-50">
+    <div class="bg-gray-800 px-4 py-2 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700">
         <div class="flex items-center gap-3">
             <a href="user_profile.html" class="w-8 h-8 rounded-full ${roleBg} text-white flex items-center justify-center font-black shadow-inner border-2 border-gray-700 hover:scale-105 transition hover:border-white" title="Edit Profile">
                 ${initials}
