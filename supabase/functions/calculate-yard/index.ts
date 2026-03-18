@@ -1,87 +1,114 @@
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+declare const Deno: any;
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight requests from the browser
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 
+Deno.serve(async (req: any) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  
   try {
-    const { inputs, config } = await req.json()
+    const requestData = await req.json();
+    const isArray = Array.isArray(requestData.inputs);
+    const inputPayload = isArray ? requestData.inputs : [requestData.inputs];
+    const config = requestData.config || {};
+    const auditMode = requestData.audit_mode || 'retail_only'; 
 
-    const sqft = (inputs.w * inputs.h) / 144;
-    const totalSqFt = sqft * inputs.qty;
-    const multDS = inputs.sides === 2 ? 2 : 1;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
-    // --- 1. RETAIL ENGINE ---
-    const ret: any[] = [];
-    const R = (label: string, total: number, formula: string) => { 
-        if(total > 0) ret.push({label, total, formula}); 
-        return total; 
-    };
+    let dictionary: any[] = [];
 
-    const baseSS = parseFloat(config.Retail_Price_Sign_SS || 25.00);
-    const adderDS = parseFloat(config.Retail_Price_Sign_DS || 2.50);
-    const stk1Price = parseFloat(config.Retail_Stake_T1_Price || 2.00);
-
-    let appliedBase = baseSS;
-    if (inputs.qty >= (parseFloat(config.Tier_1_Qty) || 10)) {
-        appliedBase = parseFloat(config.Tier_1_Price || 23.75);
+    // HEADLESS FETCH: Pull from the correct ref_retail_history table
+    if ((auditMode === 'full' || auditMode === 'retail_only') && supabaseUrl && supabaseKey) {
+        const res = await fetch(`${supabaseUrl}/rest/v1/ref_retail_history?select=*`, { 
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } 
+        });
+        if (res.ok) dictionary = await res.json();
     }
 
-    R(`Base Print (${inputs.sides} Sided)`, appliedBase * inputs.qty, `${inputs.qty} Signs @ $${appliedBase}`);
-    if (inputs.sides === 2) R(`Double Sided Adder`, adderDS * inputs.qty, `${inputs.qty} Signs @ $${adderDS}`);
-    if (inputs.hasStakes) R(`H-Stakes`, stk1Price * inputs.qty, `${inputs.qty} Stakes @ $${stk1Price}`);
+    const results = inputPayload.map((inputs: any) => {
+        const qty = parseFloat(inputs.qty) || 1;
+        const reqSides = inputs.sides === 2 ? 2 : 1;
+        const hasStakes = inputs.hasStakes === true || String(inputs.hasStakes) === 'true';
+        
+        const ret: any[] = [];
+        const cst: any[] = [];
+        
+        const num = (k: string, fallback: number) => { 
+            const p = parseFloat(config[k]); 
+            return isNaN(p) ? fallback : p; 
+        };
+        
+        const R = (label: string, total: number, formula: string) => { if (total > 0) ret.push({label, total, formula}); return total; };
 
-    let grandTotal = ret.reduce((sum, i) => sum + i.total, 0);
-    let isMinApplied = false;
-    const minOrder = parseFloat(config.Retail_Min_Order || 50);
-    
-    if (grandTotal < minOrder) {
-      R(`Shop Minimum Surcharge`, minOrder - grandTotal, `Minimum order difference`);
-      grandTotal = minOrder;
-      isMinApplied = true;
-    }
+        let grandTotalRetail = 0;
+        let printTotal = 0;
+        let stakeTotal = 0;
 
-    const printTotal = (appliedBase * inputs.qty) + (inputs.sides === 2 ? adderDS * inputs.qty : 0);
-    const stakeTotal = inputs.hasStakes ? stk1Price * inputs.qty : 0;
+        // ==========================================
+        // TIER 1: RETAIL ENGINE (Strict Dictionary)
+        // ==========================================
+        if (auditMode === 'full' || auditMode === 'retail_only') {
+            let exactPrice = 0; 
+            const targetSides = reqSides === 2 ? 'Double' : 'Single';
+            
+            // 1. Find the 18x24 4mm Coroplast Price
+            const signRow = dictionary.find((r: any) => r.product_line === '4mm Coroplast' && r.sides === targetSides && (r.dimensions === '18x24' || r.dimensions === '24x18'));
+            
+            if (signRow) {
+                exactPrice = parseFloat(signRow.legacy_price || "0");
+            } else {
+                // Failsafe matching the Blue Sheet just in case the DB call fails
+                exactPrice = reqSides === 2 ? 27.50 : 25.00;
+            }
 
-    // --- 2. PHYSICS ENGINE (HARD COST) ---
-    const cst: any[] = [];
-    const L = (label: string, total: number, formula: string) => { 
-        if(total > 0) cst.push({label, total, formula}); 
-        return total; 
-    };
+            // Apply 5% Bulk Discount for 10+
+            if (qty >= num('Tier_1_Qty', 10)) {
+                exactPrice = exactPrice * (1 - num('Tier_1_Disc', 0.05)); 
+            }
 
-    const rateOp = parseFloat(config.Rate_Operator || 25);
-    const wastePct = parseFloat(config.Waste_Factor || 1.15);
+            printTotal = exactPrice * qty;
+            R(`Sign Print (18" x 24")`, printTotal, `${qty}x Signs @ $${exactPrice.toFixed(2)}/ea`);
 
-    L(`Coro Blanks (24x18)`, inputs.qty * parseFloat(config.Cost_Blank_Standard || 1.00) * wastePct, `${inputs.qty} Blanks * $1.00 * Waste`);
-    L(`UV Ink`, totalSqFt * parseFloat(config.Cost_Ink_UV || 0.16) * multDS, `${totalSqFt.toFixed(1)} SF * $0.16/SF * ${multDS} Sides`);
-    if (inputs.hasStakes) L(`H-Stakes`, inputs.qty * parseFloat(config.Cost_Stake || 0.50), `${inputs.qty} Stakes * $0.50`);
+            // 2. Hardware: Wire Stakes
+            if (hasStakes) {
+                let stkRate = 2.00;
+                const stakeRow = dictionary.find((r: any) => r.product_line === 'Wire Stakes' || (r.dimensions === '10x30' && r.category === 'Hardware'));
+                
+                if (stakeRow) {
+                    stkRate = parseFloat(stakeRow.legacy_price || "2.00");
+                }
+                
+                // Blue Sheet specific volume rule for Stakes (100+ = $1.50)
+                if (qty >= 100) stkRate = 1.50; 
 
-    L(`Job Setup (File RIP)`, (15 / 60) * rateOp, `15 Mins * $${rateOp}/hr`);
-    L(`Material Handling`, (5 / 60) * rateOp * multDS, `5 Mins * $${rateOp}/hr * ${multDS} Sides`);
+                stakeTotal = stkRate * qty;
+                R(`Standard H-Stakes`, stakeTotal, `${qty}x Stakes @ $${stkRate.toFixed(2)}/ea`);
+            }
+            
+            let grandTotalRetailRaw = printTotal + stakeTotal;
+            const minOrder = num('Retail_Min_Order', 50);
+            grandTotalRetail = grandTotalRetailRaw;
+            let isMinApplied = false;
 
-    const printHrs = ((inputs.h / 12) * inputs.qty / parseFloat(config.Machine_Speed_LF_Hr || 25)) * multDS;
-    L(`Flatbed Op (Attn Ratio)`, printHrs * rateOp * parseFloat(config.Labor_Attendance_Ratio || 0.10), `${printHrs.toFixed(2)} Hrs * $${rateOp}/hr * 10%`);
-    L(`Flatbed Machine Run`, printHrs * parseFloat(config.Rate_Machine_Flatbed || 10), `${printHrs.toFixed(2)} Hrs * $10/hr`);
+            // 3. Shop Minimum Enforcement
+            if (grandTotalRetailRaw < minOrder) {
+                R(`Shop Minimum Surcharge`, minOrder - grandTotalRetailRaw, `Minimum order difference`);
+                grandTotalRetail = minOrder; 
+                isMinApplied = true;
+            }
+        }
 
-    let hardCostRaw = cst.reduce((sum, i) => sum + i.total, 0);
-    const totalCost = hardCostRaw * parseFloat(config.Factor_Risk || 1.05);
+        return { 
+            retail: { unitPrice: grandTotalRetail / qty, grandTotal: grandTotalRetail, breakdown: ret, isMinApplied: grandTotalRetail > (printTotal + stakeTotal) }, 
+            cost: { total: 0, breakdown: [] }, // Cost bypassed for now
+            metrics: { margin: 0 } 
+        };
+    });
 
-    const payload = {
-      retail: { unitPrice: grandTotal / inputs.qty, grandTotal: grandTotal, breakdown: ret, isMinApplied, printTotal, stakeTotal },
-      cost: { total: totalCost, breakdown: cst },
-      metrics: { margin: (grandTotal - totalCost) / grandTotal }
-    };
+    const finalPayload = isArray ? results : results.shift();
+    return new Response(JSON.stringify(finalPayload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 })
+  } catch (error: any) { 
+      return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders }); 
   }
-})
+});
