@@ -44,10 +44,10 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Thickness</label>
-                        <select id="thickness" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
-                            <option value="4mm">4mm Standard</option>
-                            <option value="10mm">10mm Heavy Duty</option>
-                        </select>
+<select id="thickness" class="w-full border p-2 rounded bg-white font-bold text-sm h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="handleThickness()">
+    <option value="4mm">4mm Standard</option>
+    <option value="10mm">10mm Heavy Duty</option>
+</select>
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sides</label>
@@ -218,6 +218,22 @@ function renderSheet() {
         });
     }
     document.getElementById('sheet-body').innerHTML = html;
+}
+
+// Hardware Disabling Logic
+function handleThickness() {
+    const thk = document.getElementById('thickness').value;
+    const hwSelect = document.getElementById('hardware');
+    
+    if (thk === '10mm') {
+        hwSelect.value = 'None';
+        hwSelect.disabled = true;
+        hwSelect.classList.add('opacity-50', 'bg-gray-100', 'cursor-not-allowed');
+    } else {
+        hwSelect.disabled = false;
+        hwSelect.classList.remove('opacity-50', 'bg-gray-100', 'cursor-not-allowed');
+    }
+    runCalc();
 }
 
 // Math Engine Logic

@@ -330,30 +330,88 @@
 
         // VIEW: MASTER PRICE SHEET (FIXED RETAIL DICTIONARY)
         else if (activeTable === 'ref_retail_history') {
-            legend.innerHTML = 'Note: These are the exact, fixed prices used by dictionary-first calculators (like Coroplast v3.0).';
-            thead.innerHTML = `<tr>
-                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Product Line</th>
-                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest">Dimensions</th>
-                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Sides</th>
-                <th class="p-3 text-[10px] font-black text-blue-600 uppercase tracking-widest text-right">Fixed Price ($)</th>
-                <th class="p-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Action</th>
-            </tr>`;
+            legend.innerHTML = 'Note: These are the exact, fixed prices used by dictionary-first calculators.';
 
-            filteredData.forEach(row => {
-                html += `<tr class="hover:bg-gray-50 transition border-b border-gray-100">
-                    <td class="p-3 text-xs font-bold text-gray-800">${row.product_line}</td>
-                    <td class="p-3 text-xs font-bold text-gray-600">${row.dimensions}</td>
-                    <td class="p-3 text-center text-xs font-bold text-gray-500">${row.sides}</td>
-                    <td class="p-3 text-right">
-                        <input type="number" step="0.01" id="fp-price-${row.id}" value="${row.legacy_price}" class="w-24 text-right border rounded p-1.5 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-fp-${row.id}').classList.remove('hidden')">
-                    </td>
-                    <td class="p-3 text-center">
-                        <button id="btn-fp-${row.id}" onclick="saveFixedPrice('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition">
-                            Update
-                        </button>
-                    </td>
-                </tr>`;
-            });
+            // 1. Dynamic Product Filters
+            window.fpProduct = window.fpProduct || '4mm Coroplast'; // Default selection
+            const products = [...new Set(tableData.map(r => r.product_line))].filter(Boolean).sort();
+            let btnHtml = products.map(p =>
+                `<button onclick="window.fpProduct='${p}'; renderTable();" class="px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded shadow-sm transition ${window.fpProduct === p ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'}">${p}</button>`
+            ).join('');
+
+            // Hide the standard thead and replace with the Filter Bar
+            thead.innerHTML = `<tr><th colspan="6" class="p-4 bg-slate-100 border-b border-gray-300 shadow-inner"><div class="flex flex-wrap gap-2">${btnHtml}</div></th></tr>`;
+
+            let displayData = filteredData.filter(r => r.product_line === window.fpProduct);
+            let singleData = displayData.filter(r => r.sides === 'Single');
+            let doubleData = displayData.filter(r => r.sides === 'Double');
+
+            // Sort by Physical Area
+            const getArea = (dim) => {
+                if(!dim) return 0;
+                const [w, h] = dim.toLowerCase().split('x').map(Number);
+                return (w || 0) * (h || 0);
+            };
+            singleData.sort((a,b) => getArea(a.dimensions) - getArea(b.dimensions));
+            doubleData.sort((a,b) => getArea(a.dimensions) - getArea(b.dimensions));
+
+            // Inner Row Builder
+            const buildRows = (dataArr) => {
+                if(dataArr.length === 0) return `<tr><td colspan="4" class="p-6 text-center text-gray-400 italic font-bold">No records found.</td></tr>`;
+                return dataArr.map(row => {
+                    const bulkPrice = (parseFloat(row.legacy_price || 0) * 0.95).toFixed(2);
+                    return `<tr class="hover:bg-blue-50/50 transition border-b border-gray-100">
+                        <td class="p-2 text-xs font-bold text-gray-800">${row.dimensions}</td>
+                        <td class="p-2">
+                            <input type="number" step="0.01" id="fp-price-${row.id}" value="${row.legacy_price}" class="w-20 text-center border rounded p-1 font-mono text-xs font-bold text-blue-700 outline-none focus:border-blue-500 shadow-inner" oninput="document.getElementById('btn-fp-${row.id}').classList.remove('hidden')">
+                        </td>
+                        <td class="p-2 text-center font-mono font-bold text-blue-500 bg-gray-50 border-x border-gray-100">$${bulkPrice}</td>
+                        <td class="p-2 text-center">
+                            <button id="btn-fp-${row.id}" onclick="saveFixedPrice('${row.id}')" class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white px-2 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition">Save</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            };
+
+            // Inject the Side-by-Side Handout Layout
+            html = `<tr><td colspan="6" class="p-0 border-none bg-gray-100">
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 p-4">
+                    <!-- SINGLE SIDED TABLE -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="bg-slate-800 text-white text-center py-2.5 text-[10px] font-black uppercase tracking-widest">Single Sided</div>
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-50 border-b border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                                <tr>
+                                    <th class="p-2 w-1/4">Size</th>
+                                    <th class="p-2 w-1/4 text-center">Qty 1-9 ($)</th>
+                                    <th class="p-2 w-1/4 text-center text-blue-600">Qty 10+ ($)</th>
+                                    <th class="p-2 w-1/4 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                ${buildRows(singleData)}
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- DOUBLE SIDED TABLE -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="bg-slate-800 text-white text-center py-2.5 text-[10px] font-black uppercase tracking-widest">Double Sided</div>
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-50 border-b border-gray-200 text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                                <tr>
+                                    <th class="p-2 w-1/4">Size</th>
+                                    <th class="p-2 w-1/4 text-center">Qty 1-9 ($)</th>
+                                    <th class="p-2 w-1/4 text-center text-blue-600">Qty 10+ ($)</th>
+                                    <th class="p-2 w-1/4 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                ${buildRows(doubleData)}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </td></tr>`;
         }
 
             // VIEW: SYSTEM MODULES (ROUTING / VERSIONS / DEPLOYMENT)
