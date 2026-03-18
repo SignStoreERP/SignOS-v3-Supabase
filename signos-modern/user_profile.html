@@ -110,6 +110,9 @@ window.onload = async function() {
 
 async function fetchProfile() {
     const userId = sessionStorage.getItem('signos_user_id');
+    const statusText = document.getElementById("status-text");
+    const statusDot = document.getElementById("status-dot");
+
     if (!userId) {
         alert("Session invalid. Please log in.");
         window.location.href = "index.html";
@@ -125,11 +128,25 @@ async function fetchProfile() {
         const data = await response.json();
         
         if (data.length > 0) {
-            userData = data;
+            userData = data; // FIX 1: Extract the specific user object from the array
             populateUI();
+
+            // FIX 2: Update the Global Header Status to ONLINE
+            if (statusText) {
+                statusText.innerText = "ONLINE";
+                statusText.className = "font-bold text-green-500";
+                if (statusDot) {
+                    statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                    statusDot.classList.remove("animate-pulse");
+                }
+            }
         }
     } catch (e) {
         console.error("Profile Load Error:", e);
+        if (statusText) {
+            statusText.innerText = "OFFLINE";
+            statusText.className = "font-bold text-red-500";
+        }
     }
 }
 
@@ -144,7 +161,7 @@ function populateUI() {
 
     // Read-only operational fields
     document.getElementById('inp-title').value = userData.title || 'Standard User';
-    document.getElementById('inp-dept').value = userData.department_id || 'Unassigned';
+    document.getElementById('inp-dept').value = (userData.department_id || 'Unassigned').replace('DEPT_', '');
 
     // Editable personal fields
     document.getElementById('inp-first').value = userData.first_name || '';
@@ -199,7 +216,16 @@ async function saveProfile() {
         
         // Update local UI state
         document.getElementById('ui-fullname').innerText = `${payload.first_name} ${payload.last_name}`;
+        
+        // Update Session Storage so global headers match instantly
         sessionStorage.setItem('signos_user', payload.first_name);
+        sessionStorage.setItem('signos_user_last', payload.last_name);
+        
+        // Dynamically update Avatar circle in the current header
+        const headerAvatar = document.querySelector('.rounded-full.text-white.flex');
+        if (headerAvatar) {
+            headerAvatar.innerText = (payload.first_name.charAt(0) + (payload.last_name ? payload.last_name.charAt(0) : '')).toUpperCase();
+        }
 
         setTimeout(() => {
             btn.classList.add('hidden');
