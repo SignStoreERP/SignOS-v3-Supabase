@@ -380,13 +380,17 @@ function renderAdminCostLedger(costData, metricsData) {
             </div>`;
             
         items.forEach(i => {
+            // Replaces the <span class="hover-var"> elements natively returned by the Edge Function 
+            // with clean text for the ledger display.
+            const cleanFormula = (i.formula || '').replace(/<[^>]*>?/gm, '');
+
             groupHtml += `
             <div class="mb-2 bg-white p-2 rounded border border-gray-200 shadow-sm transition hover:shadow-md">
                 <div class="flex justify-between text-xs text-red-800 font-bold mb-1">
                     <span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span>
                 </div>
                 <div class="text-[9px] text-gray-500 font-mono italic leading-snug break-words">
-                    ↳ Math: ${i.formula}
+                    ↳ Math: ${cleanFormula}
                 </div>
             </div>`;
         });

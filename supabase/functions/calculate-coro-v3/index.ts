@@ -1,4 +1,6 @@
 declare const Deno: any;
+import { Agent_Flatbed_Print } from "../_shared/agents/Agent_Flatbed_Print.ts";
+
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 
 Deno.serve(async (req: any) => {
@@ -33,7 +35,7 @@ Deno.serve(async (req: any) => {
         const ret: any[] = [];
         const cst: any[] = [];
         
-        // HELPER UTILITIES: Safely parse numbers and build rich audit strings
+        // UTILITIES: Safe numerical parsing and formula string injection
         const num = (val: any, fallback: string) => { const p = parseFloat(val); return isNaN(p) ? parseFloat(fallback) : p; };
         const V = (k: string, fb: string) => `<span class="text-blue-600 font-bold" title="${k}">[${k}: ${num(config[k], fb)}]</span>`;
         
@@ -127,22 +129,27 @@ Deno.serve(async (req: any) => {
         if (auditMode === 'full' || auditMode === 'cost_only') {
             const actualSqFt = (reqW * reqH) / 144;
             const totalActualSqFt = actualSqFt * qty;
-            
             const wastePct = num(config.Waste_Factor, "1.15");
             const riskFactor = num(config.Factor_Risk, "1.05");
             const rateOp = num(config.Rate_Operator, "25");
             const rateShop = num(config.Rate_Shop_Labor, "20");
 
-            const sheetCostKey = is10mm ? 'Cost_Stock_10mm_4x8' : 'Cost_Stock_4mm_4x8';
-            const sheetCost = num(config[sheetCostKey], is10mm ? "33.49" : "8.40");
+            // 1. Materials & Blank Bypass Logic
+            const isStandardBlank = (reqW === 24 && reqH === 18) || (reqW === 18 && reqH === 24);
+            const is4mmBlank = thk === '4mm' && isStandardBlank;
 
-            const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
-            const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
-            const bestYield = Math.max(yieldX, yieldY, 1);
-            const rawBlanks = (qty / bestYield) * sheetCost;
+            if (is4mmBlank) {
+                const blankCost = num(config.Cost_Blank_Standard, "0.65");
+                L(`Precut Coro Blanks (24x18)`, qty * blankCost * wastePct, `Bypass Yield: ${qty} Blanks * ${V('Cost_Blank_Standard', "0.65")}/Ea * ${V('Waste_Factor', "1.15")}`, 'Materials');
+            } else {
+                const sheetCostKey = is10mm ? 'Cost_Stock_10mm_4x8' : 'Cost_Stock_4mm_4x8';
+                const sheetCost = num(config[sheetCostKey], is10mm ? "33.49" : "8.40");
+                const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
+                const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
+                const bestYield = Math.max(yieldX, yieldY, 1);
+                L(`Coroplast Blanks (${thk})`, (qty / bestYield) * sheetCost * wastePct, `(${qty} Qty / ${bestYield} Yield) * ${V(sheetCostKey, is10mm ? "33.49" : "8.40")}/Sht * ${V('Waste_Factor', "1.15")}`, 'Materials');
+            }
 
-            // 1. Materials
-            L(`Coroplast Blanks (${thk})`, rawBlanks * wastePct, `(${qty} Qty / ${bestYield} Yield) * ${V(sheetCostKey, is10mm ? "33.49" : "8.40")}/Sht * ${V('Waste_Factor', "1.15")}`, 'Materials');
             L(`Flatbed Ink`, totalActualSqFt * num(config.Cost_Ink_Latex, "0.16") * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex', "0.16")} * ${reqSides} Sides * ${V('Waste_Factor', "1.15")}`, 'Materials');
 
             // 2. Hardware
@@ -152,24 +159,27 @@ Deno.serve(async (req: any) => {
                 L(`Heavy Duty Stakes`, qty * num(config.Cost_Stake_HD, "1.85"), `${qty}x Stakes * ${V('Cost_Stake_HD', "1.85")}`, 'Hardware');
             }
 
-            // 3. Labor
-            L(`Job Setup (File RIP)`, (num(config.Time_Setup_Job, "15") / 60) * rateOp, `${V('Time_Setup_Job', "15")} Mins * ${V('Rate_Operator', "25")}/hr`, 'Labor');
+            // 3. Labor (SHARED AGENT HANDOFF)
+            L(`Print Setup (Load Media)`, (num(config.Time_Setup_Printer, "5") / 60) * rateOp, `${V('Time_Setup_Printer', "5")} Mins * ${V('Rate_Operator', "25")}/hr`, 'Labor');
             
-            const printHrs = ((reqH / 12) * qty / num(config.Machine_Speed_LF_Hr, "25")) * reqSides;
-            L(`Flatbed Operator (Attn)`, printHrs * rateOp * num(config.Labor_Attendance_Ratio, "0.10"), `${printHrs.toFixed(2)} Hrs * ${V('Rate_Operator', "25")}/hr * ${V('Labor_Attendance_Ratio', "0.10")}`, 'Labor');
-            L(`Flatbed Machine Run`, printHrs * num(config.Rate_Machine_Flatbed, "10"), `${printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Flatbed', "10")}/hr`, 'Labor');
+            const speed = num(config.Machine_Speed_LF_Hr, "25");
+            const printStrat = Agent_Flatbed_Print.calculatePrintTime(reqW, reqH, qty, speed, reqSides, 60);
+            
+            L(`Flatbed Operator (Attn)`, printStrat.printHrs * rateOp * num(config.Labor_Attendance_Ratio, "0.10"), `${printStrat.logic} -> ${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Operator', "25")}/hr * ${V('Labor_Attendance_Ratio', "0.10")}`, 'Labor');
+            L(`Flatbed Machine Run`, printStrat.printHrs * num(config.Rate_Machine_Flatbed, "10"), `${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Flatbed', "10")}/hr`, 'Labor');
 
+            // 4. Finishing / Routing
             if (inputs.shape === 'CNC Simple' || inputs.shape === 'CNC Complex') {
                 const cncTimeKey = inputs.shape === 'CNC Simple' ? 'Time_CNC_Easy_SqFt' : 'Time_CNC_Complex_SqFt';
                 const cncTimeFb = inputs.shape === 'CNC Simple' ? "1" : "2";
                 const cncTime = num(config[cncTimeKey], cncTimeFb);
-                
                 const cutHrs = (totalActualSqFt * cncTime) / 60;
                 L(`CNC Router Setup`, (num(config.Time_Setup_CNC, "10") / 60) * num(config.Rate_CNC_Labor, "25"), `${V('Time_Setup_CNC', "10")} Mins * ${V('Rate_CNC_Labor', "25")}/hr`, 'Labor');
                 L(`CNC Router Run`, cutHrs * num(config.Rate_Machine_CNC, "10"), `${cutHrs.toFixed(2)} Hrs * ${V('Rate_Machine_CNC', "10")}/hr`, 'Labor');
-            } else {
-                L(`Shear Machine Setup`, (num(config.Time_Shear_Setup, "5") / 60) * rateShop, `${V('Time_Shear_Setup', "5")} Mins * ${V('Rate_Shop_Labor', "20")}/hr`, 'Labor');
-                L(`Shear Run (4 Cuts/Ea)`, ((qty * 4 * num(config.Time_Shear_Cut, "1")) / 60) * rateShop, `${qty * 4} Cuts * ${V('Time_Shear_Cut', "1")} Min/Cut * ${V('Rate_Shop_Labor', "20")}/hr`, 'Labor');
+            } else if (!is4mmBlank) {
+                // Hand Cutting Engine (2-Cuts per piece bypassing Shear)
+                L(`Hand Cutting Setup`, (5 / 60) * rateShop, `5 Mins (Ruler/Razor) * ${V('Rate_Shop_Labor', "20")}/hr`, 'Labor');
+                L(`Hand Cutting Run (2 Cuts/Ea)`, ((qty * 2 * 1) / 60) * rateShop, `${qty} Qty * 2 Cuts * 1 Min/Cut * ${V('Rate_Shop_Labor', "20")}/hr`, 'Labor');
             }
 
             totalHardCost = cst.reduce((sum, i) => sum + i.total, 0) * riskFactor;
