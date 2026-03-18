@@ -49,7 +49,7 @@ function injectHeader(title, showMenu = true) {
     <!-- TOP UTILITY BAR -->
     <div class="bg-gray-800 px-4 py-1 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700 shrink-0">
         <div class="flex gap-2">
-            <span>USER: <b class="text-gray-200 uppercase">${u}</b></span>
+            <span>USER: <a href="user_profile.html" class="text-gray-200 uppercase hover:text-white hover:underline transition">${u}</a></span>
             <span>ROLE: <b class="text-blue-400 uppercase">${r}</b></span>
         </div>
         <button onclick="logout()" class="hover:text-white font-bold uppercase transition flex items-center gap-1">
