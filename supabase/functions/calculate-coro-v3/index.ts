@@ -9,14 +9,11 @@ Deno.serve(async (req: any) => {
     const isArray = Array.isArray(requestData.inputs);
     const inputPayload = isArray ? requestData.inputs : [requestData.inputs];
     const config = requestData.config || {};
-    
-    // SRE Throttle: 'full', 'retail_only', 'cost_only'
     const auditMode = requestData.audit_mode || 'full'; 
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
-    // PRE-FETCH MASTER PRICE LIST (BLUE SHEET DICTIONARY)
     let dictionary: any[] = [];
     if ((auditMode === 'full' || auditMode === 'retail_only') && supabaseUrl && supabaseKey) {
         const res = await fetch(`${supabaseUrl}/rest/v1/ref_retail_history?select=*`, {
@@ -40,9 +37,12 @@ Deno.serve(async (req: any) => {
 
         let grandTotalRetail = 0;
         let totalHardCost = 0;
+        let printTotal = 0;
+        let routerFee = 0;
+        let stakeTotal = 0;
 
         // ==========================================
-        // TIER 1: RETAIL ENGINE (DICTIONARY LOOKUP)
+        // TIER 1: RETAIL ENGINE
         // ==========================================
         if (auditMode === 'full' || auditMode === 'retail_only') {
             let exactPrice = 0; 
@@ -51,13 +51,10 @@ Deno.serve(async (req: any) => {
             
             const targetLine = is10mm ? '10mm Coroplast' : '4mm Coroplast';
             const targetSides = reqSides === 2 ? 'Double' : 'Single';
-            
             const validRows = dictionary.filter((r: any) => r.product_line === targetLine && r.sides === targetSides);
             
-            // 1. "Nearest Box" Chunking Logic
             for (const row of validRows) {
                 if (!row.dimensions || !row.dimensions.includes('x')) continue;
-                
                 const [swStr, shStr] = row.dimensions.toLowerCase().split('x');
                 const sw = parseFloat(swStr); 
                 const sh = parseFloat(shStr); 
@@ -75,26 +72,48 @@ Deno.serve(async (req: any) => {
                 }
             }
             
-            // 2. Quote Generation
             if (exactPrice > 0) {
                 let unitPrice = exactPrice;
-                if (qty >= 10) unitPrice = unitPrice * 0.95; // Standard bulk logic
-                grandTotalRetail = unitPrice * qty;
-                R(`Sign Print (${thk} Rounded to ${mappedBox})`, grandTotalRetail, `${qty}x Signs @ $${unitPrice.toFixed(2)}/ea`);
+                if (qty >= 10) unitPrice = unitPrice * 0.95; 
+                printTotal = unitPrice * qty;
+                R(`Sign Print (${thk} Rounded to ${mappedBox})`, printTotal, `${qty}x Signs @ $${unitPrice.toFixed(2)}/ea`);
             } else {
-                // Extreme Fallback for signs larger than standard chunks
                 const billedSqFt = (Math.ceil(reqW / 12) * Math.ceil(reqH / 12));
                 const baseRate = is10mm ? parseFloat(config.COR10_T4_Rate || "15") : parseFloat(config.COR4_T4_Rate || "5");
                 let rawUnitPrint = baseRate * billedSqFt;
                 let rawUnitDS = reqSides === 2 ? rawUnitPrint * parseFloat(config.Retail_Adder_DS_Mult || "0.5") : 0;
-                grandTotalRetail = (rawUnitPrint + rawUnitDS) * qty;
-                R(`Oversized Print (${billedSqFt} SF)`, grandTotalRetail, `Area Fallback Math`);
+                printTotal = (rawUnitPrint + rawUnitDS) * qty;
+                R(`Oversized Print (${billedSqFt} SF)`, printTotal, `Area Fallback Math`);
+            }
+
+            // DYNAMIC ADD-ONS
+            if (inputs.shape === 'CNC Simple') {
+                routerFee = parseFloat(config.Retail_Fee_Router_Easy || "30");
+                R(`CNC Router Fee`, routerFee, `Simple Shape Fee`);
+            } else if (inputs.shape === 'CNC Complex') {
+                routerFee = parseFloat(config.Retail_Fee_Router_Hard || "50");
+                R(`CNC Router Fee`, routerFee, `Complex Shape Fee`);
+            }
+
+            if (inputs.hardware === 'H-Stakes') {
+                const stkRate = parseFloat(config.Retail_Stake_Std || "2.50");
+                stakeTotal = stkRate * qty;
+                R(`Standard H-Stakes`, stakeTotal, `${qty}x Stakes @ $${stkRate.toFixed(2)}/ea`);
+            } else if (inputs.hardware === 'HD-Stakes') {
+                const stkRate = parseFloat(config.Retail_Stake_HD || "4.00");
+                stakeTotal = stkRate * qty;
+                R(`Heavy Duty Stakes`, stakeTotal, `${qty}x Stakes @ $${stkRate.toFixed(2)}/ea`);
             }
             
+            let grandTotalRetailRaw = printTotal + routerFee + stakeTotal;
             const minOrder = parseFloat(config.Retail_Min_Order || "50");
-            if (grandTotalRetail < minOrder) {
-                R(`Shop Minimum Surcharge`, minOrder - grandTotalRetail, `Minimum order difference`);
+            grandTotalRetail = grandTotalRetailRaw;
+            let isMinApplied = false;
+
+            if (grandTotalRetailRaw < minOrder) {
+                R(`Shop Minimum Surcharge`, minOrder - grandTotalRetailRaw, `Minimum order difference`);
                 grandTotalRetail = minOrder; 
+                isMinApplied = true;
             }
         }
 
@@ -108,7 +127,6 @@ Deno.serve(async (req: any) => {
             const wastePct = parseFloat(config.Waste_Factor || "1.15");
             const riskFactor = parseFloat(config.Factor_Risk || "1.05");
 
-            // True physical yielding
             const yieldX = Math.floor(48 / reqW) * Math.floor(96 / reqH);
             const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
             const bestYield = Math.max(yieldX, yieldY, 1);
@@ -117,10 +135,15 @@ Deno.serve(async (req: any) => {
             L(`Coroplast Blanks (${thk})`, rawBlanks * wastePct, `${qty} Qty / ${bestYield} Yield * $${sheetCost.toFixed(2)}/Sht * Waste`);
             L(`Flatbed Ink`, totalActualSqFt * parseFloat(config.Cost_Ink_Latex || "0.16") * reqSides * wastePct, `Actual SF * Ink Cost * Sides * Waste`);
 
+            if (inputs.hardware === 'H-Stakes') {
+                L(`Standard H-Stakes`, qty * parseFloat(config.Cost_Stake_Std || "0.65"), `${qty}x Stakes * Cost`);
+            } else if (inputs.hardware === 'HD-Stakes') {
+                L(`Heavy Duty Stakes`, qty * parseFloat(config.Cost_Stake_HD || "1.85"), `${qty}x Stakes * Cost`);
+            }
+
             totalHardCost = cst.reduce((sum, i) => sum + i.total, 0) * riskFactor;
         }
 
-        // Fulfill the Data Contract
         return { 
             retail: { unitPrice: grandTotalRetail / qty, grandTotal: grandTotalRetail, breakdown: ret }, 
             cost: { total: totalHardCost, breakdown: cst }, 
