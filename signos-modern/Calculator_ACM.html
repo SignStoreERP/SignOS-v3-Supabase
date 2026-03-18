@@ -111,7 +111,7 @@
                 </div>
             </div>
 
-            <!-- ADMIN HARD COST LEDGER (LAZY LOADED & ISOLATED) -->
+            <!-- ADMIN HARD COST LEDGER -->
             <div id="admin-ledger-box" class="hidden bg-slate-50 p-6 border-t border-gray-200 shadow-inner relative">
                 <div class="absolute top-0 right-6 w-16 h-1 bg-red-500 rounded-b-md"></div>
                 <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest mb-4 flex justify-between items-center">
@@ -227,7 +227,8 @@ function handleAdminToggle() {
 // Sheet View Logic
 async function fetchSheetData() {
     try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/master_retail_blue_sheet?product_line=ilike.*ACM*&select=*`, {
+        // FIXED: Querying ref_retail_history instead of master_retail_blue_sheet
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/ref_retail_history?product_line=ilike.*ACM*&select=*`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
         if(res.ok) {
@@ -275,8 +276,9 @@ function renderSheet() {
         html = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic font-bold">No pricing matrix defined for this combination yet.</td></tr>`;
     } else {
         filtered.forEach((row, idx) => {
-            const basePrice = parseFloat(row.price_qty_1 || row.legacy_price || 0);
-            const bulkPrice = parseFloat(row.price_qty_10_plus || row.price_qty_10 || (basePrice * 0.95)); 
+            // FIXED: Using legacy_price column with a calculated 5% volume break
+            const basePrice = parseFloat(row.legacy_price || 0);
+            const bulkPrice = basePrice * 0.95; 
             
             html += `<tr class="even:bg-gray-50 hover:bg-blue-50 transition-colors cursor-default">
                 <td class="p-3 font-bold text-gray-800">${row.dimensions}</td>

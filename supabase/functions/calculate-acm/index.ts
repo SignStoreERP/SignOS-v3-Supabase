@@ -19,10 +19,10 @@ Deno.serve(async (req: any) => {
     let dictionary: any[] = [];
     let curves: any[] = [];
 
-    // HEADLESS FETCH: Pull from the correct master_retail_blue_sheet
+    // HEADLESS FETCH: Pull from the correct ref_retail_history table
     if ((auditMode === 'full' || auditMode === 'retail_only') && supabaseUrl && supabaseKey) {
         const [resDict, resCurves] = await Promise.all([
-            fetch(`${supabaseUrl}/rest/v1/master_retail_blue_sheet?select=*`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }),
+            fetch(`${supabaseUrl}/rest/v1/ref_retail_history?select=*`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }),
             fetch(`${supabaseUrl}/rest/v1/retail_curves?select=*`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } })
         ]);
         if (resDict.ok) dictionary = await resDict.json();
@@ -48,7 +48,6 @@ Deno.serve(async (req: any) => {
         const V = (k: string) => `<span class="text-blue-600 font-bold" title="${k}">[${k}: ${config[k]}]</span>`;
         
         const R = (label: string, total: number, formula: string) => { if (total > 0) ret.push({label, total, formula}); return total; };
-        // NOTE: If a calculation returns 0, it is intentionally excluded from the ledger.
         const L = (label: string, total: number, formula: string, category: string) => { if (total > 0) cst.push({label, total, formula, category}); return total; };
 
         let grandTotalRetail = 0;
@@ -89,12 +88,11 @@ Deno.serve(async (req: any) => {
             }
             
             if (selectedRow) {
-                // Safely grab the current active columns from your Blue Sheet
-                exactPrice = parseFloat(selectedRow.price_qty_1 || selectedRow.legacy_price || "0");
-                let bulk = selectedRow.price_qty_10_plus || selectedRow.price_qty_10;
-                
-                if (qty >= num('Tier_1_Qty') && bulk) exactPrice = parseFloat(bulk);
-                else if (qty >= num('Tier_1_Qty')) exactPrice = exactPrice * (1 - num('Tier_1_Disc')); 
+                // Correctly references legacy_price and mathematically calculates the 5% bulk break
+                exactPrice = parseFloat(selectedRow.legacy_price || "0");
+                if (qty >= num('Tier_1_Qty')) {
+                    exactPrice = exactPrice * (1 - num('Tier_1_Disc')); 
+                }
             }
             
             if (exactPrice > 0) {
@@ -170,7 +168,6 @@ Deno.serve(async (req: any) => {
             const yieldY = Math.floor(48 / reqH) * Math.floor(96 / reqW);
             const bestYield = Math.max(yieldX, yieldY, 1);
             
-            // Re-labeled from ACM Blanks to ACM
             L(`ACM (${thk})`, (qty / bestYield) * sheetCost * wastePct, `(${qty} Qty / ${bestYield} Yield) * ${V(sheetCostKey)}/Sht * ${V('Waste_Factor')}`, 'Materials');
             L(`Flatbed Ink`, totalActualSqFt * num('Cost_Ink_Latex') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Ink_Latex')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
 
@@ -178,7 +175,6 @@ Deno.serve(async (req: any) => {
                 L(`Gloss/Matte Laminate`, totalActualSqFt * num('Cost_Lam_SqFt') * reqSides * wastePct, `${totalActualSqFt.toFixed(1)} Actual SF * ${V('Cost_Lam_SqFt')} * ${reqSides} Sides * ${V('Waste_Factor')}`, 'Materials');
             }
 
-            // Prep & Handling Steps
             L(`Job Setup (File RIP)`, (num('Time_Setup_Job') / 60) * rateOp, `${V('Time_Setup_Job')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
             L(`Material Handling`, (num('Time_Handling') / 60) * rateShop, `${V('Time_Handling')} Mins * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
             L(`Print Setup (Load Media)`, (num('Time_Setup_Printer') / 60) * rateOp, `${V('Time_Setup_Printer')} Mins * ${V('Rate_Operator')}/hr`, 'Labor');
@@ -190,12 +186,10 @@ Deno.serve(async (req: any) => {
             L(`Flatbed Machine Run`, printStrat.printHrs * num('Rate_Machine_Flatbed'), `${printStrat.printHrs.toFixed(2)} Hrs * ${V('Rate_Machine_Flatbed')}/hr`, 'Labor');
 
             if (inputs.laminate === 'Standard') {
-                // Now uses the correct Roll Laminator speed and Shop Labor
                 const lamHrs = (totalActualSqFt / num('Speed_Lam_Roll')) * reqSides;
                 L(`Lamination Run`, lamHrs * rateShop, `${totalActualSqFt.toFixed(1)} SF / ${V('Speed_Lam_Roll')} SF/hr * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
             }
 
-            // Finishing & Routing
             if (inputs.shape === 'CNC Simple' || inputs.shape === 'CNC Complex') {
                 const cncTimeKey = inputs.shape === 'CNC Simple' ? 'Time_CNC_Easy_SqFt' : 'Time_CNC_Complex_SqFt';
                 const cncTime = num(cncTimeKey);
@@ -203,7 +197,6 @@ Deno.serve(async (req: any) => {
                 L(`CNC Router Setup`, (num('Time_Setup_CNC') / 60) * num('Rate_CNC_Labor'), `${V('Time_Setup_CNC')} Mins * ${V('Rate_CNC_Labor')}/hr`, 'Labor');
                 L(`CNC Router Run`, cutHrs * num('Rate_Machine_CNC'), `${cutHrs.toFixed(2)} Hrs * ${V('Rate_Machine_CNC')}/hr`, 'Labor');
             } else {
-                // Dynamic Shear Cut Constraint Logic (0, 1, or 2 cuts)
                 let cutsPerEa = 2;
                 if ((reqW === 48 && reqH === 96) || (reqW === 96 && reqH === 48) || (reqW === 60 && reqH === 120) || (reqW === 120 && reqH === 60)) cutsPerEa = 0; 
                 else if (reqW === 48 || reqH === 48 || reqW === 96 || reqH === 96 || reqW === 60 || reqH === 60 || reqW === 120 || reqH === 120) cutsPerEa = 1; 
@@ -214,7 +207,6 @@ Deno.serve(async (req: any) => {
                     L(`Shear/Saw Run (${cutsPerEa} Cuts/Ea)`, ((qty * cutsPerEa * num('Time_Shear_Cut')) / 60) * rateShop, `${qty} Qty * ${cutsPerEa} Cuts * ${V('Time_Shear_Cut')} Min/Cut * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
                 }
 
-                // Apply Corner Rounding Labor 
                 L(`Corner Rounding Setup`, (num('Time_Round_Setup') / 60) * rateShop, `${V('Time_Round_Setup')} Mins * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
                 L(`Corner Rounding Run`, ((qty * 4 * num('Time_Round_Corner')) / 60) * rateShop, `${qty} Qty * 4 Corners * ${V('Time_Round_Corner')} Min/Cnr * ${V('Rate_Shop_Labor')}/hr`, 'Labor');
             }
