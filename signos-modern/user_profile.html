@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>User Profile | SignOS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans flex flex-col pb-10">
+
+    <div class="max-w-2xl mx-auto mt-8 w-full px-4 sm:px-0">
+        
+        <!-- PROFILE ISLAND CARD -->
+        <div class="bg-white shadow-xl rounded-2xl border border-gray-200 overflow-hidden relative">
+            
+            <!-- HEADER BANNER -->
+            <div class="bg-slate-900 px-8 py-6 text-white flex items-center gap-5 relative overflow-hidden shrink-0">
+                <!-- Abstract Background Graphic -->
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+                
+                <div class="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-black shadow-inner border-2 border-blue-400 z-10" id="ui-avatar">
+                    --
+                </div>
+                <div class="z-10">
+                    <h1 class="text-2xl font-black tracking-tight" id="ui-fullname">Loading Profile...</h1>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="px-2 py-0.5 bg-blue-500/20 border border-blue-400/30 rounded text-[10px] font-black text-blue-300 uppercase tracking-widest" id="ui-role-badge">WAIT</span>
+                        <span class="text-xs text-slate-400 font-medium" id="ui-email">...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-8 space-y-8">
+                
+                <!-- SECTION: OPERATIONAL IDENTITY (READ-ONLY) -->
+                <div>
+                    <div class="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Operational Identity (Management Controlled)</h2>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Job Title / Competency</label>
+                            <input type="text" id="inp-title" readonly class="w-full border border-gray-200 p-2.5 rounded bg-gray-50 text-sm font-bold text-gray-500 cursor-not-allowed shadow-inner outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Department Silo</label>
+                            <input type="text" id="inp-dept" readonly class="w-full border border-gray-200 p-2.5 rounded bg-gray-50 text-sm font-bold text-gray-500 cursor-not-allowed shadow-inner outline-none">
+                        </div>
+                        <div class="md:col-span-2">
+                            <p class="text-[10px] font-bold text-gray-400 italic">Notice: Role and Department changes must be requested through a System Administrator via the Workforce Manager.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: PERSONAL SETTINGS (EDITABLE) -->
+                <div>
+                    <div class="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        <h2 class="text-[10px] font-black text-blue-600 uppercase tracking-widest">Personal Details & Preferences</h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">First Name</label>
+                            <input type="text" id="inp-first" class="w-full border border-gray-300 p-2.5 rounded bg-white text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-sm transition" oninput="showSaveBtn()">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Last Name</label>
+                            <input type="text" id="inp-last" class="w-full border border-gray-300 p-2.5 rounded bg-white text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-sm transition" oninput="showSaveBtn()">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Mobile Phone (Optional)</label>
+                            <input type="tel" id="inp-phone" placeholder="(555) 555-5555" class="w-full border border-gray-300 p-2.5 rounded bg-white text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-sm transition" oninput="showSaveBtn()">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">UI Theme Preference</label>
+                            <select id="inp-theme" class="w-full border border-gray-300 p-2.5 rounded bg-white text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-sm transition" onchange="showSaveBtn()">
+                                <option value="system">System Default</option>
+                                <option value="light">Light Mode (Forced)</option>
+                                <option value="dark">Dark Mode (Forced)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- FOOTER ACTIONS -->
+            <div class="bg-gray-50 border-t border-gray-200 p-5 flex justify-between items-center shrink-0">
+                <button class="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest transition outline-none">
+                    Reset Password
+                </button>
+                <button id="btn-save" onclick="saveProfile()" class="hidden bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded shadow text-[10px] uppercase tracking-widest transition flex items-center justify-center gap-2">
+                    Save Profile
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+let userData = null;
+
+window.onload = async function() {
+    if (typeof injectHeader === 'function') injectHeader("User Profile");
+    await fetchProfile();
+};
+
+async function fetchProfile() {
+    const userId = sessionStorage.getItem('signos_user_id');
+    if (!userId) {
+        alert("Session invalid. Please log in.");
+        window.location.href = "index.html";
+        return;
+    }
+
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/staff?id=eq.${userId}&select=*`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${sessionStorage.getItem('supabase.auth.token') || SUPABASE_ANON_KEY}` }
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch profile");
+        const data = await response.json();
+        
+        if (data.length > 0) {
+            userData = data;
+            populateUI();
+        }
+    } catch (e) {
+        console.error("Profile Load Error:", e);
+    }
+}
+
+function populateUI() {
+    if (!userData) return;
+
+    // Header updates
+    document.getElementById('ui-fullname').innerText = `${userData.first_name || ''} ${userData.last_name || ''}`;
+    document.getElementById('ui-email').innerText = userData.email || '';
+    document.getElementById('ui-role-badge').innerText = userData.role || 'GUEST';
+    document.getElementById('ui-avatar').innerText = (userData.first_name ? userData.first_name.charAt(0) : '?') + (userData.last_name ? userData.last_name.charAt(0) : '');
+
+    // Read-only operational fields
+    document.getElementById('inp-title').value = userData.title || 'Standard User';
+    document.getElementById('inp-dept').value = userData.department_id || 'Unassigned';
+
+    // Editable personal fields
+    document.getElementById('inp-first').value = userData.first_name || '';
+    document.getElementById('inp-last').value = userData.last_name || '';
+    
+    // Parse the personal_settings JSONB column
+    const settings = userData.personal_settings || {};
+    document.getElementById('inp-phone').value = settings.phone || '';
+    document.getElementById('inp-theme').value = settings.theme || 'system';
+}
+
+function showSaveBtn() {
+    document.getElementById('btn-save').classList.remove('hidden');
+}
+
+async function saveProfile() {
+    const btn = document.getElementById('btn-save');
+    btn.disabled = true;
+    btn.innerText = "SAVING...";
+
+    const userId = sessionStorage.getItem('signos_user_id');
+    
+    const newSettings = {
+        ...(userData.personal_settings || {}),
+        phone: document.getElementById('inp-phone').value,
+        theme: document.getElementById('inp-theme').value
+    };
+
+    const payload = {
+        first_name: document.getElementById('inp-first').value,
+        last_name: document.getElementById('inp-last').value,
+        personal_settings: newSettings
+    };
+
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/staff?id=eq.${userId}`, {
+            method: 'PATCH',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'apikey': SUPABASE_ANON_KEY, 
+                'Authorization': `Bearer ${sessionStorage.getItem('supabase.auth.token') || SUPABASE_ANON_KEY}`,
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error("Failed to save profile");
+
+        btn.innerText = "SAVED!";
+        btn.classList.replace('bg-blue-600', 'bg-green-500');
+        btn.classList.replace('hover:bg-blue-700', 'hover:bg-green-600');
+        
+        // Update local UI state
+        document.getElementById('ui-fullname').innerText = `${payload.first_name} ${payload.last_name}`;
+        sessionStorage.setItem('signos_user', payload.first_name);
+
+        setTimeout(() => {
+            btn.classList.add('hidden');
+            btn.classList.replace('bg-green-500', 'bg-blue-600');
+            btn.classList.replace('hover:bg-green-600', 'hover:bg-blue-700');
+            btn.disabled = false;
+            btn.innerText = "Save Profile";
+        }, 2000);
+
+    } catch (e) {
+        alert("Error saving profile: " + e.message);
+        btn.disabled = false;
+        btn.innerText = "Save Profile";
+    }
+}
+</script>
+</body>
+</html>
