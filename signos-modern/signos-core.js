@@ -48,7 +48,7 @@ function injectHeader(title, showMenu = true) {
 
     const html = `
     <!-- FLOATING ISLAND HEADER -->
-    <div class="w-[calc(100%-2rem)] max-w-5xl mx-auto mt-4 mb-6 rounded-2xl overflow-hidden shadow-2xl shrink-0 z-50 flex flex-col border border-gray-800 sticky top-4 transition-all">
+<div class="w-[calc(100%-2rem)] max-w-5xl mx-auto mt-4 mb-6 rounded-2xl overflow-hidden shadow-md shrink-0 z-50 flex flex-col border border-gray-800 sticky top-4 transition-all">
         <!-- TOP UTILITY BAR (NEW AVATAR SYSTEM) -->
         <div class="bg-gray-800 px-4 py-2 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700">
             <div class="flex items-center gap-3">
@@ -111,7 +111,7 @@ function injectFooter() {
 
     const footerHtml = `
     <!-- FLOATING ISLAND FOOTER -->
-    <div id="signos-universal-footer" class="w-[calc(100%-2rem)] max-w-5xl mx-auto mb-6 mt-auto rounded-2xl overflow-hidden shadow-2xl shrink-0 z-40 border border-gray-800 flex flex-col">
+<div id="signos-universal-footer" class="w-[calc(100%-2rem)] max-w-5xl mx-auto mb-6 mt-auto rounded-2xl overflow-hidden shadow-md shrink-0 z-40 border border-gray-800 flex flex-col">
         <div class="bg-gray-900 px-6 py-4 flex justify-between items-center w-full">
             <a href="menu.html" class="text-[10px] font-bold text-gray-400 hover:text-white uppercase tracking-widest transition flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
