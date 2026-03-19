@@ -366,6 +366,13 @@
         if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
         currentGeom = geom;
 
+        // --- NEW: SAVE CAMERA STATE ---
+        let savedStates = [];
+        document.querySelectorAll('.zoom-target').forEach(t => {
+            savedStates.push({ x: t._panX || 0, y: t._panY || 0, z: t._scaleZ || 1 });
+        });
+        // ------------------------------
+
         // 1. PHYSICAL CONSTANTS
         const above = geom.above;
         const under = geom.under;
@@ -542,6 +549,17 @@
                 </div>
             </div>
         `;
+
+        // --- NEW: RESTORE CAMERA STATE ---
+        document.querySelectorAll('.zoom-target').forEach((t, i) => {
+            if (savedStates[i]) {
+                t._panX = savedStates[i].x;
+                t._panY = savedStates[i].y;
+                t._scaleZ = savedStates[i].z;
+                if (typeof DraftCamera !== 'undefined') DraftCamera.update(t);
+            }
+        });
+        // ---------------------------------
     }
 
 
