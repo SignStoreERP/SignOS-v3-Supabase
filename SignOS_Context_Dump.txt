@@ -1,5 +1,5 @@
 SIGNOS REPOSITORY STATE
-Generated: 2026-03-19T02:18:46.455Z
+Generated: 2026-03-19T22:48:51.889Z
 
 ├── .cursorrules
 ├── .github
@@ -33,6 +33,7 @@ Generated: 2026-03-19T02:18:46.455Z
 │   ├── Calculator_Foam.html
 │   ├── Calculator_Nameplate.html
 │   ├── Calculator_PVC.html
+│   ├── Calculator_PoleCover.html
 │   ├── Calculator_PostPanel.html
 │   ├── Calculator_Wall.html
 │   ├── Calculator_Wrap.html
@@ -70,6 +71,7 @@ Generated: 2026-03-19T02:18:46.455Z
 │   ├── signos-builder.js
 │   ├── signos-canvas.js
 │   ├── signos-core.js
+│   ├── signos-export-v2.js
 │   ├── signos-sandbox.js
 │   ├── signos-ui.js
 │   ├── signos-view-svg.js
@@ -86,7 +88,12 @@ Generated: 2026-03-19T02:18:46.455Z
 │   ├── functions
 │   │   ├── _shared
 │   │   │   └── agents
-│   │   │       └── Agent_Flatbed_Print.ts
+│   │   │       ├── Agent_Flatbed_Print.ts
+│   │   │       ├── Agent_Labor_Ops.ts
+│   │   │       ├── Agent_Machine_Physics.ts
+│   │   │       ├── Agent_Material_Stock.ts
+│   │   │       ├── Agent_Retail_Market.ts
+│   │   │       └── Agent_System_Auth.ts
 │   │   ├── calculate-acm
 │   │   │   ├── .npmrc
 │   │   │   ├── deno.json
@@ -122,6 +129,8 @@ Generated: 2026-03-19T02:18:46.455Z
 │   │   ├── calculate-nameplate
 │   │   │   ├── .npmrc
 │   │   │   ├── deno.json
+│   │   │   └── index.ts
+│   │   ├── calculate-pole-cover
 │   │   │   └── index.ts
 │   │   ├── calculate-post-panel
 │   │   │   ├── .npmrc
@@ -216,6 +225,7 @@ Generated: 2026-03-19T02:18:46.455Z
 │   └── vite.config.ts
 └── vps-proxy
     ├── .env
+    ├── engine.js
     ├── package-lock.json
     ├── package.json
     └── server.js
