@@ -403,3 +403,220 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId
     
     printWindow.document.close();
 };
+
+// --- ADMIN COST REVIEW GENERATOR (FINANCIAL LEDGER) ---
+SignOS_Export_v2.printCostLedger = function(calcResult, svgContainerId, jobDescId) {
+    // Security check: Ensure the admin has actually toggled on the cost payload
+    if (!calcResult || !calcResult.cost || !calcResult.cost.breakdown || calcResult.cost.breakdown.length === 0) {
+        alert("No cost data available. Please enable 'Admin Cost View' and let the calculator run first.");
+        return;
+    }
+
+    const fmt = (n) => "$" + (n || 0).toFixed(2);
+    // Helper to strip the dynamic interactive HTML spans out of the raw Edge Function formulas
+    const cleanHTML = (str) => (str || '').replace(/<[^>]*>?/gm, '');
+
+    // 1. EXTRACT PURE SVG DRAWINGS (Capturing Pan/Zoom State)
+    const svgContainer = document.getElementById(svgContainerId);
+    let svgHtml = '';
+    
+    if (svgContainer) {
+        const targets = svgContainer.querySelectorAll('.zoom-target');
+        if (targets.length > 0) {
+            svgHtml = `<div style="display: flex; gap: 20px; justify-content: center; align-items: stretch; width: 100%; height: 260px;">`;
+            
+            targets.forEach((target, index) => {
+                const title = index === 0 ? 'Front Elevation' : 'Side Profile';
+                const clonedTarget = target.cloneNode(true);
+                const transformStyle = target.style.transform || 'translate(0px, 0px) scale(1)';
+                
+                clonedTarget.className = '';
+                clonedTarget.style.cssText = `width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: center; transform: ${transformStyle};`;
+
+                const innerSvg = clonedTarget.querySelector('svg');
+                if (innerSvg) {
+                    innerSvg.style.width = '100%';
+                    innerSvg.style.height = '100%';
+                    innerSvg.style.maxHeight = 'none';
+                }
+
+                svgHtml += `
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; position: relative;">
+                    <span style="position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: bold; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; z-index: 10; background: rgba(255,255,255,0.9); padding: 2px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${title}</span>
+                    <div style="width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                        ${clonedTarget.outerHTML}
+                    </div>
+                </div>`;
+            });
+            svgHtml += `</div>`;
+        }
+    }
+    if (!svgHtml) svgHtml = '<div style="text-align:center; padding:10px; font-size:12px; color:#94a3b8;">No drawing available</div>';
+
+    // 2. EXTRACT JOB NARRATIVE
+    const descEl = jobDescId ? document.getElementById(jobDescId) : null;
+    const jobDesc = descEl ? descEl.value : 'No narrative provided.';
+
+    // 3. GENERATE NATIVE PRODUCT SPECIFICATIONS
+    let specsHtml = '';
+    if (calcResult.build && calcResult.build.specs) {
+        const s = calcResult.build.specs;
+        specsHtml = `
+            <div class="flex flex-col gap-2 text-[10px] text-slate-800">
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}" x ${s.h}"</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Sides:</span> <span class="font-mono font-bold">${s.sides}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Mount & Posts:</span> <span class="font-mono font-bold text-right">${s.mountStyle} / ${s.postSize}" ${s.postMetalName}<br/><span class="text-slate-400">(${s.thag}" AG / ${s.belowGrade}" BG)</span></span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Frame & Face:</span> <span class="font-mono font-bold text-right">${s.frameDepth}" ${s.isAngle ? 'Angle' : 'Tube'}<br/><span class="text-slate-400">${(s.graphicType || '').replace(/_/g, ' ')}</span></span></div>
+            </div>
+        `;
+    }
+
+    // 4. GROUP & RENDER COST LEDGER
+    const DEPT_TITLES = {
+        'METAL_MAT': 'Metal Fabrication (Materials)',
+        'METAL_LAB': 'Metal Fabrication (Labor)',
+        'PAINT_MAT': 'Paint & Finishes (Materials)',
+        'PAINT_LAB': 'Paint & Finishes (Labor)',
+        'VINYL_MAT': 'Vinyl & Graphics (Materials)',
+        'VINYL_LAB': 'Vinyl & Graphics (Labor)',
+        'INSTALL_HDW': 'Installation Hardware'
+    };
+
+    const groupedCosts = {};
+    calcResult.cost.breakdown.forEach(i => {
+        const cat = i.category || 'Materials';
+        const title = DEPT_TITLES[cat] || cat;
+        if(!groupedCosts[title]) groupedCosts[title] = [];
+        groupedCosts[title].push(i);
+    });
+
+    let costHtml = '';
+    for (const [title, items] of Object.entries(groupedCosts)) {
+        let subTotal = items.reduce((s, i) => s + i.total, 0);
+        let itemsHtml = items.map(i => `
+            <div class="flex justify-between items-start border-b border-slate-100 py-1.5 avoid-break">
+                <div class="flex-1 pr-2">
+                    <div class="text-[10px] font-bold text-slate-800 leading-tight">${i.label}</div>
+                    <div class="text-[9px] text-slate-500 font-mono italic mt-0.5">${cleanHTML(i.formula)}</div>
+                </div>
+                <div class="text-[10px] font-black text-red-700 font-mono pl-2 text-right">${fmt(i.total)}</div>
+            </div>
+        `).join('');
+
+        costHtml += `
+            <div class="mb-4 avoid-break border border-slate-200 rounded bg-white overflow-hidden shadow-sm">
+                <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex justify-between items-center">
+                    <h4 class="font-black uppercase text-[10px] text-slate-700 tracking-widest">${title}</h4>
+                    <span class="font-bold text-[10px] text-slate-700 font-mono">${fmt(subTotal)}</span>
+                </div>
+                <div class="px-3 pb-1">${itemsHtml}</div>
+            </div>
+        `;
+    }
+
+    // 5. TOTALS
+    const totalRetail = calcResult.retail.grandTotal || 0;
+    const totalCost = calcResult.cost.total || 0;
+    const profit = totalRetail - totalCost;
+    const margin = (totalRetail > 0) ? (profit / totalRetail) * 100 : 0;
+
+    // 6. GENERATE HTML
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const dateStr = new Date().toLocaleDateString();
+
+    printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Admin Cost Review - ${dateStr}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @page { size: letter portrait; margin: 0.4in; }
+            body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: ui-sans-serif, system-ui, sans-serif; }
+            .print-container { max-width: 8.5in; margin: 0 auto; display: block; }
+            .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+            @media print { .print-container { width: 100%; max-width: 100%; } }
+            /* Masonry layout to fit the cost ledgers tightly into a 2-column flow */
+            .masonry { column-count: 2; column-gap: 1.5rem; }
+            .masonry > div { display: inline-block; width: 100%; }
+        </style>
+    </head>
+    <body class="text-slate-900">
+        <div class="print-container">
+            
+            <!-- HEADER -->
+            <div class="flex justify-between items-start border-b-4 border-red-800 pb-2 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-red-800 text-white flex items-center justify-center font-black text-sm rounded">SF</div>
+                    <div>
+                        <h1 class="text-base font-black uppercase tracking-tight leading-none m-0 text-red-900">Internal Financial Ledger</h1>
+                        <span class="text-[8px] text-slate-500 uppercase tracking-widest font-bold">SignFabricator OS • Admin Cost Review</span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-[9px] text-red-700 uppercase font-bold mt-1 bg-red-50 px-2 py-1 rounded border border-red-200">Generated: ${dateStr}</div>
+                </div>
+            </div>
+
+            <!-- DRAWING -->
+            <div class="mb-4 avoid-break">
+                <div class="bg-white border border-slate-200 rounded p-3 shadow-sm w-full">
+                     ${svgHtml}
+                </div>
+            </div>
+
+            <!-- NARRATIVE & SPECS -->
+            <div class="grid grid-cols-2 gap-6 mb-6 avoid-break items-stretch">
+                <div class="border border-slate-200 rounded bg-slate-50 overflow-hidden flex flex-col">
+                    <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-700">Job Narrative</span>
+                    </div>
+                    <div class="p-3 bg-white text-[10px] font-mono text-slate-700 whitespace-pre-wrap leading-relaxed flex-1 h-full">${jobDesc}</div>
+                </div>
+                <div class="border border-slate-200 rounded bg-slate-50 overflow-hidden flex flex-col">
+                    <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-700">Project Specifications</span>
+                    </div>
+                    <div class="p-3 bg-white flex-1 h-full">${specsHtml || '<div class="text-gray-400 italic text-[10px]">No specs mapped.</div>'}</div>
+                </div>
+            </div>
+
+            <!-- COST BREAKDOWN MASONRY -->
+            <div class="mb-4">
+                <h3 class="text-[11px] font-black uppercase tracking-widest text-slate-800 border-b border-slate-300 pb-1 mb-4">Physics Engine Breakdown</h3>
+                <div class="masonry">
+                    ${costHtml || '<div class="text-[10px] text-slate-400 italic">No cost data calculated.</div>'}
+                </div>
+            </div>
+            
+            <!-- PROFIT MARGIN FOOTER -->
+            <div class="grid grid-cols-4 gap-4 mt-6 p-4 bg-slate-900 text-white rounded-lg avoid-break shadow-xl border border-slate-800">
+                <div class="flex flex-col border-r border-slate-700">
+                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total Hard Cost</span>
+                    <span class="text-xl font-mono font-black text-red-400">${fmt(totalCost)}</span>
+                </div>
+                <div class="flex flex-col border-r border-slate-700 pl-4">
+                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Gross Retail</span>
+                    <span class="text-xl font-mono font-black text-blue-400">${fmt(totalRetail)}</span>
+                </div>
+                <div class="flex flex-col border-r border-slate-700 pl-4">
+                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Net Profit</span>
+                    <span class="text-xl font-mono font-black text-emerald-400">${fmt(profit)}</span>
+                </div>
+                <div class="flex flex-col pl-4">
+                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Profit Margin</span>
+                    <span class="text-xl font-mono font-black text-emerald-400">${margin.toFixed(1)}%</span>
+                </div>
+            </div>
+
+        </div>
+        <script>
+            window.onload = () => { setTimeout(() => window.print(), 500); }
+        </script>
+    </body>
+    </html>
+    `);
+    printWindow.document.close();
+};
