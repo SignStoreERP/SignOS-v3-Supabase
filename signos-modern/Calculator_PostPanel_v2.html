@@ -22,7 +22,6 @@
             </h1>
             <p class="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">Heavy Fabrication Math Engine</p>
         </div>
-        <!-- Admin Cost Toggle -->
         <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
             <span class="text-[10px] font-bold text-slate-300 uppercase">Admin Cost View</span>
             <div class="relative">
@@ -36,7 +35,6 @@
     <div id="main-card" class="bg-white shadow-xl rounded-b-xl border-x border-b border-gray-200">
         <div class="p-6 space-y-6">
             
-            <!-- TOP: QUANTITY -->
             <div class="bg-blue-50/50 p-4 border border-blue-100 rounded-lg flex items-center justify-between">
                 <label class="text-xs font-black text-blue-900 uppercase tracking-widest">Total Build Quantity</label>
                 <input type="number" id="qty" value="1" min="1" class="w-24 border border-blue-300 p-2 rounded text-lg font-black text-center bg-white focus:border-blue-600 outline-none shadow-inner" oninput="runCalc()">
@@ -57,7 +55,7 @@
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sides</label>
-                        <select id="sides" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="runCalc()">
+                        <select id="sides" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="updateConstraints()">
                             <option value="1">Single Sided</option>
                             <option value="2" selected>Double Sided</option>
                         </select>
@@ -68,10 +66,10 @@
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Face Material</label>
                         <select id="faceMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="runCalc()">
-                            <option value="Cost_Substrate_063_Alum">.063 Aluminum</option>
-                            <option value="Cost_Substrate_080_Alum">.080 Aluminum</option>
-                            <option value="Cost_Substrate_3mm_ACM">3mm ACM</option>
-                            <option value="Cost_Substrate_6mm_ACM">6mm ACM</option>
+                            <option value="Cost_Stock_063_4x8">.063 Aluminum</option>
+                            <option value="Cost_Stock_080_4x8">.080 Aluminum</option>
+                            <option value="Cost_Stock_3mm_4x8">3mm ACM</option>
+                            <option value="Cost_Stock_6mm_4x8">6mm ACM</option>
                         </select>
                     </div>
                     <div>
@@ -95,9 +93,14 @@
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Internal Frame Material</label>
                         <select id="frameMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="runCalc()">
-                            <option value="Cost_Frame_AlumTube_1.5_1/8" data-size="1.5">1.5" Aluminum Square Tube</option>
-                            <option value="Cost_Frame_AlumTube_2_1/8" data-size="2">2" Aluminum Square Tube</option>
-                            <option value="Cost_Frame_SteelAngle_2" data-size="2">2" Steel Angle Iron</option>
+                            <option value="Cost_Frame_AlumTube_1.5_1/8" data-size="1.5" data-metal="Aluminum">1.5" Aluminum Square Tube</option>
+                            <option value="Cost_Frame_AlumTube_2_1/8" data-size="2" data-metal="Aluminum">2" Aluminum Square Tube</option>
+                            <option value="Cost_Frame_AlumAngle_1.5_1/8" data-size="1.5" data-metal="Aluminum">1.5" Aluminum Angle</option>
+                            <option value="Cost_Frame_AlumAngle_2_1/8" data-size="2" data-metal="Aluminum">2" Aluminum Angle</option>
+                            <option value="Cost_Frame_SteelTube_1.5_1/8" data-size="1.5" data-metal="Steel">1.5" Steel Square Tube</option>
+                            <option value="Cost_Frame_SteelTube_2_1/8" data-size="2" data-metal="Steel">2" Steel Square Tube</option>
+                            <option value="Cost_Frame_SteelAngle_1.5_1/8" data-size="1.5" data-metal="Steel">1.5" Steel Angle Iron</option>
+                            <option value="Cost_Frame_SteelAngle_2_1/8" data-size="2" data-metal="Steel">2" Steel Angle Iron</option>
                         </select>
                     </div>
                 </div>
@@ -110,9 +113,12 @@
                     <div class="col-span-2">
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Post Material & Size</label>
                         <select id="postParams" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="updateConstraints()">
-                            <option value="Cost_Post_Aluminum_2_1/8|2">2" Aluminum Square Tube</option>
-                            <option value="Cost_Post_Aluminum_3_1/8|3">3" Aluminum Square Tube</option>
-                            <option value="Cost_Post_Aluminum_4_1/8|4">4" Aluminum Square Tube</option>
+                            <option value="Cost_Post_Aluminum_2_1/8|2|Aluminum">2" Aluminum Square Tube</option>
+                            <option value="Cost_Post_Aluminum_3_1/8|3|Aluminum">3" Aluminum Square Tube</option>
+                            <option value="Cost_Post_Aluminum_4_1/8|4|Aluminum">4" Aluminum Square Tube</option>
+                            <option value="Cost_Post_Steel_2_1/8|2|Steel">2" Steel Square Tube</option>
+                            <option value="Cost_Post_Steel_3_1/8|3|Steel">3" Steel Square Tube</option>
+                            <option value="Cost_Post_Steel_4_3/16|4|Steel">4" Steel Square Tube</option>
                         </select>
                     </div>
                     <div>
@@ -121,7 +127,6 @@
                     </div>
                 </div>
                 
-                <!-- AUTO-CALCULATED METRICS PANEL -->
                 <div class="mt-4 bg-slate-800 rounded-lg p-3 grid grid-cols-2 gap-4 text-white shadow-inner">
                     <div>
                         <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Below Grade Depth</span>
@@ -136,21 +141,21 @@
             </div>
         </div>
 
-        <!-- ADMIN HARD COST LEDGER (Hidden by Default) -->
+        <!-- ADMIN HARD COST LEDGER -->
         <div id="admin-ledger-box" class="hidden bg-slate-50 p-6 border-t border-gray-200 shadow-inner relative">
             <div class="absolute top-0 right-6 w-16 h-1 bg-red-500 rounded-b-md"></div>
             <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest mb-4 flex justify-between items-center">
-                Internal Cost Audit
+                Exhaustive Physics Audit
                 <span id="ui-metrics-margin" class="text-sm text-green-600 font-mono tracking-tight">--% Margin</span>
             </h3>
-            <div id="ui-cost-groups" class="space-y-3"></div>
+            <div id="ui-cost-groups" class="space-y-5"></div>
             <div class="flex justify-between items-center border-t-2 border-gray-300 mt-4 pt-3">
                 <span class="text-[10px] font-black text-gray-600 uppercase tracking-widest">Total Hard Cost</span>
                 <span id="ui-cost-total" class="text-lg font-black text-red-600 font-mono tracking-tight">---</span>
             </div>
         </div>
 
-        <!-- RETAIL LEDGER & BIDIRECTIONAL MARGIN -->
+        <!-- RETAIL LEDGER -->
         <div class="bg-blue-50 p-6 border-t border-blue-200 shadow-inner rounded-b-xl">
             <div class="flex justify-between items-end border-b border-blue-200 pb-3 mb-4">
                 <div class="flex flex-col gap-1">
@@ -165,13 +170,11 @@
                     <span id="ui-unit" class="text-3xl font-black text-blue-900 tracking-tight leading-none">---</span>
                 </div>
             </div>
-            
             <div class="flex justify-between items-end">
                 <div><span class="text-xs font-bold text-blue-800 uppercase block">Grand Total</span></div>
                 <span id="ui-total" class="text-4xl font-black text-blue-700 tracking-tight leading-none">---</span>
             </div>
         </div>
-
     </div>
 </div>
 
@@ -180,24 +183,44 @@
     let backendData = null; 
     let calcTimeout = null;
 
-    // --- LOGIC: CONSTRAINTS & CONCRETE MATH ---
+    // --- LOGIC: METAL MATCHING & CONSTRAINTS ---
     function updateConstraints() {
         const thag = parseFloat(document.getElementById('thag').value) || 60;
         const postSplit = document.getElementById('postParams').value.split('|');
         const postSize = parseFloat(postSplit[1]) || 2;
+        const postMetal = postSplit[2] || 'Aluminum';
         const mount = document.getElementById('mountStyle').value;
+        const sides = parseInt(document.getElementById('sides').value) || 2;
         const frameSel = document.getElementById('frameMat');
 
-        // 1. Flush Mount Guardrail
+        let validCount = 0;
+        let firstValid = null;
+
         Array.from(frameSel.options).forEach(opt => {
+            const isAngle = opt.value.includes('Angle');
+            const frameMetal = opt.getAttribute('data-metal');
             const frameSize = parseFloat(opt.getAttribute('data-size')) || 1.5;
-            if (mount === 'Flush' && frameSize > postSize) {
-                opt.disabled = true;
-                if (frameSel.value === opt.value) frameSel.value = "Cost_Frame_AlumTube_1.5_1/8"; // Fallback to safe option
-            } else {
-                opt.disabled = false;
+
+            // Physics Constraint: Angle iron on double-sided sign creates a 2x deep structural panel!
+            const internalDepth = (isAngle && sides === 2) ? (frameSize * 2) : frameSize;
+
+            let isDisabled = false;
+            if (frameMetal !== postMetal) isDisabled = true; // Match metals
+            if (mount === 'Flush' && internalDepth > postSize) isDisabled = true; // Guard against physical protrusion
+
+            opt.disabled = isDisabled;
+            opt.hidden = isDisabled;
+
+            if (!isDisabled) {
+                validCount++;
+                if (!firstValid) firstValid = opt.value;
             }
         });
+
+        // Auto-correct if currently selected is impossible
+        if (frameSel.options[frameSel.selectedIndex].disabled && firstValid) {
+            frameSel.value = firstValid;
+        }
 
         // 2. Concrete Math
         const bg = Math.max(18, thag * 0.33);
@@ -207,8 +230,8 @@
         const r = holeDia / 2;
         const footH = bg * 0.66;
         const volCuIn = Math.PI * (r * r) * footH;
-        const volCuFt = (volCuIn / 1728) * 2; // 2 Holes
-        const bags = volCuFt / 0.6; // Approx 0.6 cu ft per 80lb bag
+        const volCuFt = (volCuIn / 1728) * 2; 
+        const bags = volCuFt / 0.6; 
 
         document.getElementById('metric-concrete').innerText = `${bags.toFixed(1)} Bags (80lb)`;
         document.getElementById('metric-hole').innerText = `Hole: ${holeDia}"W x ${bg.toFixed(0)}"D | Concrete: ${footH.toFixed(0)}"H`;
@@ -224,7 +247,6 @@
         const ledger = document.getElementById('admin-ledger-box');
 
         adminCostEnabled = cb.checked;
-
         if (adminCostEnabled) {
             bg.classList.replace('bg-gray-300', 'bg-red-500');
             dot.style.transform = 'translateX(12px)';
@@ -237,24 +259,50 @@
         runCalc(); 
     }
 
+    const DEPT_TITLES = {
+        'METAL_MAT': 'Metal Fabrication (Materials)',
+        'METAL_LAB': 'Metal Fabrication (Labor)',
+        'PAINT_MAT': 'Paint & Finishes (Materials)',
+        'PAINT_LAB': 'Paint & Finishes (Labor)',
+        'VINYL_MAT': 'Vinyl & Graphics (Materials)',
+        'VINYL_LAB': 'Vinyl & Graphics (Labor)'
+    };
+
     function renderAdminCostLedger(costData, metricsData) {
         const fmt = (n) => "$" + (n || 0).toFixed(2);
         document.getElementById('ui-cost-total').innerText = fmt(costData.total);
         document.getElementById('ui-metrics-margin').innerText = `${(metricsData.margin * 100).toFixed(1)}% Margin`;
 
-        let html = '';
+        const grouped = {};
         costData.breakdown.forEach(i => {
-            const cleanFormula = (i.formula || '').replace(/<[^>]*>?/gm, '');
-            html += `
-            <div class="bg-white p-2 rounded border border-gray-200 shadow-sm">
-                <div class="flex justify-between text-xs text-red-800 font-bold mb-1">
-                    <span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span>
-                </div>
-                <div class="text-[9px] text-gray-500 font-mono italic leading-snug break-words">
-                    ↳ ${cleanFormula}
-                </div>
-            </div>`;
+            const cat = i.category || 'METAL_MAT';
+            if(!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(i);
         });
+
+        let html = '';
+        for (const [cat, items] of Object.entries(grouped)) {
+            let subTotal = items.reduce((s, i) => s + i.total, 0);
+            html += `<div class="mb-4">
+                <div class="flex justify-between border-b-2 border-gray-300 pb-1 mb-2">
+                    <span class="text-[10px] font-black text-gray-800 uppercase tracking-widest">${DEPT_TITLES[cat] || cat}</span>
+                    <span class="text-[10px] font-bold text-gray-800">${fmt(subTotal)}</span>
+                </div>`;
+            
+            items.forEach(i => {
+                const cleanFormula = (i.formula || '').replace(/<[^>]*>?/gm, '');
+                html += `
+                <div class="bg-white p-2 rounded border border-gray-200 shadow-sm mb-1.5">
+                    <div class="flex justify-between text-xs text-red-800 font-bold mb-1">
+                        <span>${i.label}</span><span class="font-mono">${fmt(i.total)}</span>
+                    </div>
+                    <div class="text-[9px] text-gray-500 font-mono italic leading-snug break-words">
+                        ↳ Math: ${cleanFormula}
+                    </div>
+                </div>`;
+            });
+            html += `</div>`;
+        }
         document.getElementById('ui-cost-groups').innerHTML = html;
     }
 
@@ -317,7 +365,7 @@
 
     window.addEventListener('load', async () => {
         try {
-            updateConstraints(); // Set initial concrete math
+            updateConstraints(); // Set initial math
             const payload = await SignOS.fetchProductData('PROD_Post_Panel');
             backendData = payload.config;
             runCalc(); 
