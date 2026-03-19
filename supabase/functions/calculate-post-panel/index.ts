@@ -14,6 +14,12 @@ Deno.serve(async (req: any) => {
         const config = requestData.config || {};
         const auditMode = requestData.audit_mode || 'full'; 
 
+        // Safe String Fallbacks to prevent 500 TypeError crashes
+        const frameKeyStr = inputs.frameKey || 'Cost_Frame_AlumTube_1.5_1/8';
+        const faceKeyStr = inputs.faceKey || 'Cost_Stock_063_4x8';
+        const graphicTypeStr = inputs.graphicType || 'Paint_Print';
+        const postMetalName = inputs.postMetalName || 'Aluminum';
+
         // Physics Constants & Global Overrides
         const waste = parseFloat(config.Waste_Factor) || 1.15;
         const wasteDisplay = ((waste - 1) * 100).toFixed(0) + '%';
@@ -25,7 +31,6 @@ Deno.serve(async (req: any) => {
         const ret: any[] = [];
         const cst: any[] = [];
         
-        // UPGRADED BOM MAP: Stores Objects instead of strings
         const bomMap: Record<string, any[]> = {};
         const routingMap: Record<string, {task: string, time: number}[]> = {};
 
@@ -41,14 +46,13 @@ Deno.serve(async (req: any) => {
         };
 
         const R = (label: string, total: number, formula: string) => { if (total > 0) ret.push({label, total, formula}); return total; };
-        const L = (category: string, label: string, total: number, formula: string) => { cst.push({label, total, formula, category}); return total; };
+        const L = (category: string, label: string, total: number, formula: string) => { if(total > 0 && !isNaN(total)) cst.push({label, total, formula, category}); return total; };
 
         // 1. POST MATH
-        const postInchesPer = inputs.thag + inputs.belowGrade;
+        const postInchesPer = (parseFloat(inputs.thag) || 60) + (parseFloat(inputs.belowGrade) || 20);
         const postLFPer = Math.ceil(postInchesPer / 12);
-        const totalPostLF = postLFPer * 2 * inputs.qty;
+        const totalPostLF = postLFPer * 2 * (inputs.qty || 1);
         
-        const postMetalName = inputs.postMetalName || 'Aluminum';
         const postStickLength = postMetalName === 'Aluminum' ? 24 : 20;
         const postSticksNeeded = Math.ceil(totalPostLF / postStickLength);
         
@@ -75,17 +79,12 @@ Deno.serve(async (req: any) => {
             });
         }
 
-        const holeRadiusFt = ((inputs.postSize * 3) / 2) / 12;
-        const footerHeightFt = (inputs.belowGrade * 0.66) / 12;
-        const holeVolumeCuFt = Math.PI * Math.pow(holeRadiusFt, 2) * footerHeightFt;
-        const bagsNeeded = Math.ceil((holeVolumeCuFt * 2) / 0.6) * inputs.qty;
-        // Concrete BOM intentionally removed per manufacturing instructions
+        // Concrete intentionally removed per instructions
 
         // 2. FRAME MATH
         let frameLF = 0;
         let cutCount = 2; 
         let weldPoints = 0;
-
         let frameCutStr = "";
 
         if (inputs.mountStyle === 'Flush') {
@@ -102,16 +101,21 @@ Deno.serve(async (req: any) => {
         }
         
         const totalFrameLF = frameLF * inputs.qty;
-        const frameMetalName = inputs.frameKey.includes('Alum') ? 'Aluminum' : 'Steel';
+        const frameMetalName = frameKeyStr.includes('Alum') ? 'Aluminum' : 'Steel';
         const frameStickLength = frameMetalName === 'Aluminum' ? 24 : 20;
         const frameSticksNeeded = Math.ceil(totalFrameLF / frameStickLength);
         
         const framePullLF = frameSticksNeeded * frameStickLength;
         const frameDropLF = framePullLF - totalFrameLF;
 
+        const frameArr = frameKeyStr.split('_');
+        const frameCleanName = frameArr.length > 2 ? frameArr[1] : 'Tube';
+
         addBOM('Metal Fabrication', {
-            name: `Metal Adhesive (0.25" bead)`,
-            pull: `${cartridges} Cartridges`, cut: '--', drop: '--'
+            name: `Internal Frame Skeleton (${frameCleanName})`,
+            pull: `${frameSticksNeeded}x ${frameStickLength}' Sticks (${framePullLF} LF)`,
+            cut: frameCutStr,
+            drop: `${frameDropLF.toFixed(1)} LF`
         });
 
         const frameCostLF = parseFloat(config[inputs.frameKey]) || 1.45;
@@ -126,7 +130,9 @@ Deno.serve(async (req: any) => {
 
         const sheetsNeeded = Math.ceil(totalSqFt / 32);
         const dropSqFt = (sheetsNeeded * 32) - totalSqFt;
-        const faceMatName = inputs.faceKey.split('_')[2] || 'Substrate';
+        
+        const faceArr = faceKeyStr.split('_');
+        const faceMatName = faceArr.length > 2 ? faceArr[1] : 'Substrate';
 
         L('METAL_MAT', `Sign Faces (${inputs.sides} Sided)`, totalSqFt * faceCostSqFt * waste, `${totalSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/sf [[${inputs.faceKey}]] * ${wasteDisplay} Waste`);
         addBOM('Metal Fabrication', {
@@ -158,11 +164,11 @@ Deno.serve(async (req: any) => {
         
         L('METAL_MAT', `Structural Adhesive`, cartridges * (parseFloat(config.Cost_Adhesive_Tube) || 18.71), `${perimeterLF.toFixed(1)} LF (0.25" bead) / 10 LF per tube`);
         addBOM('Metal Fabrication', {
-            name: `Lord's Adhesive (0.25" bead)`,
+            name: `Metal Adhesive (0.25" bead)`,
             pull: `${cartridges} Cartridges`, cut: '--', drop: '--'
         });
 
-        // 4. METAL LABOR (With dedicated routing tracker)
+        // 4. METAL LABOR
         const gatherMins = 10;
         L('METAL_LAB', `Gather Materials`, (gatherMins / 60) * rateShop, `10 Mins * $${rateShop}/hr`);
         addLabor('Metal Fabrication', 'Gather Materials', gatherMins);
@@ -185,7 +191,7 @@ Deno.serve(async (req: any) => {
         L('METAL_LAB', `Adhesive Application`, (glueMins / 60) * rateShop, `${perimeterLF.toFixed(1)} LF @ 1 min/LF * $${rateShop}/hr`);
         addLabor('Metal Fabrication', 'Adhesive Application', glueMins);
 
-        if (inputs.faceKey.includes('ACM')) {
+        if (faceKeyStr.includes('ACM')) {
             const cncMins = 10 + (totalSqFt * 1);
             L('METAL_LAB', `CNC Router Setup & Run`, (cncMins / 60) * rateCnc, `10 Min Setup + (1 Min/SF Run) * $${rateCnc}/hr`);
             addLabor('Metal Fabrication', 'CNC Router Setup & Run', cncMins);
@@ -196,10 +202,10 @@ Deno.serve(async (req: any) => {
         }
 
         const postArea = ((totalPostLF * inputs.postSize * 4) / 12);
-        const paintArea = (inputs.graphicType === 'NoPaint_Print') ? postArea : postArea + totalSqFt;
+        const paintArea = (graphicTypeStr === 'NoPaint_Print') ? postArea : postArea + totalSqFt;
 
         // 5. PAINT LOGIC
-        if (inputs.graphicType === 'Paint_Print' || inputs.graphicType === 'Paint_Vinyl') {
+        if (graphicTypeStr === 'Paint_Print' || graphicTypeStr === 'Paint_Vinyl') {
             const paintCostSqFt = parseFloat(config.Cost_Paint_SqFt) || 2.50;
             L('PAINT_MAT', `Automotive Primer`, (paintArea * (paintCostSqFt * 0.4) * waste) + 1.00, `${paintArea.toFixed(1)} SF * $${(paintCostSqFt * 0.4).toFixed(2)}/SF * ${wasteDisplay} Waste + $1.00 Cup`);
             L('PAINT_MAT', `Automotive Paint (Color)`, (paintArea * (paintCostSqFt * 0.6) * waste) + 1.00, `${paintArea.toFixed(1)} SF * $${(paintCostSqFt * 0.6).toFixed(2)}/SF * ${wasteDisplay} Waste + $1.00 Cup`);
@@ -231,7 +237,7 @@ Deno.serve(async (req: any) => {
         L('VINYL_LAB', `Job Setup (File RIP)`, (ripMins / 60) * rateShop, `5 Mins * $${rateShop}/hr`);
         addLabor('Vinyl & Graphics', 'Job Setup (File RIP)', ripMins);
 
-        const isPrint = inputs.graphicType.includes('Print');
+        const isPrint = graphicTypeStr.includes('Print');
         const mediaName = isPrint ? '3M IJ180 Cast Wrap' : 'Oracal 751 High Perf';
 
         L('VINYL_MAT', `Cast Vinyl Media (${mediaName})`, totalSqFt * (parseFloat(config.Cost_Vin_Cast)||1.30) * waste, `${totalSqFt.toFixed(1)} SF * $1.30/SF * ${wasteDisplay} Waste`);
@@ -264,13 +270,13 @@ Deno.serve(async (req: any) => {
             pull: `${maskLF.toFixed(1)} LF`, cut: '--', drop: '--'
         });
 
-        if (isPrint || inputs.graphicType === 'Paint_Vinyl') {
+        if (isPrint || graphicTypeStr === 'Paint_Vinyl') {
             const cutRunMins = (totalSqFt / 50) * 60;
             L('VINYL_LAB', `Plotter/Cutter Run`, (cutRunMins / 60) * (parseFloat(config.Rate_Machine_Cut)||5), `50 SF/Hr Speed * $5/hr`);
             addLabor('Vinyl & Graphics', 'Plotter/Cutter Run', cutRunMins);
         }
 
-        if (inputs.graphicType !== 'NoPaint_Print') {
+        if (graphicTypeStr !== 'NoPaint_Print') {
             const weedMinsPerSF = inputs.weedingLevel === 'Complex' ? 0.50 : 0.25;
             const weedMins = totalSqFt * weedMinsPerSF;
             L('VINYL_LAB', `Weeding Labor`, (weedMins / 60) * rateShop, `${totalSqFt.toFixed(1)} SF * ${weedMinsPerSF} Mins/SF * $${rateShop}/hr`);
@@ -290,21 +296,10 @@ Deno.serve(async (req: any) => {
         const finalCost = rawHardCost * risk;
         const unitRetail = finalCost / (1 - targetMargin);
 
-        // Pass Custom Specs Object natively so the Export Script doesn't have to scrape UI
         const specs = {
-            qty: inputs.qty,
-            w: inputs.w,
-            h: inputs.h,
-            sides: inputs.sides,
-            thag: inputs.thag,
-            belowGrade: inputs.belowGrade,
-            postSize: inputs.postSize,
-            postMetalName: inputs.postMetalName,
-            mountStyle: inputs.mountStyle,
-            frameDepth: inputs.frameDepth,
-            isAngle: inputs.isAngle,
-            faceKey: inputs.faceKey,
-            graphicType: inputs.graphicType
+            qty: inputs.qty, w: inputs.w, h: inputs.h, sides: inputs.sides, thag: inputs.thag, belowGrade: inputs.belowGrade,
+            postSize: inputs.postSize, postMetalName: postMetalName, mountStyle: inputs.mountStyle, frameDepth: inputs.frameDepth,
+            isAngle: inputs.isAngle, faceKey: inputs.faceKey, graphicType: inputs.graphicType
         };
 
         const payload = {
@@ -319,6 +314,7 @@ Deno.serve(async (req: any) => {
         return new Response(JSON.stringify(payload), { headers: corsHeaders, status: 200 });
 
     } catch (err: any) {
+        console.error("Crash:", err.message);
         return new Response(JSON.stringify({ error: err.message }), { headers: corsHeaders, status: 500 });
     }
 });
