@@ -441,7 +441,12 @@
                     body: JSON.stringify({ inputs: inputs, config: dynamicConfig, audit_mode: auditMode })
                 });
 
-                if (!response.ok) throw new Error("Calculation failed");
+                // 🚨 STRICT ERROR INTERCEPTION (Replaces generic fail)
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || "Server Error");
+                }
+
                 const result = await response.json();
                 window.lastEdgeResult = result;
 
@@ -470,7 +475,7 @@
                 }
             } catch(e) {
                 console.error("Calculation Error:", e);
-                document.getElementById('job-summary').value = `🚨 CALCULATION HALTED:\n${e.message}`;
+                document.getElementById('job-summary').value = `🚨 CALCULATION HALTED:\n${e.message}\n\nPlease verify this variable or SKU exists in the Master Data Engine to restore operations.`;
             }
         }, 300);
     }
