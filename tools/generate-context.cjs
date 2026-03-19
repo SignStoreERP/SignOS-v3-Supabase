@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const IGNORE_DIRS = ['.git', 'node_modules', '.supabase', '.temp', 'public', 'src'];
+const IGNORE_DIRS = ['.git', 'node_modules', '.supabase', '.temp'];
 const OUTPUT_FILE = 'SignOS_Context_Dump.txt';
 
 function buildTree(dir, prefix = '') {

@@ -1,23 +1,43 @@
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { SignConfig } from '../../types';
-import { calculateRetailPrice } from '../../services/pricing';
+import { PricingQuote } from '../../services/pricing';
 import { generateBlueprintHTML } from '../../services/blueprintExporter';
-import { Printer, Download, DollarSign, FileText } from 'lucide-react';
+import { Printer, Download, DollarSign, FileText, Loader2 } from 'lucide-react';
 
 interface QuoteViewProps {
   config: SignConfig;
+  quoteData: PricingQuote | null;
+  isCalculating: boolean;
 }
 
-export const QuoteView: React.FC<QuoteViewProps> = ({ config }) => {
-  const quote = useMemo(() => calculateRetailPrice(config), [config]);
-  
+export const QuoteView: React.FC<QuoteViewProps> = ({ config, quoteData, isCalculating }) => {
+  if (isCalculating || !quoteData) {
+    return (
+      <div className="w-full h-full p-8 pt-24 overflow-hidden flex flex-col items-center justify-center">
+        <div className="bg-white text-slate-900 rounded-xl shadow-2xl p-12 flex flex-col items-center text-center max-w-md border border-slate-300">
+          {isCalculating ? (
+            <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
+          ) : (
+            <FileText className="text-slate-400 mb-4" size={48} />
+          )}
+          <h2 className="text-xl font-bold text-slate-800 mb-2">
+            {isCalculating ? 'Calculating Quote...' : 'No Quote Data'}
+          </h2>
+          <p className="text-slate-500">
+            Click 'Process Cartridge' to generate live pricing via the SignOS Data Engine.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const handlePrint = () => {
     const blueprintHtml = generateBlueprintHTML(config);
     const printWindow = window.open('', '_blank', 'width=900,height=1100');
     if (!printWindow) return;
 
-    const itemsRows = quote.items.map(item => `
+    const itemsRows = quoteData.items.map(item => `
         <tr style="border-bottom: 1px solid #e2e8f0;">
             <td style="padding: 8px; color: #64748b; font-size: 11px;">${item.category}</td>
             <td style="padding: 8px;">
@@ -116,15 +136,15 @@ export const QuoteView: React.FC<QuoteViewProps> = ({ config }) => {
                 <table style="width: 250px; border-collapse: collapse; font-size: 12px;">
                     <tr>
                         <td style="padding: 6px; text-align: right; color: #64748b;">Subtotal</td>
-                        <td style="padding: 6px; text-align: right; font-weight: 600;">$${quote.subtotal.toFixed(2)}</td>
+                        <td style="padding: 6px; text-align: right; font-weight: 600;">$${quoteData.subtotal.toFixed(2)}</td>
                     </tr>
                     <tr>
                         <td style="padding: 6px; text-align: right; color: #64748b; border-bottom: 1px solid #e2e8f0;">Tax (8.25%)</td>
-                        <td style="padding: 6px; text-align: right; color: #64748b; border-bottom: 1px solid #e2e8f0;">$${quote.tax.toFixed(2)}</td>
+                        <td style="padding: 6px; text-align: right; color: #64748b; border-bottom: 1px solid #e2e8f0;">$${quoteData.tax.toFixed(2)}</td>
                     </tr>
                     <tr>
                         <td style="padding: 8px; text-align: right; font-weight: 800; font-size: 14px; color: #0f172a;">ESTIMATED TOTAL</td>
-                        <td style="padding: 8px; text-align: right; font-weight: 800; font-size: 14px; color: #2563eb;">$${quote.total.toFixed(2)}</td>
+                        <td style="padding: 8px; text-align: right; font-weight: 800; font-size: 14px; color: #2563eb;">$${quoteData.total.toFixed(2)}</td>
                     </tr>
                 </table>
             </div>
@@ -188,7 +208,7 @@ export const QuoteView: React.FC<QuoteViewProps> = ({ config }) => {
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                   {quote.items.map((item, idx) => (
+                   {quoteData.items.map((item, idx) => (
                       <tr key={idx} className="hover:bg-slate-50">
                          <td className="px-4 py-4 text-slate-500 font-medium">{item.category}</td>
                          <td className="px-4 py-4 text-slate-800">
@@ -208,15 +228,15 @@ export const QuoteView: React.FC<QuoteViewProps> = ({ config }) => {
                 <div className="w-64 space-y-3">
                    <div className="flex justify-between text-slate-500">
                       <span>Subtotal</span>
-                      <span>${quote.subtotal.toFixed(2)}</span>
+                      <span>${quoteData.subtotal.toFixed(2)}</span>
                    </div>
                    <div className="flex justify-between text-slate-500 pb-3 border-b border-slate-200">
                       <span>Tax (8.25%)</span>
-                      <span>${quote.tax.toFixed(2)}</span>
+                      <span>${quoteData.tax.toFixed(2)}</span>
                    </div>
                    <div className="flex justify-between items-center text-lg font-bold text-slate-900">
                       <span>Total</span>
-                      <span className="text-blue-600">${quote.total.toFixed(2)}</span>
+                      <span className="text-blue-600">${quoteData.total.toFixed(2)}</span>
                    </div>
                 </div>
              </div>

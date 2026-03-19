@@ -10,6 +10,7 @@ import { SignConfig, ManufacturingPacket, SiteSurveyData, WallTexture } from './
 import { DEFAULT_CONFIG, SAMPLE_SURVEY } from './constants';
 import { calculateSignRequirements } from './services/engine';
 import { generateTexture } from './services/textureUtils';
+import { PricingQuote } from './services/pricing';
 
 import { Controls } from './components/Configurator/Controls';
 import { SignRenderer, PartVisibility } from './components/Viewer3D/SignRenderer';
@@ -250,6 +251,8 @@ export default function App() {
 
   // SignOS Token & Processing
   const [receivedSignOsToken, setReceivedSignOsToken] = useState<string | null>(null);
+  const [quoteData, setQuoteData] = useState<PricingQuote | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -263,6 +266,7 @@ export default function App() {
   }, []);
 
   const handleProcessCartridge = async () => {
+    setIsCalculating(true);
     try {
       const response = await fetch('http://localhost:8080/api/process-cartridge', {
         method: 'POST',
@@ -275,10 +279,13 @@ export default function App() {
       
       const result = await response.json();
       console.log("Success! Server calculated:", result);
+      setQuoteData(result.data);
       alert("Cartridge processed successfully! Check console for details.");
     } catch (error) {
       console.error("Failed to process cartridge:", error);
       alert("Failed to process cartridge. See console for details.");
+    } finally {
+      setIsCalculating(false);
     }
   };
 
@@ -457,7 +464,7 @@ export default function App() {
               <DebugOverlayUI active={showDebug} statsRef={statsRef} />
 
               {/* Pricing Overlay (Live Estimate) */}
-              <PricingOverlay config={config} onViewDetails={() => setActiveTab('quote')} />
+              <PricingOverlay config={config} onViewDetails={() => setActiveTab('quote')} quoteData={quoteData} isCalculating={isCalculating} />
 
               {/* 3D View Controls Toolbar */}
               <div className="absolute top-6 right-6 z-30 flex items-center gap-2">
@@ -609,7 +616,7 @@ export default function App() {
 
           {activeTab === 'quote' && (
              <div className="w-full h-full bg-slate-200">
-                <QuoteView config={config} />
+                <QuoteView config={config} quoteData={quoteData} isCalculating={isCalculating} />
              </div>
           )}
 

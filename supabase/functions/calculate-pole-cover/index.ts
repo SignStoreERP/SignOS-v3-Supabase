@@ -1,4 +1,5 @@
 declare const Deno: any;
+import { Agent_Material_Stock } from "../_shared/agents/Agent_Material_Stock.ts";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -9,25 +10,28 @@ Deno.serve(async (req: any) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
     try {
+        const authHeader = req.headers.get('Authorization') || '';
         const requestData = await req.json();
         const inputs = requestData.inputs || {};
         const config = requestData.config || {};
         const auditMode = requestData.audit_mode || 'full'; 
 
-        // Secure DB Fetcher and Formula Annotator
-        const num = (k: string, fallback: string) => {
+        // THE NO FALLBACK MANDATE
+        const num = (k: string) => {
             const p = parseFloat(config[k]);
-            return isNaN(p) ? parseFloat(fallback) : p;
+            if (isNaN(p)) throw new Error(`[NO FALLBACK MANDATE] Missing Global Variable: [${k}]. Calculation Halted.`);
+            return p;
         };
-        const V = (k: string, fb: string) => `[${k}: ${num(k, fb)}]`;
+        const V = (k: string) => `[${k}: ${num(k)}]`;
 
         // Physics Constants
-        const waste = num('Waste_Factor', "1.15");
-        const wasteDisplay = ((waste - 1) * 100).toFixed(0) + '%';
-        const risk = num('Factor_Risk', "1.05");
-        const targetMargin = num('Target_Margin_Pct', "0.60");
-        const rateShop = num('Rate_Shop_Labor', "150");
-        const ratePaint = num('Rate_Paint_Labor', "150"); 
+        const risk = num('Factor_Risk');
+        const targetMargin = num('Target_Margin_Pct');
+        const rateShop = num('Rate_Shop_Labor');
+        const ratePaint = num('Rate_Paint_Labor');
+        const adhesiveCost = num('Cost_Adhesive_Tube');
+        const screwCost = num('Cost_Hardware_Screw_ModTruss');
+        const paintCupCost = num('Cost_Paint_Cup_Small');
 
         const ret: any[] = [];
         const cst: any[] = [];
@@ -38,195 +42,188 @@ Deno.serve(async (req: any) => {
             if (!bomMap[dept]) bomMap[dept] = [];
             bomMap[dept].push(item);
         };
-
         const addLabor = (dept: string, task: string, timeMins: number) => {
             if (timeMins <= 0) return;
             if (!routingMap[dept]) routingMap[dept] = [];
             routingMap[dept].push({ task, time: timeMins });
         };
-
         const R = (label: string, total: number, formula: string) => { if (total > 0) ret.push({label, total, formula}); return total; };
-        
-        // NEW: Upgraded Ledger array accepts meta objects to track exact labor times!
         const L = (category: string, label: string, total: number, formula: string, meta: any = {}) => { 
             cst.push({label, total, formula, category, meta}); 
             return total; 
         };
 
+        // --- SKU MAPPING ---
+        const faceSkuMap: Record<string, string> = { '.040': 'ALM_SHT_040', '.063': 'ALM_SHT_063', '.080': 'ALM_SHT_080' };
+        const faceSku = faceSkuMap[inputs.faceThk] || 'ALM_SHT_040';
+        
+        const frameSize = parseFloat(inputs.frameMat) || 1.5;
+        const frameSku = frameSize === 1 ? 'ALM_ANG_1' : 'ALM_ANG_1.5';
+        const braceSku = 'ALM_ANG_1.5';
+
+        let bracketSku = 'STL_ANG_1.5';
+        if (inputs.bracketMat.includes('2_1/8')) bracketSku = 'STL_ANG_2';
+        if (inputs.bracketMat.includes('3_1/4')) bracketSku = 'STL_ANG_3';
+
+        // --- UNIVERSAL AGENT FETCH ---
+        const faceMat = await Agent_Material_Stock.fetchMaterial(faceSku, authHeader);
+        const frameMat = await Agent_Material_Stock.fetchMaterial(frameSku, authHeader);
+        const braceMat = await Agent_Material_Stock.fetchMaterial(braceSku, authHeader);
+        const bracketMat = await Agent_Material_Stock.fetchMaterial(bracketSku, authHeader);
+
         // 1. FRAME & BRACING MATH
         const frameLF_per = ((inputs.w * 4) + (inputs.d * 4) + (inputs.h * 4)) / 12;
         const braceLF_per = (inputs.d * 4) / 12; 
-        
-        const totalFrameLF = frameLF_per * inputs.qty;
-        const totalBraceLF = braceLF_per * inputs.qty;
-        
-        const frameSize = parseFloat(inputs.frameMat) || 1.5;
-        const frameKey = `Cost_Frame_AlumAngle_${frameSize}_1/8`;
-        const frameCostLF = num(frameKey, "1.45");
 
-        const braceKey = `Cost_Frame_AlumAngle_1.5_1/8`;
-        const braceCostLF = num(braceKey, "1.45");
+        const frameYield = Agent_Material_Stock.calculateLinearYield(frameLF_per * 12, inputs.qty, frameMat, 24);
+        const braceYield = Agent_Material_Stock.calculateLinearYield(braceLF_per * 12, inputs.qty, braceMat, 24);
 
-        if (frameKey === braceKey) {
-            const combinedLF = totalFrameLF + totalBraceLF;
-            const combinedSticks = Math.ceil(combinedLF / 24);
+        if (frameSku === braceSku) {
+            const combinedLF = frameYield.totalLF + braceYield.totalLF;
+            const combinedYield = Agent_Material_Stock.calculateLinearYield(combinedLF * 12, 1, frameMat, 24);
+            
             addBOM('Metal Fabrication', {
-                name: `Aluminum Structure (${frameSize}" Angle)`,
-                pull: `${combinedSticks}x 24' Sticks (${combinedSticks * 24} LF)`,
+                name: `Aluminum Structure (${frameMat.description})`,
+                pull: `${combinedYield.sticksNeeded}x 24' Sticks (${combinedYield.sticksNeeded * 24} LF)`,
                 cut: `${4 * inputs.qty}x @ ${inputs.w}", ${4 * inputs.qty}x @ ${inputs.h}" (Frame), ${8 * inputs.qty}x @ ${inputs.d}" (Frame & Braces)`,
-                drop: `${((combinedSticks * 24) - combinedLF).toFixed(1)} LF`
+                drop: `${combinedYield.dropLF.toFixed(1)} LF`
             });
-            L('METAL_MAT', `Aluminum Structure (${frameSize}" Angle)`, combinedLF * frameCostLF * waste, `${combinedLF.toFixed(1)} LF * $${frameCostLF.toFixed(2)}/LF ${V(frameKey, "1.45")} * ${wasteDisplay} Waste`);
+            L('METAL_MAT', `Aluminum Structure (${frameMat.description})`, combinedYield.totalCost, `${combinedYield.totalLF.toFixed(1)} LF * $${combinedYield.costPerLF.toFixed(2)}/LF [${frameSku}] * ${combinedYield.wasteFactor} Waste`);
         } else {
-            const frameSticks = Math.ceil(totalFrameLF / 24);
             addBOM('Metal Fabrication', {
-                name: `Aluminum Skeleton Frame (${frameSize}" Angle)`,
-                pull: `${frameSticks}x 24' Sticks (${frameSticks * 24} LF)`,
+                name: `Aluminum Skeleton Frame (${frameMat.description})`,
+                pull: `${frameYield.sticksNeeded}x 24' Sticks (${frameYield.sticksNeeded * 24} LF)`,
                 cut: `${4 * inputs.qty}x @ ${inputs.w}", ${4 * inputs.qty}x @ ${inputs.d}", ${4 * inputs.qty}x @ ${inputs.h}"`,
-                drop: `${((frameSticks * 24) - totalFrameLF).toFixed(1)} LF`
+                drop: `${frameYield.dropLF.toFixed(1)} LF`
             });
-            L('METAL_MAT', `Aluminum Skeleton (${frameSize}" Angle)`, totalFrameLF * frameCostLF * waste, `${totalFrameLF.toFixed(1)} LF * $${frameCostLF.toFixed(2)}/LF ${V(frameKey, "1.45")} * ${wasteDisplay} Waste`);
+            L('METAL_MAT', `Aluminum Skeleton (${frameMat.description})`, frameYield.totalCost, `${frameYield.totalLF.toFixed(1)} LF * $${frameYield.costPerLF.toFixed(2)}/LF [${frameSku}] * ${frameYield.wasteFactor} Waste`);
 
-            const braceSticks = Math.ceil(totalBraceLF / 24);
             addBOM('Metal Fabrication', {
-                name: `Mounting Braces (1.5" Alum Angle)`,
-                pull: `${braceSticks}x 24' Sticks (${braceSticks * 24} LF)`,
+                name: `Mounting Braces (${braceMat.description})`,
+                pull: `${braceYield.sticksNeeded}x 24' Sticks (${braceYield.sticksNeeded * 24} LF)`,
                 cut: `${4 * inputs.qty}x @ ${inputs.d}"`,
-                drop: `${((braceSticks * 24) - totalBraceLF).toFixed(1)} LF`
+                drop: `${braceYield.dropLF.toFixed(1)} LF`
             });
-            L('METAL_MAT', `Bracing Angles (1.5" Angle)`, totalBraceLF * braceCostLF * waste, `${totalBraceLF.toFixed(1)} LF * $${braceCostLF.toFixed(2)}/LF ${V(braceKey, "1.45")} * ${wasteDisplay} Waste`);
+            L('METAL_MAT', `Bracing Angles (${braceMat.description})`, braceYield.totalCost, `${braceYield.totalLF.toFixed(1)} LF * $${braceYield.costPerLF.toFixed(2)}/LF [${braceSku}] * ${braceYield.wasteFactor} Waste`);
         }
 
         // 2. STEEL BRACKET FABRICATION
         const bracketsPer = 4;
         const totalBrackets = bracketsPer * inputs.qty;
         const bracketLength = Math.max(1, inputs.poleSize - 1); 
-        const steelLF = (totalBrackets * bracketLength) / 12; 
-        
-        const steelKey = inputs.bracketMat;
-        const steelCostLF = num(steelKey, "1.45");
-        const steelSizeTxt = inputs.bracketMat.includes('1.5') ? '1.5"' : (inputs.bracketMat.includes('3') ? '3"' : '2"');
+        const steelYield = Agent_Material_Stock.calculateLinearYield(bracketLength, totalBrackets, bracketMat, 20);
 
         addBOM('Metal Fabrication', {
-            name: `Steel Pole Brackets (${steelSizeTxt} Angle)`,
-            pull: `${Math.ceil(steelLF)} LF`,
+            name: `Steel Pole Brackets (${bracketMat.description})`,
+            pull: `${Math.ceil(steelYield.totalLF)} LF`,
             cut: `${totalBrackets}x @ ${bracketLength}.0"`,
             drop: `--`
         });
-
-        L('METAL_MAT', `Steel Brackets (${steelSizeTxt} Angle)`, steelLF * steelCostLF * waste, `${totalBrackets} Brackets (${bracketLength}" ea = ${steelLF.toFixed(1)} LF) * $${steelCostLF.toFixed(2)}/LF ${V(steelKey, "1.45")}`);
+        L('METAL_MAT', `Steel Brackets (${bracketMat.description})`, steelYield.totalCost, `${totalBrackets} Brackets (${bracketLength}" ea) = ${steelYield.totalLF.toFixed(1)} LF * $${steelYield.costPerLF.toFixed(2)}/LF [${bracketSku}]`);
         
-        // 3. FACE PANELS
-        const sqftW = (inputs.w * inputs.h) / 144;
-        const sqftD = (inputs.d * inputs.h) / 144;
-        const sqftPerUnit = (sqftW * 2) + (sqftD * 2);
-        const totalSqFt = sqftPerUnit * inputs.qty;
-
-        let faceCostKey = 'Cost_Stock_040_4x8';
-        if (inputs.faceThk === '.063') faceCostKey = 'Cost_Stock_063_4x8';
-        if (inputs.faceThk === '.080') faceCostKey = 'Cost_Stock_080_4x8';
-        const faceCost = num(faceCostKey, "84.44");
+        // 3. FACE PANELS (Universal Bounding Box Agent)
+        const yieldW = Agent_Material_Stock.calculateRigidYield(inputs.w, inputs.h, inputs.qty * 2, faceMat);
+        const yieldD = Agent_Material_Stock.calculateRigidYield(inputs.d, inputs.h, inputs.qty * 2, faceMat);
         
-        const faceCostSqFt = faceCost / 32;
-        const sheetsNeeded = Math.ceil(totalSqFt / 32);
-
-        let faceName = `${inputs.faceThk} Aluminum`;
-        if (inputs.faceThk === '.040') faceName = `0.040 Aluminum (White/Black Reversible)`;
+        const totalSheets = yieldW.sheetsNeeded + yieldD.sheetsNeeded;
+        const totalFaceSqFt = yieldW.totalSqFt + yieldD.totalSqFt;
+        const totalFaceCost = yieldW.totalCost + yieldD.totalCost;
+        const totalDrop = yieldW.dropSqFt + yieldD.dropSqFt;
 
         addBOM('Metal Fabrication', {
-            name: `Skin Panels (${faceName})`,
-            pull: `${sheetsNeeded}x 4x8 Sheets`,
+            name: `Skin Panels (${faceMat.description})`,
+            pull: `${totalSheets}x ${yieldW.sheetW/12}x${yieldW.sheetH/12} Sheets`,
             cut: `${2 * inputs.qty}x @ ${inputs.w}"x${inputs.h}" & ${2 * inputs.qty}x @ ${inputs.d}"x${inputs.h}"`,
-            drop: `${((sheetsNeeded * 32) - totalSqFt).toFixed(1)} SqFt`
+            drop: `${totalDrop.toFixed(1)} SqFt`
         });
-
-        L('METAL_MAT', `Skin Panels (${faceName})`, totalSqFt * faceCostSqFt * waste, `${totalSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/SF ${V(faceCostKey, "84.44")} * ${wasteDisplay} Waste`);
+        L('METAL_MAT', `Skin Panels (${faceMat.description})`, totalFaceCost, `Yield: ${totalSheets} Sheets * $${yieldW.costPerSheet.toFixed(2)}/Sht [${faceSku}] * ${yieldW.wasteFactor} Waste`);
 
         // 4. ADHESIVE & MECHANICAL FASTENERS
         const adhesiveLF = ((inputs.w * 4) + (inputs.d * 2) + (inputs.h * 2)) * inputs.qty / 12;
         const cartridges = Math.ceil(adhesiveLF / 10); 
-        const adhesiveCost = num('Cost_Adhesive_Tube', "18.71");
         
         addBOM('Assembly & Hardware', {
             name: `Metal Adhesive (0.25" bead)`,
             pull: `${cartridges} Cartridges`, cut: '--', drop: '--'
         });
-        L('METAL_MAT', `Structural Adhesive (3 Sides)`, cartridges * adhesiveCost, `${adhesiveLF.toFixed(1)} LF / 10 LF per tube = ${cartridges} Tubes * $${adhesiveCost.toFixed(2)}/ea ${V('Cost_Adhesive_Tube', "18.71")}`);
+        L('METAL_MAT', `Structural Adhesive (3 Sides)`, cartridges * adhesiveCost, `${adhesiveLF.toFixed(1)} LF / 10 LF per tube = ${cartridges} Tubes * $${adhesiveCost.toFixed(2)}/ea ${V('Cost_Adhesive_Tube')}`);
 
         const spaces = Math.ceil(inputs.h / 7);
         const screwsNeeded = (spaces + 1) * 2 * inputs.qty; 
-        const screwCost = 0.035;
 
         addBOM('Assembly & Hardware', {
             name: `Self-Drilling Screws (1" Mod. Truss, 8mm Head)`,
             pull: `${screwsNeeded} Screws`, cut: '--', drop: '--'
         });
-        L('INSTALL_HDW', `Mechanical Fasteners`, screwsNeeded * screwCost, `${screwsNeeded} Screws (Spaced ~7" on access panel) * $${screwCost}/ea`);
+        L('INSTALL_HDW', `Mechanical Fasteners`, screwsNeeded * screwCost, `${screwsNeeded} Screws (Spaced ~7" on access panel) * $${screwCost}/ea ${V('Cost_Hardware_Screw_ModTruss')}`);
 
-        L('PAINT_MAT', `Primer Cup (Fasteners)`, 1.00, `Small mix to match fastener heads`);
-        L('PAINT_MAT', `Paint Cup (Fasteners)`, 1.00, `Small mix to match fastener heads`);
+        L('PAINT_MAT', `Primer Cup (Fasteners)`, paintCupCost, `Small mix to match fastener heads ${V('Cost_Paint_Cup_Small')}`);
+        L('PAINT_MAT', `Paint Cup (Fasteners)`, paintCupCost, `Small mix to match fastener heads ${V('Cost_Paint_Cup_Small')}`);
 
-        // 5. METAL LABOR (Now attaching exact { time } metadata)
+        // 5. METAL LABOR
         const gatherMins = 10;
         addLabor('Metal Fabrication', 'Gather Materials', gatherMins);
-        L('METAL_LAB', `Gather Materials`, (gatherMins / 60) * rateShop, `10 Mins * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`, { time: gatherMins });
+        L('METAL_LAB', `Gather Materials`, (gatherMins / 60) * rateShop, `10 Mins * $${rateShop}/hr ${V('Rate_Shop_Labor')}`, { time: gatherMins });
 
         const shearMins = 5 + (16 * inputs.qty * 1); 
         addLabor('Metal Fabrication', 'Shear Face Panels', shearMins);
-        L('METAL_LAB', `Shear Face Panels`, (shearMins / 60) * rateShop, `5 Min Setup + (${16 * inputs.qty} Cuts * 1 Min) * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`, { time: shearMins });
+        L('METAL_LAB', `Shear Face Panels`, (shearMins / 60) * rateShop, `5 Min Setup + (${16 * inputs.qty} Cuts * 1 Min) * $${rateShop}/hr ${V('Rate_Shop_Labor')}`, { time: shearMins });
 
         const alumCuts = 16 * inputs.qty;
         const totalCuts = alumCuts + totalBrackets;
         const cutMins = totalCuts * 1; 
         addLabor('Metal Fabrication', 'Saw Cuts', cutMins);
-        L('METAL_LAB', `Saw Cuts (Alum & Steel)`, (cutMins / 60) * rateShop, `${totalCuts} cuts @ 1 min/cut * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`, { time: cutMins });
+        L('METAL_LAB', `Saw Cuts (Alum & Steel)`, (cutMins / 60) * rateShop, `${totalCuts} cuts @ 1 min/cut * $${rateShop}/hr ${V('Rate_Shop_Labor')}`, { time: cutMins });
 
         const weldPoints = (12 + 8) * inputs.qty;
         const weldMins = weldPoints * 0.5; 
         addLabor('Metal Fabrication', 'Tack & Bead Welding', weldMins);
-        L('METAL_LAB', `Frame Welding`, (weldMins / 60) * rateShop, `${weldPoints} welds @ 0.5 mins * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`, { time: weldMins });
+        L('METAL_LAB', `Frame Welding`, (weldMins / 60) * rateShop, `${weldPoints} welds @ 0.5 mins * $${rateShop}/hr ${V('Rate_Shop_Labor')}`, { time: weldMins });
 
         const grindMins = weldPoints * 0.33;
         addLabor('Metal Fabrication', 'Weld Grinding & Cleaning', grindMins);
-        L('METAL_LAB', `Weld Grinding & Cleaning`, (grindMins / 60) * rateShop, `${weldPoints} welds @ 0.33 mins * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`, { time: grindMins });
+        L('METAL_LAB', `Weld Grinding & Cleaning`, (grindMins / 60) * rateShop, `${weldPoints} welds @ 0.33 mins * $${rateShop}/hr ${V('Rate_Shop_Labor')}`, { time: grindMins });
 
         const glueMins = adhesiveLF * (10 / 60);
         addLabor('Metal Fabrication', 'Adhesive Application', glueMins);
-        L('METAL_LAB', `Adhesive Application`, (glueMins / 60) * rateShop, `${adhesiveLF.toFixed(1)} LF @ 10 sec/LF * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`, { time: glueMins });
+        L('METAL_LAB', `Adhesive Application`, (glueMins / 60) * rateShop, `${adhesiveLF.toFixed(1)} LF @ 10 sec/LF * $${rateShop}/hr ${V('Rate_Shop_Labor')}`, { time: glueMins });
 
         const screwMins = screwsNeeded * (10 / 60);
         addLabor('Metal Fabrication', 'Drill/Tap Access Panel', screwMins);
-        L('METAL_LAB', `Drill/Tap Access Panel`, (screwMins / 60) * rateShop, `${screwsNeeded} Screws @ 10 sec/ea * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`, { time: screwMins });
+        L('METAL_LAB', `Drill/Tap Access Panel`, (screwMins / 60) * rateShop, `${screwsNeeded} Screws @ 10 sec/ea * $${rateShop}/hr ${V('Rate_Shop_Labor')}`, { time: screwMins });
 
         // 6. PAINT LOGIC
         const screwMixMins = 10;
         const screwSprayMins = screwsNeeded * 0.1;
         const screwPaintMins = screwMixMins + screwSprayMins;
         addLabor('Paint & Finishes', 'Mix & Spray Fasteners', screwPaintMins);
-        L('PAINT_LAB', `Mix & Spray Fasteners`, (screwPaintMins / 60) * ratePaint, `10 Min Mix + (${screwsNeeded} Screws * 0.1 Min) * $${ratePaint}/hr ${V('Rate_Paint_Labor', "150")}`, { time: screwPaintMins });
+        L('PAINT_LAB', `Mix & Spray Fasteners`, (screwPaintMins / 60) * ratePaint, `10 Min Mix + (${screwsNeeded} Screws * 0.1 Min) * $${ratePaint}/hr ${V('Rate_Paint_Labor')}`, { time: screwPaintMins });
+
+        const sqftPerUnit = (((inputs.w * inputs.h) / 144) * 2) + (((inputs.d * inputs.h) / 144) * 2);
+        const actualPaintSqFt = sqftPerUnit * inputs.qty;
 
         if (inputs.paintOption === 'Custom Paint') {
-            const paintCostSqFt = num('Cost_Paint_SqFt', "2.50");
+            const paintCostSqFt = num('Cost_Paint_SqFt');
             
-            L('PAINT_MAT', `Automotive Primer`, (totalSqFt * (paintCostSqFt * 0.4) * waste) + 1.00, `${totalSqFt.toFixed(1)} SF * $${(paintCostSqFt * 0.4).toFixed(2)}/SF ${V('Cost_Paint_SqFt', "2.50")} * ${wasteDisplay} Waste + $1.00 Cup`);
-            L('PAINT_MAT', `Automotive Paint (Color)`, (totalSqFt * (paintCostSqFt * 0.6) * waste) + 1.00, `${totalSqFt.toFixed(1)} SF * $${(paintCostSqFt * 0.6).toFixed(2)}/SF ${V('Cost_Paint_SqFt', "2.50")} * ${wasteDisplay} Waste + $1.00 Cup`);
+            L('PAINT_MAT', `Automotive Primer`, (actualPaintSqFt * (paintCostSqFt * 0.4) * yieldW.wasteFactor) + paintCupCost, `${actualPaintSqFt.toFixed(1)} SF * $${(paintCostSqFt * 0.4).toFixed(2)}/SF ${V('Cost_Paint_SqFt')} * ${yieldW.wasteFactor} Waste + Paint Cup`);
+            L('PAINT_MAT', `Automotive Paint (Color)`, (actualPaintSqFt * (paintCostSqFt * 0.6) * yieldW.wasteFactor) + paintCupCost, `${actualPaintSqFt.toFixed(1)} SF * $${(paintCostSqFt * 0.6).toFixed(2)}/SF ${V('Cost_Paint_SqFt')} * ${yieldW.wasteFactor} Waste + Paint Cup`);
             
             addBOM('Paint & Finishes', {
                 name: `Automotive Paint/Primer Coverage`,
-                pull: `${totalSqFt.toFixed(1)} SF`, cut: '--', drop: '--'
+                pull: `${actualPaintSqFt.toFixed(1)} SF`, cut: '--', drop: '--'
             });
 
             const paintSetupMins = 15;
             addLabor('Paint & Finishes', 'Paint Mix & Setup', paintSetupMins);
-            L('PAINT_LAB', `Paint Mix & Setup`, (paintSetupMins / 60) * ratePaint, `${paintSetupMins} Mins * $${ratePaint}/hr ${V('Rate_Paint_Labor', "150")}`, { time: paintSetupMins });
+            L('PAINT_LAB', `Paint Mix & Setup`, (paintSetupMins / 60) * ratePaint, `${paintSetupMins} Mins * $${ratePaint}/hr ${V('Rate_Paint_Labor')}`, { time: paintSetupMins });
 
-            const prepMins = totalSqFt * 0.15;
+            const prepMins = actualPaintSqFt * 0.15;
             addLabor('Paint & Finishes', 'Sign Prep & Sanding', prepMins);
-            L('PAINT_LAB', `Sign Prep`, (prepMins / 60) * ratePaint, `${totalSqFt.toFixed(1)} SF * 0.15 Mins/SF * $${ratePaint}/hr ${V('Rate_Paint_Labor', "150")}`, { time: prepMins });
+            L('PAINT_LAB', `Sign Prep`, (prepMins / 60) * ratePaint, `${actualPaintSqFt.toFixed(1)} SF * 0.15 Mins/SF * $${ratePaint}/hr ${V('Rate_Paint_Labor')}`, { time: prepMins });
 
-            const sprayMins = totalSqFt * 0.40;
+            const sprayMins = actualPaintSqFt * 0.40;
             addLabor('Paint & Finishes', 'Spray Primer & Color Coats', sprayMins);
-            L('PAINT_LAB', `Spray Application`, (sprayMins / 60) * ratePaint, `${totalSqFt.toFixed(1)} SF * 0.40 Mins/SF * $${ratePaint}/hr ${V('Rate_Paint_Labor', "150")}`, { time: sprayMins });
+            L('PAINT_LAB', `Spray Application`, (sprayMins / 60) * ratePaint, `${actualPaintSqFt.toFixed(1)} SF * 0.40 Mins/SF * $${ratePaint}/hr ${V('Rate_Paint_Labor')}`, { time: sprayMins });
         }
 
         // 7. TOTALS & BIDIRECTIONAL MARGIN
@@ -234,7 +231,6 @@ Deno.serve(async (req: any) => {
         const finalCost = rawHardCost * risk;
         const unitRetail = finalCost / (1 - targetMargin);
 
-        // NEW: Explicitly providing all variables back to export engine to prevent "Undefined" bugs on Work Orders
         const specs = {
             product: 'PoleCover',
             qty: inputs.qty, 
@@ -252,14 +248,14 @@ Deno.serve(async (req: any) => {
             frameDepth: inputs.d, 
             isAngle: true,
             graphicType: inputs.paintOption, 
-            faceKey: faceName
+            faceKey: faceMat.description
         };
 
         const payload = {
             retail: { unitPrice: unitRetail, grandTotal: unitRetail * inputs.qty },
             cost: { total: finalCost, breakdown: cst },
             build: { bom: bomMap, routing: routingMap, specs: specs },
-            metrics: { margin: targetMargin, sqft: sqftPerUnit } // Added sqft for the UI metric calculations
+            metrics: { margin: targetMargin, sqft: sqftPerUnit }
         };
 
         if (auditMode === 'retail_only') payload.cost.breakdown = [];

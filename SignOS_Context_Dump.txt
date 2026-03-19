@@ -1,5 +1,5 @@
 SIGNOS REPOSITORY STATE
-Generated: 2026-03-19T00:56:40.669Z
+Generated: 2026-03-19T02:18:46.455Z
 
 ├── .cursorrules
 ├── .github
@@ -8,6 +8,7 @@ Generated: 2026-03-19T00:56:40.669Z
 │       ├── nightly-health-check.yml
 │       ├── sync-changelog.yml
 │       └── sync-roadmap.yml
+├── .gitignore
 ├── .vscode
 │   ├── extensions.json
 │   └── settings.json
@@ -37,6 +38,7 @@ Generated: 2026-03-19T00:56:40.669Z
 │   ├── Calculator_Wrap.html
 │   ├── Calculator_YardSign.html
 │   ├── Omni_Terminal.html
+│   ├── Workspace_3D_Studio.html
 │   ├── admin_analytics.html
 │   ├── admin_audit.html
 │   ├── admin_backup.html
@@ -61,6 +63,8 @@ Generated: 2026-03-19T00:56:40.669Z
 │   │   └── Arimo-SemiBoldItalic.ttf
 │   ├── index.html
 │   ├── menu.html
+│   ├── public
+│   │   └── vite.svg
 │   ├── sign_store_logo_cloudflare_v01.svg
 │   ├── sign_store_logo_cloudflare_v02.svg
 │   ├── signos-builder.js
@@ -69,6 +73,11 @@ Generated: 2026-03-19T00:56:40.669Z
 │   ├── signos-sandbox.js
 │   ├── signos-ui.js
 │   ├── signos-view-svg.js
+│   ├── src
+│   │   ├── counter.js
+│   │   ├── javascript.svg
+│   │   ├── main.js
+│   │   └── style.css
 │   └── user_profile.html
 ├── supabase
 │   ├── .branches
@@ -138,6 +147,75 @@ Generated: 2026-03-19T00:56:40.669Z
 │   │   ├── 20260312175500_remote_schema.sql
 │   │   └── 20260312184436_remote_schema.sql
 │   └── snippets
-└── tools
-    ├── backfill-commits.cjs
-    └── generate-context.cjs
+├── tools
+│   ├── backfill-commits.cjs
+│   └── generate-context.cjs
+├── vps-3d-studio
+│   ├── .gitignore
+│   ├── App.tsx
+│   ├── README.md
+│   ├── components
+│   │   ├── Configurator
+│   │   │   └── Controls.tsx
+│   │   ├── Dashboard
+│   │   │   ├── ManufacturingView.tsx
+│   │   │   ├── PricingOverlay.tsx
+│   │   │   └── QuoteView.tsx
+│   │   ├── Tools
+│   │   │   └── FontCalibratorModal.tsx
+│   │   ├── Viewer2D
+│   │   │   └── BlueprintView.tsx
+│   │   └── Viewer3D
+│   │       ├── ChannelLetterRenderer.tsx
+│   │       ├── LetterGroup.tsx
+│   │       ├── SignLine.tsx
+│   │       ├── SignRenderer.tsx
+│   │       ├── useSignMaterials.ts
+│   │       └── utils.ts
+│   ├── constants.ts
+│   ├── data
+│   │   ├── fonts
+│   │   │   ├── GTBenguiat.ts
+│   │   │   ├── GTClarendon.ts
+│   │   │   ├── GTEurostyle.ts
+│   │   │   ├── GTFutura.ts
+│   │   │   ├── GTGaramond.ts
+│   │   │   ├── GTHelvetica.ts
+│   │   │   ├── GTRegistry.ts
+│   │   │   ├── GTTimes.ts
+│   │   │   ├── expandedMetrics.ts
+│   │   │   ├── helvetica.ts
+│   │   │   ├── helveticaBold.ts
+│   │   │   ├── index.ts
+│   │   │   ├── types.ts
+│   │   │   └── utils.ts
+│   │   └── materials.ts
+│   ├── docs
+│   │   └── notebook_lm
+│   │       ├── 01_cartridge_schema.md
+│   │       ├── 02_logic_manifesto.md
+│   │       ├── 03_supabase_blueprint.md
+│   │       └── 04_system_overview.md
+│   ├── index.html
+│   ├── index.tsx
+│   ├── metadata.json
+│   ├── migrated_prompt_history
+│   │   ├── prompt_2026-02-02T19_06_33.034Z.json
+│   │   └── prompt_2026-02-02T23_30_27.724Z.json
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── services
+│   │   ├── blueprintExporter.ts
+│   │   ├── engine.ts
+│   │   ├── geminiService.ts
+│   │   ├── pricing.ts
+│   │   ├── textureUtils.ts
+│   │   └── vectorUtils.ts
+│   ├── tsconfig.json
+│   ├── types.ts
+│   └── vite.config.ts
+└── vps-proxy
+    ├── .env
+    ├── package-lock.json
+    ├── package.json
+    └── server.js
