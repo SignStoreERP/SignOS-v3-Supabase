@@ -265,7 +265,7 @@
         <!-- JOB SUMMARY & BOM -->
         <div class="bg-white p-6 border-t border-gray-200 rounded-b-xl">
             <div class="flex justify-between items-end mb-2">
-                <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest">Job Summary & Bill of Materials</h3>
+                <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest">Job Summary</h3>
                 
                 <button onclick="if(typeof SignOS_Export_v2 !== 'undefined' && SignOS_Export_v2.printWorkOrder) { SignOS_Export_v2.printWorkOrder(lastEdgeResult, 'svg-preview-container', 'job-summary'); } else { alert('Export pipeline not loaded.'); }" class="bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black px-4 py-1.5 rounded uppercase tracking-widest shadow-sm transition flex items-center gap-2">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
@@ -873,20 +873,7 @@
 Posts: ${inputs.postSize}" ${postStr} Square Tube (${inputs.thag}" A.G. / ${inputs.belowGrade}" B.G.)
 Frame: ${frameStr} (${inputs.mountStyle} Mount)${isAngle ? ` - Built to ${inputs.frameDepth}" Depth` : ''}
 Faces: ${faceStr}
-Graphics: ${graphicStr}\n\n`;
-
-                    summary += `=== BILL OF MATERIALS ===\n`;
-
-                    const deptOrder = ['Metal Fabrication', 'Paint & Finishes', 'Vinyl & Graphics', 'Installation Hardware'];
-                    
-                    deptOrder.forEach(dept => {
-                        if (result.build.bom[dept] && result.build.bom[dept].length > 0) {
-                            summary += `\n[ ${dept.toUpperCase()} ]\n`;
-                            result.build.bom[dept].forEach(item => {
-                                summary += `- ${item}\n`;
-                            });
-                        }
-                    });
+Graphics: ${graphicStr}`;
 
                     document.getElementById('job-summary').value = summary;
                 }
