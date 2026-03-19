@@ -139,7 +139,7 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
         return `${m} mins`;
     };
 
-    // 1. EXTRACT PURE SVG DRAWINGS (ULTRA COMPACT)
+    // 1. EXTRACT PURE SVG DRAWINGS (COMPACT)
     const svgContainer = document.getElementById(svgContainerId);
     let svgHtml = '';
     
@@ -151,7 +151,6 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
                 const title = index === 0 ? 'Front Elevation' : 'Side Profile';
                 const clonedSvg = svg.cloneNode(true);
                 clonedSvg.removeAttribute('class');
-                // Tightly constrained height to save vertical page space
                 clonedSvg.style.maxHeight = '150px';
                 clonedSvg.style.width = 'auto';
                 
@@ -166,7 +165,7 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
     }
     if (!svgHtml) svgHtml = '<div style="text-align:center; padding:10px; font-size:9px; color:#94a3b8;">No drawing available</div>';
 
-    // 2. EXTRACT LABOR DATA (COMPACT LAYOUT)
+    // 2. EXTRACT LABOR DATA 
     let laborHtml = '';
     let totalShopMins = 0;
 
@@ -180,86 +179,105 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
                 totalShopMins += t.time;
                 const timeStr = t.time > 0 ? `<span class="float-right font-mono text-slate-500">${formatTime(t.time)}</span>` : '';
                 taskListHtml += `
-                <li class="flex justify-between border-b border-slate-100 py-1 items-start avoid-break">
-                    <span class="flex gap-1.5 items-start">
-                        <span class="border border-slate-300 w-2.5 h-2.5 inline-block mt-0.5 shrink-0 bg-white shadow-sm"></span>
-                        <span class="text-[9px] leading-tight">${t.task}</span>
+                <li class="flex justify-between border-b border-slate-100 py-1.5 items-start avoid-break">
+                    <span class="flex gap-2 items-start">
+                        <span class="border border-slate-400 w-2.5 h-2.5 inline-block mt-0.5 shrink-0 bg-white shadow-sm rounded-sm"></span>
+                        <span class="text-[10px] leading-tight text-slate-800">${t.task}</span>
                     </span>
-                    <span class="text-[8px]">${timeStr}</span>
+                    <span class="text-[9px]">${timeStr}</span>
                 </li>`;
             });
             
             laborHtml += `
-            <div class="mb-3 avoid-break border border-slate-200 rounded bg-white overflow-hidden">
-                <div class="bg-slate-100 px-2 py-1 border-b border-slate-200 flex justify-between items-center">
-                    <h4 class="font-black uppercase text-[9px] text-slate-700 tracking-widest">${dept}</h4>
-                    <span class="font-bold text-[8px] text-slate-500">Total: ${formatTime(deptMins)}</span>
+            <div class="mb-4 avoid-break border border-slate-200 rounded bg-white overflow-hidden">
+                <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex justify-between items-center">
+                    <h4 class="font-black uppercase text-[10px] text-slate-700 tracking-widest">${dept}</h4>
+                    <span class="font-bold text-[9px] text-slate-500">Total: ${formatTime(deptMins)}</span>
                 </div>
-                <ul class="px-2 pb-0.5">${taskListHtml}</ul>
+                <ul class="px-3 pb-1">${taskListHtml}</ul>
             </div>`;
         }
         
         laborHtml += `
-        <div class="mt-2 pt-2 border-t-2 border-slate-800 flex justify-between items-center bg-slate-50 p-2 rounded avoid-break">
-            <span class="font-black uppercase text-[9px] text-slate-700 tracking-widest">Total Estimated Labor</span>
-            <span class="font-black text-emerald-600 text-xs">${formatTime(totalShopMins)}</span>
+        <div class="mt-3 border-t-2 border-slate-800 flex justify-between items-center bg-slate-50 p-2.5 rounded avoid-break">
+            <span class="font-black uppercase text-[10px] text-slate-700 tracking-widest">Total Estimated Labor</span>
+            <span class="font-black text-emerald-600 text-sm">${formatTime(totalShopMins)}</span>
         </div>`;
     }
 
-    // 3. EXTRACT BILL OF MATERIALS & CUT LIST (COMPACT LAYOUT)
+    // 3. EXTRACT BILL OF MATERIALS & CUT LIST (Dynamic Sub-Columns & Filtering)
     let bomHtml = '';
     if (calcResult.build.bom) {
         for (const [dept, items] of Object.entries(calcResult.build.bom)) {
             let deptItemsHtml = '';
+            let validItemsCount = 0;
+
             items.forEach(item => {
+                // Strip out Concrete and rename Lord's Adhesive
+                let nameStr = typeof item === 'object' ? item.name : item;
+                if (!nameStr) return;
+                if (nameStr.toLowerCase().includes('concrete')) return;
+
                 if (typeof item === 'object') {
+                    item.name = item.name.replace(/Lord's Adhesive/ig, 'Metal Adhesive');
+                } else {
+                    item = item.replace(/Lord's Adhesive/ig, 'Metal Adhesive');
+                }
+
+                validItemsCount++;
+
+                if (typeof item === 'object') {
+                    // Only build the sub-columns if data actually exists
+                    let detailsHtml = [];
+                    if (item.pull && item.pull !== '--') detailsHtml.push(`<span class="font-bold text-slate-400">PULL:</span> ${item.pull}`);
+                    if (item.cut && item.cut !== '--') detailsHtml.push(`<span class="font-bold text-slate-400">CUT:</span> ${item.cut}`);
+                    if (item.drop && item.drop !== '--') detailsHtml.push(`<span class="font-bold text-slate-400">DROP:</span> ${item.drop}`);
+
                     deptItemsHtml += `
-                    <div class="flex items-start gap-1.5 border-b border-slate-100 py-1.5 avoid-break">
-                        <span class="border border-slate-300 w-2.5 h-2.5 inline-block mt-0.5 shrink-0 bg-white shadow-sm"></span>
+                    <div class="flex items-start gap-2 border-b border-slate-100 py-2 avoid-break">
+                        <span class="border border-slate-400 w-2.5 h-2.5 inline-block mt-0.5 shrink-0 bg-white shadow-sm rounded-sm"></span>
                         <div class="flex-1">
-                            <div class="font-bold text-slate-900 text-[9px] mb-1 leading-none">${item.name}</div>
-                            <div class="grid grid-cols-3 gap-2 text-slate-600 bg-slate-50 p-1 rounded border border-slate-100">
-                                <div><span class="text-slate-400 font-bold uppercase text-[7px] tracking-widest block mb-0.5">Pull</span> <span class="font-mono text-[8px] leading-none block">${item.pull}</span></div>
-                                <div><span class="text-slate-400 font-bold uppercase text-[7px] tracking-widest block mb-0.5">Cut</span> <span class="font-mono text-[8px] leading-none block">${item.cut}</span></div>
-                                <div><span class="text-slate-400 font-bold uppercase text-[7px] tracking-widest block mb-0.5">Drop/Remnant</span> <span class="font-mono text-[8px] leading-none block">${item.drop}</span></div>
-                            </div>
+                            <div class="font-bold text-slate-900 text-[10px] leading-tight">${item.name}</div>
+                            ${detailsHtml.length > 0 ? `<div class="text-slate-600 text-[9px] leading-tight mt-1 flex flex-wrap gap-x-2 gap-y-1 bg-slate-50 p-1.5 rounded border border-slate-100">${detailsHtml.join('<span class="text-slate-300">|</span>')}</div>` : ''}
                         </div>
                     </div>`;
                 } else {
                     deptItemsHtml += `
-                    <div class="flex items-start gap-1.5 border-b border-slate-100 py-1 avoid-break">
-                        <span class="border border-slate-300 w-2.5 h-2.5 inline-block mt-0.5 shrink-0 bg-white shadow-sm"></span>
-                        <span class="text-[9px] leading-tight">${item}</span>
+                    <div class="flex items-start gap-2 border-b border-slate-100 py-1.5 avoid-break">
+                        <span class="border border-slate-400 w-2.5 h-2.5 inline-block mt-0.5 shrink-0 bg-white shadow-sm rounded-sm"></span>
+                        <span class="text-[10px] leading-tight font-bold text-slate-900">${item}</span>
                     </div>`;
                 }
             });
 
-            bomHtml += `
-            <div class="mb-3 avoid-break border border-slate-200 rounded bg-white overflow-hidden">
-                <div class="bg-slate-100 px-2 py-1 border-b border-slate-200">
-                    <h4 class="font-black uppercase text-[9px] text-slate-700 tracking-widest">${dept}</h4>
-                </div>
-                <div class="px-2 pb-0.5">${deptItemsHtml}</div>
-            </div>`;
+            if (validItemsCount > 0) {
+                bomHtml += `
+                <div class="mb-4 avoid-break border border-slate-200 rounded bg-white overflow-hidden">
+                    <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+                        <h4 class="font-black uppercase text-[10px] text-slate-700 tracking-widest">${dept}</h4>
+                    </div>
+                    <div class="px-3 pb-1">${deptItemsHtml}</div>
+                </div>`;
+            }
         }
     }
 
-    // 4. GENERATE NATIVE PRODUCT SPECIFICATIONS
+    // 4. GENERATE NATIVE PRODUCT SPECIFICATIONS (Tight Layout)
     let specsHtml = '';
     if (calcResult.build.specs) {
         const s = calcResult.build.specs;
         specsHtml = `
-            <div class="grid grid-cols-3 gap-x-4 gap-y-1.5 text-[9px] text-slate-700">
-                <div class="flex justify-between border-b border-slate-100 pb-0.5"><span class="font-bold text-slate-900 uppercase tracking-widest text-[8px]">Qty</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-0.5"><span class="font-bold text-slate-900 uppercase tracking-widest text-[8px]">Dims</span> <span class="font-mono text-blue-700 font-bold">${s.w}" x ${s.h}"</span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-0.5"><span class="font-bold text-slate-900 uppercase tracking-widest text-[8px]">Sides</span> <span class="font-mono font-bold">${s.sides}</span></div>
-                <div class="col-span-3 flex justify-between border-b border-slate-100 pb-0.5"><span class="font-bold text-slate-900 uppercase tracking-widest text-[8px]">Mount & Posts</span> <span class="font-mono font-bold">${s.mountStyle} / ${s.postSize}" ${s.postMetalName} (${s.thag}" AG / ${s.belowGrade}" BG)</span></div>
-                <div class="col-span-3 flex justify-between border-b border-slate-100 pb-0.5"><span class="font-bold text-slate-900 uppercase tracking-widest text-[8px]">Frame & Face</span> <span class="font-mono font-bold">${s.frameDepth}" ${s.isAngle ? 'Angle' : 'Tube'} / ${(s.graphicType || '').replace(/_/g, ' ')}</span></div>
+            <div class="flex flex-wrap gap-x-6 gap-y-2 text-[10px] text-slate-800">
+                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
+                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}" x ${s.h}"</span></div>
+                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Sides:</span> <span class="font-mono font-bold">${s.sides}</span></div>
+                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Mount & Posts:</span> <span class="font-mono font-bold">${s.mountStyle} / ${s.postSize}" ${s.postMetalName} (${s.thag}" AG / ${s.belowGrade}" BG)</span></div>
+                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Frame & Face:</span> <span class="font-mono font-bold">${s.frameDepth}" ${s.isAngle ? 'Angle' : 'Tube'} / ${(s.graphicType || '').replace(/_/g, ' ')}</span></div>
             </div>
         `;
     }
 
-    // 5. GENERATE THE PRINT WINDOW HTML (NATIVE 1-PAGE LAYOUT)
+    // 5. GENERATE THE PRINT WINDOW HTML (Standard Document Flow for Native Pagination)
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -272,28 +290,32 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
         <title>Work Order - ${dateStr}</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <style>
-            /* ULTRA TIGHT PAGE CONSTRAINTS FOR 1-PAGE PORTRAIT */
-            @page { size: letter portrait; margin: 0.25in; }
+            @page { size: letter portrait; margin: 0.4in; }
             body { 
                 background: white; 
                 -webkit-print-color-adjust: exact; 
                 print-color-adjust: exact; 
                 font-family: ui-sans-serif, system-ui, sans-serif;
             }
-            .page-wrapper {
+            .print-container {
                 max-width: 8.5in;
                 margin: 0 auto;
-                padding: 0.25in;
+                display: block; /* Enables native browser pagination to flow freely */
             }
-            /* Ensure blocks don't get sliced in half by the printer */
+            /* Guardrails against physical print slices */
             .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+            
+            @media print {
+                .print-container { width: 100%; max-width: 100%; }
+                /* Browsers automatically inject "Page X of Y" in their native headers/footers */
+            }
         </style>
     </head>
-    <body>
-        <div class="page-wrapper flex flex-col h-full">
+    <body class="text-slate-900">
+        <div class="print-container">
             
             <!-- HEADER -->
-            <div class="flex justify-between items-start border-b-2 border-slate-900 pb-2 mb-3 shrink-0">
+            <div class="flex justify-between items-start border-b-2 border-slate-900 pb-2 mb-4">
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 bg-slate-900 text-white flex items-center justify-center font-black text-sm rounded">SF</div>
                     <div>
@@ -302,60 +324,49 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
                     </div>
                 </div>
                 <div class="text-right">
-                    <!-- Random WO Number Removed per Instructions -->
-                    <div class="text-[9px] text-slate-500 uppercase font-bold mt-1 bg-slate-100 px-2 py-1 rounded">Generated: ${dateStr}</div>
+                    <div class="text-[9px] text-slate-500 uppercase font-bold mt-1 bg-slate-100 px-2 py-1 rounded border border-slate-200">Generated: ${dateStr}</div>
                 </div>
             </div>
 
             <!-- DRAWING & SPECS -->
-            <div class="mb-4 shrink-0">
+            <div class="mb-5 avoid-break">
                 <div class="bg-white border border-slate-200 rounded p-3 mb-3 flex flex-col items-center shadow-sm">
                      ${svgHtml}
                 </div>
 
-                <div class="border border-slate-200 rounded overflow-hidden flex flex-col">
-                    <div class="bg-slate-100 px-3 py-1 border-b border-slate-200">
-                        <span class="text-[9px] font-black uppercase tracking-widest text-slate-700">Project Specifications</span>
-                    </div>
-                    <div class="p-2.5 bg-white">
+                <div class="border border-slate-200 rounded bg-slate-50 overflow-hidden flex flex-col">
+                    <div class="p-2.5">
                         ${specsHtml}
                     </div>
                 </div>
             </div>
 
-            <!-- TWO-COLUMN LAYOUT FOR BOM & LABOR -->
-            <div class="grid grid-cols-2 gap-4 flex-1">
+            <!-- TWO-COLUMN GRID FOR BOM & LABOR -->
+            <div class="grid grid-cols-2 gap-6 items-start">
+                
                 <!-- Bill of Materials (Left) -->
-                <div class="flex flex-col h-full">
-                    <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-800 border-b border-slate-300 pb-1 mb-2">Pull List & Cuts</h3>
-                    ${bomHtml || '<div class="text-[9px] text-slate-400 italic">No materials calculated.</div>'}
+                <div>
+                    <h3 class="text-[11px] font-black uppercase tracking-widest text-slate-800 border-b border-slate-300 pb-1 mb-3">Pull List & Cuts</h3>
+                    ${bomHtml || '<div class="text-[10px] text-slate-400 italic">No materials calculated.</div>'}
                 </div>
 
                 <!-- Fabrication Steps (Right) -->
-                <div class="flex flex-col h-full">
-                    <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-800 border-b border-slate-300 pb-1 mb-2">Fabrication Routing</h3>
-                    ${laborHtml || '<div class="text-[9px] text-slate-400 italic">No labor tasks calculated.</div>'}
+                <div>
+                    <h3 class="text-[11px] font-black uppercase tracking-widest text-slate-800 border-b border-slate-300 pb-1 mb-3">Fabrication Routing</h3>
+                    ${laborHtml || '<div class="text-[10px] text-slate-400 italic">No labor tasks calculated.</div>'}
                 </div>
+                
             </div>
-
-            <!-- FOOTER SIGNOFF -->
-            <div class="mt-4 pt-2 border-t-2 border-slate-800 grid grid-cols-3 gap-4 text-[7px] font-bold uppercase text-slate-500 shrink-0">
-                <div>
-                    <div class="mb-2">Fabricator Signature:</div>
-                    <div class="border-b border-slate-400 w-32"></div>
-                </div>
-                <div>
-                    <div class="mb-2">QA / Final Inspection:</div>
-                    <div class="border-b border-slate-400 w-32"></div>
-                </div>
-                <div class="text-right flex flex-col justify-end">
-                    Internal Shop Use Only • SignFabricator OS
-                </div>
+            
+            <!-- Simple Footer at the end of the data stream -->
+            <div class="mt-6 pt-2 border-t border-slate-300 text-right text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                Internal Shop Use Only • SignFabricator OS
             </div>
 
         </div>
         
         <script>
+            // Tell the browser to automatically print
             window.onload = () => { setTimeout(() => window.print(), 500); }
         </script>
     </body>

@@ -79,10 +79,7 @@ Deno.serve(async (req: any) => {
         const footerHeightFt = (inputs.belowGrade * 0.66) / 12;
         const holeVolumeCuFt = Math.PI * Math.pow(holeRadiusFt, 2) * footerHeightFt;
         const bagsNeeded = Math.ceil((holeVolumeCuFt * 2) / 0.6) * inputs.qty;
-        addBOM('Installation Hardware', {
-            name: `Concrete (80lb Bag)`,
-            pull: `${bagsNeeded} Bags`, cut: '--', drop: '--'
-        });
+        // Concrete BOM intentionally removed per manufacturing instructions
 
         // 2. FRAME MATH
         let frameLF = 0;
@@ -113,10 +110,8 @@ Deno.serve(async (req: any) => {
         const frameDropLF = framePullLF - totalFrameLF;
 
         addBOM('Metal Fabrication', {
-            name: `Internal Frame Skeleton (${inputs.frameKey.split('_')[1] || 'Tube'})`,
-            pull: `${frameSticksNeeded}x ${frameStickLength}' Sticks (${framePullLF} LF)`,
-            cut: frameCutStr,
-            drop: `${frameDropLF.toFixed(1)} LF`
+            name: `Metal Adhesive (0.25" bead)`,
+            pull: `${cartridges} Cartridges`, cut: '--', drop: '--'
         });
 
         const frameCostLF = parseFloat(config[inputs.frameKey]) || 1.45;
