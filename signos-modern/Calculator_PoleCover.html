@@ -405,16 +405,3 @@
 </script>
 </body>
 </html>
-Step 3: Register Module in the Database
-Run this exact SQL snippet in your Supabase SQL Editor. This will register the new tool in your Headless UI, pushing it directly into the menu.html dashboard under the "Fabricated Signs" column.
-INSERT INTO public.system_modules (
-    id, display_name, filename, dev_status, category, color_theme, required_roles
-) VALUES (
-    'PROD_PoleCover', 
-    'Pole Covers', 
-    'Calculator_PoleCover.html', 
-    'LIVE', 
-    'Fabricated Signs', 
-    'slate', 
-    '["SILO_SALES", "RANK_2", "SALES"]'
-);
