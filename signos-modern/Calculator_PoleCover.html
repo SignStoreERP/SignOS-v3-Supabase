@@ -16,7 +16,8 @@
 <!-- UNIVERSAL HEADER INJECTION -->
 <div id="menu-header-container"></div>
 
-<div id="main-card" class="max-w-3xl mx-auto mt-6 w-[calc(100%-2rem)] bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200">
+<!-- NOTICE: Max width reduced to max-w-2xl for standardized UI scaling -->
+<div id="main-card" class="max-w-2xl mx-auto mt-6 w-[calc(100%-2rem)] bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200">
     
     <div class="flex flex-col">
         
@@ -24,7 +25,7 @@
         <div class="bg-slate-900 p-5 flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-lg font-black text-white uppercase tracking-widest flex items-center gap-2">
-                    Pole Cover <span class="text-xs text-slate-500">v1.2</span>
+                    Pole Cover <span class="text-xs text-slate-500">v1.3</span>
                 </h1>
                 <p class="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">Heavy Fabrication Engine</p>
             </div>
@@ -59,21 +60,16 @@
         <div class="w-full flex flex-col">
             
             <div class="p-6 space-y-5">
-                
-                <div class="grid grid-cols-4 gap-3 border-b border-gray-100 pb-4">
-                    <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border border-blue-300 p-2 rounded text-lg font-black text-center bg-blue-50 focus:border-blue-600 outline-none shadow-inner" oninput="runCalc()"></div>
-                    <div class="col-span-3">
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Existing Pole Outer Diameter (in)</label>
-                        <input type="number" id="poleSize" value="4.0" step="0.5" class="w-full border border-gray-300 p-2 rounded font-black text-gray-800 text-lg bg-white outline-none focus:border-blue-500 shadow-inner" oninput="runCalc()">
-                    </div>
-                </div>
 
+                <!-- CONDENSED SPECIFICATIONS -->
                 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 space-y-4">
-                    <h3 class="text-[10px] font-black text-slate-700 uppercase tracking-widest border-b border-slate-200 pb-1">Cover Dimensions</h3>
-                    <div class="grid grid-cols-3 gap-4">
-                        <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Width (in)</label><input type="number" id="w" value="36" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
-                        <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Height (in)</label><input type="number" id="h" value="72" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
-                        <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Depth (in)</label><input type="number" id="d" value="12" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
+                    <h3 class="text-[10px] font-black text-slate-700 uppercase tracking-widest border-b border-slate-200 pb-1">Pole Cover Specifications</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border border-blue-300 p-2 rounded text-sm font-bold text-center bg-blue-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                        <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Width (in)</label><input type="number" id="w" value="36" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
+                        <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Height (in)</label><input type="number" id="h" value="72" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
+                        <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Depth (in)</label><input type="number" id="d" value="12" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
+                        <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center" title="Existing Pole Outer Diameter">Pole O.D.</label><input type="number" id="poleSize" value="4.0" step="0.5" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
                     </div>
                 </div>
 
@@ -91,8 +87,8 @@
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Steel Brackets</label>
                             <select id="bracketMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500 shadow-sm" onchange="runCalc()">
-                                <option value="Cost_Frame_SteelAngle_1.5_1/8">1.5" Steel Angle</option>
-                                <option value="Cost_Frame_SteelAngle_2_1/8" selected>2" Steel Angle</option>
+                                <option value="Cost_Frame_SteelAngle_1.5_1/8" selected>1.5" Steel Angle</option>
+                                <option value="Cost_Frame_SteelAngle_2_1/8">2" Steel Angle</option>
                                 <option value="Cost_Frame_SteelAngle_3_1/4">3" Steel Angle</option>
                             </select>
                         </div>
@@ -288,7 +284,7 @@
         });
 
         const fw = parseFloat(inputs.frameMat) || 1.5;
-        const w = inputs.w; const d = inputs.d; const h = inputs.h;
+        const w = inputs.w; const h = inputs.h; const d = inputs.d; 
         const pRad = inputs.poleSize / 2;
         
         const padX = 20; const padY = 20;
@@ -344,35 +340,38 @@
         svgSide += drawVDim(d + 5, 0, h, h + '" H');
         svgSide += `</svg>`;
 
-        // Top Section (Physics)
-        const cx = w/2; const cy = d/2;
-        let svgTop = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${w + padX*2} ${d + padY*2}">`;
-        svgTop += `<rect x="0" y="0" width="${w}" height="${d}" fill="none" stroke="#1e3a8a" stroke-width="${sw*1.5}"/>`; // Outer Box
-        svgTop += `<rect x="${fw}" y="${fw}" width="${w-(fw*2)}" height="${d-(fw*2)}" fill="none" stroke="#64748b" stroke-width="${sw}"/>`; // Inner Frame
+        // Top Section (Physics) - Rotated 90 Degrees to save horizontal space
+        const rotW = d;
+        const rotH = w;
+        const cx = rotW/2; const cy = rotH/2;
+        let svgTop = `<svg width="100%" height="100%" viewBox="-${padY} -${padX} ${rotW + padY*2} ${rotH + padX*2}">`;
+        svgTop += `<rect x="0" y="0" width="${rotW}" height="${rotH}" fill="none" stroke="#1e3a8a" stroke-width="${sw*1.5}"/>`; // Outer Box
+        svgTop += `<rect x="${fw}" y="${fw}" width="${rotW-(fw*2)}" height="${rotH-(fw*2)}" fill="none" stroke="#64748b" stroke-width="${sw}"/>`; // Inner Frame
         svgTop += `<circle cx="${cx}" cy="${cy}" r="${pRad}" fill="#94a3b8" stroke="#475569" stroke-width="${sw*1.5}"/>`; // Pole
         
-        // Braces (Span D, touching top/bottom of pole box in this top-down view)
+        // Braces span short way (which is X in rotated view, meaning width)
         const braceThk = 1.5;
-        const leftBraceX = cx - pRad - braceThk;
-        const rightBraceX = cx + pRad;
-        svgTop += `<rect x="${leftBraceX}" y="${fw}" width="${braceThk}" height="${d-(fw*2)}" fill="#f59e0b" stroke="#b45309" stroke-width="${sw}"/>`; // Left Brace
-        svgTop += `<rect x="${rightBraceX}" y="${fw}" width="${braceThk}" height="${d-(fw*2)}" fill="#f59e0b" stroke="#b45309" stroke-width="${sw}"/>`; // Right Brace
+        const topBraceY = cy - pRad - braceThk;
+        const botBraceY = cy + pRad;
+        svgTop += `<rect x="${fw}" y="${topBraceY}" width="${rotW-(fw*2)}" height="${braceThk}" fill="#f59e0b" stroke="#b45309" stroke-width="${sw}"/>`; // Top Brace
+        svgTop += `<rect x="${fw}" y="${botBraceY}" width="${rotW-(fw*2)}" height="${braceThk}" fill="#f59e0b" stroke="#b45309" stroke-width="${sw}"/>`; // Bot Brace
         
         // Brackets connecting brace to pole
-        svgTop += `<rect x="${leftBraceX}" y="${cy - 2}" width="${braceThk + pRad}" height="4" fill="#dc2626"/>`; 
-        svgTop += `<rect x="${cx}" y="${cy - 2}" width="${braceThk + pRad}" height="4" fill="#dc2626"/>`; 
+        svgTop += `<rect x="${cx - 2}" y="${topBraceY + braceThk}" width="4" height="${pRad}" fill="#dc2626"/>`; 
+        svgTop += `<rect x="${cx - 2}" y="${cy}" width="4" height="${pRad}" fill="#dc2626"/>`; 
 
-        svgTop += drawHDim(0, w, -5, w + '" W');
-        svgTop += drawVDim(w + 5, 0, d, d + '" D');
+        svgTop += drawHDim(0, rotW, -5, d + '" D');
+        svgTop += drawVDim(rotW + 5, 0, rotH, w + '" W');
         svgTop += `</svg>`;
 
+        // Adjusted to a 4-Column Grid: Side and Top get 1 col each, Front gets 2 cols.
         cont.innerHTML = `
-            <div class="grid grid-cols-3 gap-3 w-full h-full p-4 animate-in fade-in duration-300">
+            <div class="grid grid-cols-4 gap-3 w-full h-full p-4 animate-in fade-in duration-300">
                 <div class="col-span-1 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-2 relative shadow-inner overflow-hidden cursor-grab" onwheel="DraftCamera.zoom(event, this)" onmousedown="DraftCamera.start(event, this)">
-                    <span class="absolute top-2 left-2 text-[8px] font-black text-blue-400 uppercase tracking-widest z-10 pointer-events-none">Top Section (Bracing)</span>
+                    <span class="absolute top-2 left-2 text-[8px] font-black text-blue-400 uppercase tracking-widest z-10 pointer-events-none">Top Section</span>
                     <div class="zoom-target w-full h-full flex items-center justify-center mt-4 pointer-events-none origin-center">${svgTop}</div>
                 </div>
-                <div class="col-span-1 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-2 relative shadow-inner overflow-hidden cursor-grab" onwheel="DraftCamera.zoom(event, this)" onmousedown="DraftCamera.start(event, this)">
+                <div class="col-span-2 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-2 relative shadow-inner overflow-hidden cursor-grab" onwheel="DraftCamera.zoom(event, this)" onmousedown="DraftCamera.start(event, this)">
                     <span class="absolute top-2 left-2 text-[8px] font-black text-blue-400 uppercase tracking-widest z-10 pointer-events-none">Front Elevation</span>
                     <div class="zoom-target w-full h-full flex items-center justify-center mt-4 pointer-events-none origin-center">${svgFront}</div>
                 </div>
@@ -425,7 +424,9 @@
                 document.getElementById('ui-total').innerText = fmt(result.retail.grandTotal);
 
                 const bracketSize = Math.max(1, inputs.poleSize - 1);
-                let summary = `JOB SUMMARY:\n(x${inputs.qty}) ${inputs.w}"W x ${inputs.h}"H x ${inputs.d}"D Pole Cover.\nFaces: ${inputs.faceThk} Aluminum (${inputs.paintOption})\nFrame: ${inputs.frameMat}" Aluminum Angle Frame with Internal 1.5" Bracing Angles.\nHardware: Raw Steel Brackets (${bracketSize}" long, Welded On-Site to ${inputs.poleSize}" OD Pole). Access panel attached via screws.`;
+                const bracketStyle = document.getElementById('bracketMat').options[document.getElementById('bracketMat').selectedIndex].text;
+                
+                let summary = `JOB SUMMARY:\n(x${inputs.qty}) ${inputs.w}"W x ${inputs.h}"H x ${inputs.d}"D Pole Cover.\nFaces: ${inputs.faceThk} Aluminum (${inputs.paintOption})\nFrame: ${inputs.frameMat}" Aluminum Angle Frame with Internal 1.5" Bracing Angles.\nHardware: Raw Steel Brackets (${bracketStyle}, cut to ${bracketSize}" lengths, Welded On-Site to ${inputs.poleSize}" OD Pole). Access panel attached via screws.`;
                 document.getElementById('job-summary').value = summary;
 
                 renderDrawings(inputs);
@@ -451,8 +452,35 @@
             if(payload.error) throw new Error(payload.error);
             backendData = payload.config;
             handleFaceChange();
+            
+            // Allow time for the dynamic header to finish injecting into the DOM before modifying it
+            setTimeout(() => {
+                const statusText = document.getElementById("status-text");
+                const statusDot = document.getElementById("status-dot");
+                if(statusText) {
+                    statusText.innerText = "ONLINE";
+                    statusText.className = "font-bold text-green-500";
+                }
+                if(statusDot) {
+                    statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                    statusDot.classList.remove("animate-pulse");
+                }
+            }, 300);
+            
         } catch(e) {
             console.error("Initialization Failed:", e);
+            setTimeout(() => {
+                const statusText = document.getElementById("status-text");
+                const statusDot = document.getElementById("status-dot");
+                if(statusText) {
+                    statusText.innerText = "OFFLINE";
+                    statusText.className = "font-bold text-red-500";
+                }
+                if(statusDot) {
+                    statusDot.classList.replace("bg-yellow-500", "bg-red-500");
+                    statusDot.classList.replace("bg-green-500", "bg-red-500");
+                }
+            }, 300);
         }
     });
 </script>
