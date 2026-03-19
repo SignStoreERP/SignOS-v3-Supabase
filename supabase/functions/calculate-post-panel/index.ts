@@ -12,22 +12,19 @@ Deno.serve(async (req: any) => {
         const requestData = await req.json();
         const inputs = requestData.inputs || {};
         const config = requestData.config || {};
-        const auditMode = requestData.audit_mode || 'retail_only';
+        const auditMode = requestData.audit_mode || 'full'; 
 
         // Physics Constants & Global Overrides
         const waste = parseFloat(config.Waste_Factor) || 1.15;
         const wasteDisplay = ((waste - 1) * 100).toFixed(0) + '%';
-        
         const risk = parseFloat(config.Factor_Risk) || 1.05;
         const targetMargin = parseFloat(config.Target_Margin_Pct) || 0.60;
-        
         const rateShop = parseFloat(config.Rate_Shop_Labor) || 150.00;
         const rateCnc = parseFloat(config.Rate_CNC_Labor) || 150.00;
 
         const ret: any[] = [];
         const cst: any[] = [];
         
-        // Decoupled Bill of Materials Array
         const bomMap: Record<string, string[]> = {};
         const addBOM = (dept: string, amount: string, item: string) => {
             if (!bomMap[dept]) bomMap[dept] = [];
@@ -42,13 +39,13 @@ Deno.serve(async (req: any) => {
         const postLFPer = Math.ceil(postInchesPer / 12);
         const totalPostLF = postLFPer * 2 * inputs.qty;
         
-        // Physical Stock Calculation
         const postMetalName = inputs.postMetalName || 'Aluminum';
         const postStickLength = postMetalName === 'Aluminum' ? 24 : 20;
         const postSticksNeeded = Math.ceil(totalPostLF / postStickLength);
         
         addBOM('Metal Fabrication', `${totalPostLF} LF (Pull ${postSticksNeeded}x ${postStickLength}' Sticks)`, `Structural Posts (${inputs.postSize}" ${postMetalName})`);
 
+        // Using unified lookup key to prevent Cost_Post vs Cost_Frame drift
         const postCostLF = parseFloat(config[inputs.postKey]) || 6.00;
         L('METAL_MAT', `Structural Posts (${inputs.postSize}")`, totalPostLF * postCostLF * waste, `${postInchesPer}" (${postLFPer} LF/Ea) * 2 Posts * $${postCostLF.toFixed(2)}/LF [[${inputs.postKey}]] * ${wasteDisplay} Waste`);
 
@@ -59,13 +56,11 @@ Deno.serve(async (req: any) => {
             addBOM('Metal Fabrication', `${capCount} Units`, `Post Caps (${inputs.postSize}")`);
         }
 
-        // Concrete Metrics (Separated to Install Hardware)
+        // Concrete Metrics (BOM Yield ONLY - Financial cost removed from audit per user instructions)
         const holeRadiusFt = ((inputs.postSize * 3) / 2) / 12;
         const footerHeightFt = (inputs.belowGrade * 0.66) / 12;
         const holeVolumeCuFt = Math.PI * Math.pow(holeRadiusFt, 2) * footerHeightFt;
         const bagsNeeded = Math.ceil((holeVolumeCuFt * 2) / 0.6) * inputs.qty;
-        
-        L('INSTALL_HDW', `Concrete Tap Footers (80lb)`, bagsNeeded * (parseFloat(config.Cost_Concrete_Bag) || 4.50), `${bagsNeeded} Bags * $4.50/bag`);
         addBOM('Installation Hardware', `${bagsNeeded} Bags`, `Concrete (80lb)`);
 
         // 2. FRAME MATH
@@ -75,13 +70,13 @@ Deno.serve(async (req: any) => {
 
         if (inputs.mountStyle === 'Flush') {
             const hBarInches = inputs.w - (inputs.postSize * 2);
-            frameLF = Math.ceil(hBarInches / 12) * 2; // Round up each piece
+            frameLF = Math.ceil(hBarInches / 12) * 2; 
             cutCount += 2; 
-            weldPoints = 8; // 4 points * 2 tacks each
+            weldPoints = 8; 
         } else {
             frameLF = (Math.ceil(inputs.w / 12) * 2) + (Math.ceil(inputs.h / 12) * 2);
             cutCount += 4; 
-            weldPoints = 16; // 8 points * 2 tacks each
+            weldPoints = 16; 
         }
         
         const totalFrameLF = frameLF * inputs.qty;
@@ -91,23 +86,34 @@ Deno.serve(async (req: any) => {
         
         addBOM('Metal Fabrication', `${totalFrameLF} LF (Pull ${frameSticksNeeded}x ${frameStickLength}' Sticks)`, `Internal Frame Skeleton`);
 
+        // Using unified lookup key to prevent drift
         const frameCostLF = parseFloat(config[inputs.frameKey]) || 1.45;
         L('METAL_MAT', `Internal Frame (${inputs.mountStyle})`, totalFrameLF * frameCostLF * waste, `Calculated LF rounded up per piece (${totalFrameLF} LF total) * $${frameCostLF.toFixed(2)}/LF [[${inputs.frameKey}]] * ${wasteDisplay} Waste`);
 
         // 3. FACE PANELS & ADHESIVE
         const sqftPerFace = (inputs.w * inputs.h) / 144;
-        const totalSqFt = sqftPerFace * inputs.sides * inputs.qty;
+        let totalSqFt = sqftPerFace * inputs.sides * inputs.qty;
         
-        const facesNeeded = Math.ceil(totalSqFt / 32);
-        addBOM('Metal Fabrication', `${totalSqFt.toFixed(1)} SF (Pull ${facesNeeded}x 4x8 Sheets)`, `Sign Faces (${inputs.sides} Sided)`);
-
         const sheetCost = parseFloat(config[inputs.faceKey]) || 98.12; 
         const faceCostSqFt = sheetCost / 32; 
+
         L('METAL_MAT', `Sign Faces (${inputs.sides} Sided)`, totalSqFt * faceCostSqFt * waste, `${totalSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/sf [[${inputs.faceKey}]] * ${wasteDisplay} Waste`);
+        addBOM('Metal Fabrication', `${totalSqFt.toFixed(1)} SF`, `Sign Faces (${inputs.sides} Sided)`);
+
+        // PHYSICS FIX: Top & Bottom Face Caps for Angle Iron Frames
+        if (inputs.frameKey.includes('Angle')) {
+            const frameDepth = inputs.sides === 2 ? (inputs.frameSize * 2) : inputs.frameSize;
+            const capSqFt = (inputs.w * frameDepth * 2) / 144; // Top + Bottom caps
+            const totalCapSqFt = capSqFt * inputs.qty;
+            
+            L('METAL_MAT', `Sign Faces (Top/Bottom Caps)`, totalCapSqFt * faceCostSqFt * waste, `${totalCapSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/sf [[${inputs.faceKey}]] * ${wasteDisplay} Waste`);
+            addBOM('Metal Fabrication', `${totalCapSqFt.toFixed(1)} SF`, `Face Material (Top/Bottom Caps)`);
+            totalSqFt += totalCapSqFt; // Add to global yield for painting/vinyl
+        }
 
         const perimeterInches = (inputs.w * 2 + inputs.h * 2) * inputs.sides * inputs.qty;
         const perimeterLF = perimeterInches / 12;
-        const cartridges = Math.ceil(perimeterLF / 10); // 10 LF yield for 0.25" bead
+        const cartridges = Math.ceil(perimeterLF / 10); 
         
         L('METAL_MAT', `Structural Adhesive`, cartridges * (parseFloat(config.Cost_Adhesive_Tube) || 18.71), `${perimeterLF.toFixed(1)} LF (0.25" bead) / 10 LF per tube`);
         addBOM('Metal Fabrication', `${cartridges} Cartridges`, `Lord's Adhesive (0.25" bead)`);
@@ -140,7 +146,6 @@ Deno.serve(async (req: any) => {
             
             L('PAINT_MAT', `Automotive Primer`, (paintArea * (paintCostSqFt * 0.4) * waste) + 1.00, `${paintArea.toFixed(1)} SF * $${(paintCostSqFt * 0.4).toFixed(2)}/SF * ${wasteDisplay} Waste + $1.00 Cup`);
             L('PAINT_MAT', `Automotive Paint (Color)`, (paintArea * (paintCostSqFt * 0.6) * waste) + 1.00, `${paintArea.toFixed(1)} SF * $${(paintCostSqFt * 0.6).toFixed(2)}/SF * ${wasteDisplay} Waste + $1.00 Cup`);
-            
             addBOM('Paint & Finishes', `${paintArea.toFixed(1)} SF`, `Automotive Paint/Primer Coverage`);
 
             L('PAINT_LAB', `Paint Mix & Setup`, (4 / 60) * rateShop, `4 Mins Flat * $${rateShop}/hr`);
@@ -167,7 +172,7 @@ Deno.serve(async (req: any) => {
             L('VINYL_LAB', `Lamination Machine Run`, (totalSqFt / 300) * rateShop, `300 SF/Hr Speed * $${rateShop}/hr`);
         }
         
-        const maskLF = totalSqFt / 4; // 48" wide mask = 4ft
+        const maskLF = totalSqFt / 4; 
         L('VINYL_MAT', `Transfer Tape (Masking)`, totalSqFt * (parseFloat(config.Cost_Transfer_Tape)||0.15) * waste, `${totalSqFt.toFixed(1)} SF * $0.15/SF * ${wasteDisplay} Waste`);
         addBOM('Vinyl & Graphics', `${maskLF.toFixed(1)} LF`, `Transfer Tape Mask (48" W)`);
 
@@ -175,10 +180,13 @@ Deno.serve(async (req: any) => {
             L('VINYL_LAB', `Plotter/Cutter Run`, (totalSqFt / 50) * (parseFloat(config.Rate_Machine_Cut)||5), `50 SF/Hr Speed * $5/hr`);
         }
 
-        const weedMinsPerSF = inputs.weedingLevel === 'Complex' ? 0.50 : 0.25;
-        L('VINYL_LAB', `Weeding Labor`, (totalSqFt * weedMinsPerSF / 60) * rateShop, `${totalSqFt.toFixed(1)} SF * ${weedMinsPerSF} Mins/SF * $${rateShop}/hr`);
+        // Logic Gate: Disable Weeding on "NoPaint_Print"
+        if (inputs.graphicType !== 'NoPaint_Print') {
+            const weedMinsPerSF = inputs.weedingLevel === 'Complex' ? 0.50 : 0.25;
+            L('VINYL_LAB', `Weeding Labor`, (totalSqFt * weedMinsPerSF / 60) * rateShop, `${totalSqFt.toFixed(1)} SF * ${weedMinsPerSF} Mins/SF * $${rateShop}/hr`);
+        }
         
-        const maskMins = maskLF * (5 / 60); // 5 secs per LF
+        const maskMins = maskLF * (5 / 60); 
         L('VINYL_LAB', `Masking Labor`, (maskMins / 60) * rateShop, `${maskLF.toFixed(1)} LF (@48" W) * 5 Sec/LF * $${rateShop}/hr`);
         
         L('VINYL_LAB', `Graphics Installation (Shop)`, (totalSqFt * 0.333 / 60) * rateShop, `${totalSqFt.toFixed(1)} SF * 20 Sec/SF * $${rateShop}/hr`);
@@ -191,7 +199,7 @@ Deno.serve(async (req: any) => {
         const payload = {
             retail: { unitPrice: unitRetail, grandTotal: unitRetail * inputs.qty },
             cost: { total: finalCost, breakdown: cst },
-            build: { bom: bomMap }, // Explicitly decoupled Bill of Materials
+            build: { bom: bomMap },
             metrics: { margin: targetMargin }
         };
 
