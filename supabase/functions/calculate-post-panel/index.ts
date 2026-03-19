@@ -45,7 +45,7 @@ Deno.serve(async (req: any) => {
         
         addBOM('Metal Fabrication', `${totalPostLF} LF (Pull ${postSticksNeeded}x ${postStickLength}' Sticks)`, `Structural Posts (${inputs.postSize}" ${postMetalName})`);
 
-        // Using unified lookup key to prevent Cost_Post vs Cost_Frame drift
+        // Uses explicit DB Key from UI
         const postCostLF = parseFloat(config[inputs.postKey]) || 6.00;
         L('METAL_MAT', `Structural Posts (${inputs.postSize}")`, totalPostLF * postCostLF * waste, `${postInchesPer}" (${postLFPer} LF/Ea) * 2 Posts * $${postCostLF.toFixed(2)}/LF [[${inputs.postKey}]] * ${wasteDisplay} Waste`);
 
@@ -86,7 +86,7 @@ Deno.serve(async (req: any) => {
         
         addBOM('Metal Fabrication', `${totalFrameLF} LF (Pull ${frameSticksNeeded}x ${frameStickLength}' Sticks)`, `Internal Frame Skeleton`);
 
-        // Using unified lookup key to prevent drift
+        // Uses explicit DB Key from UI
         const frameCostLF = parseFloat(config[inputs.frameKey]) || 1.45;
         L('METAL_MAT', `Internal Frame (${inputs.mountStyle})`, totalFrameLF * frameCostLF * waste, `Calculated LF rounded up per piece (${totalFrameLF} LF total) * $${frameCostLF.toFixed(2)}/LF [[${inputs.frameKey}]] * ${wasteDisplay} Waste`);
 
@@ -101,7 +101,7 @@ Deno.serve(async (req: any) => {
         addBOM('Metal Fabrication', `${totalSqFt.toFixed(1)} SF`, `Sign Faces (${inputs.sides} Sided)`);
 
         // PHYSICS FIX: Top & Bottom Face Caps for Angle Iron Frames
-        if (inputs.frameKey.includes('Angle')) {
+        if (inputs.isAngle) {
             const frameDepth = inputs.sides === 2 ? (inputs.frameSize * 2) : inputs.frameSize;
             const capSqFt = (inputs.w * frameDepth * 2) / 144; // Top + Bottom caps
             const totalCapSqFt = capSqFt * inputs.qty;
@@ -148,6 +148,7 @@ Deno.serve(async (req: any) => {
             L('PAINT_MAT', `Automotive Paint (Color)`, (paintArea * (paintCostSqFt * 0.6) * waste) + 1.00, `${paintArea.toFixed(1)} SF * $${(paintCostSqFt * 0.6).toFixed(2)}/SF * ${wasteDisplay} Waste + $1.00 Cup`);
             addBOM('Paint & Finishes', `${paintArea.toFixed(1)} SF`, `Automotive Paint/Primer Coverage`);
 
+            // EXPLICIT PAINT AUDIT MATH
             L('PAINT_LAB', `Paint Mix & Setup`, (4 / 60) * rateShop, `4 Mins Flat * $${rateShop}/hr`);
             L('PAINT_LAB', `Sign Prep (Metal Fab Hand-off)`, (paintArea * 0.15 / 60) * rateShop, `${paintArea.toFixed(1)} SF * 0.15 Mins/SF * $${rateShop}/hr`);
             L('PAINT_LAB', `Primer Coat`, (paintArea * 0.10 / 60) * rateShop, `${paintArea.toFixed(1)} SF * 0.10 Mins/SF * $${rateShop}/hr`);
