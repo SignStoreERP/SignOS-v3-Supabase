@@ -5,3 +5,7 @@ vps-proxy/node_modules/
 # Environment Variables & Secrets
 .env
 vps-proxy/.env
+
+# VPS React App
+vps-3d-studio/node_modules/
+vps-3d-studio/.env

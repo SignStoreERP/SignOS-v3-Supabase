@@ -1,0 +1,83 @@
+
+import { createMetrics } from './utils';
+
+// Scripts
+export const TurnerScript = createMetrics(0.65);
+export const BrushScript = createMetrics(0.60);
+export const CasualItalic = createMetrics(0.64);
+export const ItalicizedScript = createMetrics(0.60);
+export const HermanItalic = createMetrics(0.65);
+
+// Serif Display / Slab
+export const AmericanaBold = createMetrics(0.80);
+export const Barnum = createMetrics(0.75);
+export const Benguiat = createMetrics(0.78);
+export const BodoniCondensed = createMetrics(0.55);
+export const BodoniItalic = createMetrics(0.65);
+export const CaslonAdbold = createMetrics(0.75);
+export const CenturyBoldCond = createMetrics(0.65);
+export const CenturySchoolbookBold = createMetrics(0.78);
+export const ClarendonFortuneBold = createMetrics(0.88);
+export const ClarendonMedium = createMetrics(0.82);
+export const ClarionMedium = createMetrics(0.80);
+export const CooperBlackItalic = createMetrics(0.92);
+export const CountryGothic = createMetrics(0.70);
+export const CrawClarendonCond = createMetrics(0.65);
+export const FrizQuadrata = createMetrics(0.78);
+export const GoudyOldStyle = createMetrics(0.72);
+export const GoudyExtraBold = createMetrics(0.85);
+export const Korinna = createMetrics(0.75);
+export const OldEnglish = createMetrics(0.70);
+export const Palatino = createMetrics(0.72);
+export const PalatinoBold = createMetrics(0.76);
+export const PalatinoSemiBold = createMetrics(0.74);
+export const Perfaire = createMetrics(0.72);
+export const Playbill = createMetrics(0.45);
+export const Roman = createMetrics(0.70);
+export const RomanClassic = createMetrics(0.70);
+export const RomanNeoSB = createMetrics(0.72);
+export const RomicBold = createMetrics(0.78);
+export const Stettler = createMetrics(0.72);
+export const TrajanBold = createMetrics(0.80);
+export const TrajanBoldPrismatic = createMetrics(0.85);
+export const UniversityRoman = createMetrics(0.68);
+export const UniversityRomanBold = createMetrics(0.75);
+
+// Sans / Decor / Display
+export const AntiqueOliveMedium = createMetrics(0.78);
+export const Architectural = createMetrics(0.65);
+export const ArialBold = createMetrics(0.80);
+export const AvantExtraBold = createMetrics(0.95);
+export const AvantGardeMedium = createMetrics(0.85);
+export const Bauhaus = createMetrics(0.78);
+export const Broadway = createMetrics(0.85);
+export const ClearviewOneBold = createMetrics(0.82);
+export const ClearviewOneLight = createMetrics(0.70);
+export const ComicSansBold = createMetrics(0.78);
+export const ConsortCondensed = createMetrics(0.60);
+export const Copperplate = createMetrics(0.80);
+export const Frutiger65 = createMetrics(0.78);
+export const Gemco = createMetrics(0.75);
+export const GilSansBold = createMetrics(0.82);
+export const Harrier = createMetrics(0.75);
+export const Hoffman = createMetrics(0.72);
+export const HybridArial = createMetrics(0.78);
+export const Impact = createMetrics(0.65);
+export const Kabel = createMetrics(0.75);
+export const LithosBold = createMetrics(0.80);
+export const LotusBold = createMetrics(0.80);
+export const MicrogrammaExt = createMetrics(1.20);
+export const MicrogrammaBoldExt = createMetrics(1.25);
+export const Optima = createMetrics(0.75);
+export const OptimaSemibold = createMetrics(0.78);
+export const Profile = createMetrics(0.75);
+export const Ribbon = createMetrics(0.70);
+export const RibbonCondensed = createMetrics(0.50);
+export const Roffe = createMetrics(0.70);
+export const Sculptured = createMetrics(0.75);
+export const StandardBlock = createMetrics(0.85);
+export const StandardBlockCond = createMetrics(0.65);
+export const TwentiethCentury = createMetrics(0.75);
+export const Univers67 = createMetrics(0.72);
+export const VBevel = createMetrics(0.80);
+export const Venus = createMetrics(0.75);
