@@ -1,13 +1,45 @@
-Context: You are developing for SignOS v4.0. We prioritize physical yield over square footage. Use the 'Twin-Engine' approach (Retail vs. Cost). Reference the ref_ tables for all costs.
+# SignOS v4.0 AI Development Constitution (The "Twin-Engine" Architecture)
 
-- LINEAR FEED: Roll media must be calculated by Linear Feet (LF) fed through the printer, respecting maximum roll widths (e.g., 52").
-- WASTE FACTOR: You MUST apply the `waste_factor` variable (default 1.05) to all material depletion events.
-- NON-ZERO REMNANT RULE: Remnants are valued at a 50% "Holding Value" to prioritize off-cut utilization.
+You are developing for SignOS v4.0, a Headless Cyber-Physical Operating System. You must strictly adhere to the following architectural mandates [1].
 
-# 4. TAXONOMY & NAMING CONVENTIONS
-- Database Tables: Must use prefixes `ref_` (Reference), `prod_` (Product logic), `sys_` (Infrastructure), or `usr_` (User profiles).
-- Global Entities: Must follow [Class]_[Category]_[Identifier]. Classes include `PHY_` (Physical), `VIR_` (Virtual), `OPS_` (Operational), `EDU_` (Educational), and `FIN_` (Financial).
+### 1. THE NO FALLBACK MANDATE (ABSOLUTE RULE)
+You are strictly forbidden from writing hardcoded numeric fallbacks into Deno/TypeScript Edge Functions or HTML files (e.g., `num('Cost', "84.44")` is illegal). All costs, physical constraints, and labor rates must be retrieved via SQL Joins against `ref_` tables or passed through Shared Agents. If a variable or SKU cannot be found, the function MUST instantly throw an explicit error and fail to calculate. There are zero exceptions.
 
-# 5. ENVIRONMENT ISOLATION
-- When executing locally, only interact with the local Supabase Docker container (`localhost:54321`).
-- Explicitly target the `dev` database schema (e.g., `dev.materials`), NEVER the `public` schema.
+### 2. ZERO CLIENT-SIDE MATH (THE "DUMB FACE" UI)
+Frontend UI modules (HTML/Vanilla JS/React) are restricted strictly to UI state management, user input capture, and SVG/Canvas rendering. All mathematical transformations, physics simulations, pricing logic, and yields must be delegated to server-side Deno Edge Functions. 
+
+### 3. SHARED AGENT ORCHESTRATION
+Do not use arbitrary string lookups or flat `num()` fetching for physical materials or labor. All Edge Functions must query the centralized Deno/TypeScript Agent Hubs located in `supabase/functions/_shared/agents/`:
+*   **`Agent_Material_Stock.ts`**: Pass the exact DB SKU (e.g., `SUB_ACM_6MM_4X8`). Returns internal cost, waste factor, and calculates physical Bounding Box/Linear yield.
+*   **`Agent_Labor_Ops.ts`**: Pass the Role ID (e.g., `LAB_PAINT`). Returns active departmental hourly rates.
+*   **`Agent_Machine_Physics.ts`**: Pass the Machine ID (e.g., `MACH_HP_R1000`). Returns overhead rates and ink depletion data.
+*   **`Agent_Retail_Market.ts`**: Queries `ref_retail_history` and tiered `retail_curves` to enforce market pricing. Never hardcode retail algorithms in individual product calculators.
+*   **`Agent_System_Auth.ts`**: Enforces Edge-level Row Level Security (RLS) by verifying user JWTs against the `access_tags` JSON array in `system_modules`.
+
+### 4. DATABASE TAXONOMY & RELATIONAL JOINS
+All SQL tables and queries must follow this strict prefix convention:
+*   `ref_`: Reference tables (e.g., `ref_materials`, `ref_labor_rates`).
+*   `prod_`: Product-specific logic variables.
+*   `sys_`: Internal system logs and versioning (e.g., `sys_changelog`, `system_modules`).
+*   `usr_`: User profiles and permissions.
+
+### 5. EDGE FUNCTION I/O CONTRACT
+All Deno Edge calculation functions must accept a JSON object (`inputs`, `config`, `audit_mode`). They MUST return this standardized JSON structure:
+
+```json
+{
+  "retail": { "unitPrice": 0, "grandTotal": 0 },
+  "cost": { "total": 0, "breakdown": [] },
+  "build": { "bom": {}, "routing": {}, "specs": {} },
+  "metrics": { "margin": 0, "sqft": 0 }
+}
+```
+
+### 6. THE SCORCHED EARTH MANDATE (NO LINE-BY-LINE PATCHING)
+Do not attempt line-by-line patching of legacy logic. If a class method or state engine requires an update to conform to the 8-level Component Object Model (COM), you must rewrite and replace the entire logic block to ensure structural integrity. 
+
+### 7. PHYSICAL YIELD & PHYSICS-FIRST MATH
+Prioritize physical yield over square footage. Always apply the `Waste_Factor`. Enforce the "Non-Zero Remnant Rule": bill the customer for the physical sheet space or stick length consumed, rounding up to physical thresholds (e.g., 12-inch increments for linear metal, or best-yield bounding boxes for rigid substrates).
+
+### 8. REPOSITORY HYGIENE
+No binary files (SVGs, PDFs, Textures) are permitted in the repository. GitHub is strictly for logic (JS/TS), structure (HTML), and styling (CSS). Commit to `dev` for staging/testing, and `main` exclusively for Live Production.
