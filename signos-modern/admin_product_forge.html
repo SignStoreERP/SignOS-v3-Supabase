@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Product Forge v1.0 | SignOS</title>
+    <title>Product Forge v1.5 | SignOS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <style>
@@ -19,11 +19,11 @@
     <div class="bg-gray-900 text-white border-b border-gray-800 px-6 py-4 flex justify-between items-center shadow-lg z-30 shrink-0">
         <div>
             <h1 class="text-lg font-black tracking-widest flex items-center gap-2">
-                <span class="text-orange-500">⚒️</span> PRODUCT FORGE <span class="text-gray-500 text-xs font-bold">v1.0</span>
+                <span class="text-orange-500">⚒️</span> PRODUCT FORGE <span class="text-gray-500 text-xs font-bold">v1.5</span>
             </h1>
             <div class="text-[10px] font-bold text-gray-400 mt-0.5 tracking-widest uppercase">Universal Schema & BOM Builder</div>
         </div>
-        
+
         <!-- The 4-Step Approval Pipeline -->
         <div class="hidden md:flex items-center gap-3 bg-gray-800 p-1.5 rounded-lg border border-gray-700">
             <div class="flex items-center gap-2 px-3 py-1 bg-blue-600 rounded text-white shadow-inner">
@@ -46,18 +46,18 @@
                 <span class="text-[10px] font-black uppercase tracking-widest">Live</span>
             </div>
         </div>
-        
+
         <a href="menu.html" class="text-xs font-bold text-gray-300 border border-gray-600 px-4 py-2 rounded hover:bg-gray-800 transition uppercase tracking-widest">Exit</a>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
+
         <!-- LEFT: MASTER DATA LIBRARY (The Ingredients) -->
         <div class="w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm z-20 shrink-0">
             <div class="p-4 bg-slate-50 border-b border-gray-100 shrink-0">
                 <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Master Data Library</h2>
                 <p class="text-[9px] font-bold text-gray-400 mt-1">Available ingredients to map to this product.</p>
             </div>
-            
             <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-6">
                 <!-- Materials -->
                 <div>
@@ -83,7 +83,7 @@
                 
                 <!-- 1. Identity -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest mb-4">Product Identity</h2>
+                    <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest mb-4">1. Product Identity</h2>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Database ID (e.g. PROD_NewSign)</label>
@@ -99,13 +99,26 @@
                 <!-- 2. UI Schema Builder -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">Sales UI Builder</h2>
+                        <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest">2. Sales UI Builder</h2>
                         <button onclick="addUIControl()" class="bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition shadow-sm">+ Add Control</button>
                     </div>
                     <p class="text-xs text-gray-500 mb-4 font-medium">Standard dimensions (Qty, W, H) are automatically included. Define custom dropdowns or toggles below.</p>
-                    
                     <div id="ui-controls-list" class="space-y-4">
-                        <!-- Controls injected here -->
+                        <div class="text-center text-xs font-bold text-gray-400 italic py-4">No custom controls added yet.</div>
+                    </div>
+                </div>
+
+                <!-- 3. Override Matrix Builder (Level 1.5) -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 border-l-4 border-l-orange-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
+                            3. Override Matrix <span class="text-xs text-orange-500">(Level 1.5)</span>
+                        </h2>
+                        <button onclick="addOverrideControl()" class="bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition shadow-sm">+ Add Override</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-4 font-medium">Intercept global variables before they reach the Edge Function. Deactivate a cost, enforce the master rate, or inject a hard numerical fallback specific to this product.</p>
+                    <div id="matrix-controls-list" class="space-y-3">
+                        <div class="text-center text-xs font-bold text-gray-400 italic py-4">No overrides active. Inheriting all global defaults.</div>
                     </div>
                 </div>
 
@@ -116,222 +129,307 @@
         <div class="w-72 bg-white border-l border-gray-200 flex flex-col shadow-sm z-20 shrink-0">
             <div class="p-6 border-b border-gray-100 flex-1">
                 <h2 class="text-sm font-black text-gray-800 uppercase tracking-widest mb-4">Prototype Actions</h2>
-                
                 <div class="space-y-3">
                     <button onclick="compileAndSave()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded shadow-md text-xs uppercase tracking-widest transition">
-                        Save Prototype (JSON)
-                    </button>
-                    
-                    <button class="w-full bg-white border border-gray-300 text-gray-400 font-black py-3 rounded shadow-sm text-xs uppercase tracking-widest cursor-not-allowed">
-                        Launch Sandbox Test
-                    </button>
-                    
-                    <button class="w-full bg-white border border-gray-300 text-gray-400 font-black py-3 rounded shadow-sm text-xs uppercase tracking-widest cursor-not-allowed">
-                        Request AI Audit
+                        Save Prototype
                     </button>
                 </div>
-            </div>
-            
-            <div class="p-6 bg-slate-50 border-t border-gray-200">
-                <div class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Compiled Schema Preview</div>
-                <div id="json-preview" class="w-full h-48 bg-gray-900 rounded p-3 text-[9px] text-green-400 font-mono overflow-y-auto custom-scroll shadow-inner">
-                    {}
+
+                <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest mt-8 mb-3">Live JSON Preview</h3>
+                <div class="bg-slate-900 rounded-lg p-3 h-64 overflow-y-auto custom-scroll shadow-inner">
+                    <pre id="json-preview" class="text-[9px] text-green-400 font-mono leading-relaxed">{}</pre>
                 </div>
             </div>
         </div>
+
     </div>
 
-    <script>
-        let uiControls = [];
+<script>
+    let uiControls = [];
+    let overrideControls = [];
+    let globalVariables = [];
 
-        window.onload = async function() {
-            // Security Gate
-            const role = sessionStorage.getItem('signos_role');
-            if (role !== 'ADMIN' && role !== 'SUPER') {
-                alert("ACCESS DENIED: Must be Admin to use Product Forge.");
-                window.location.href = 'menu.html';
-                return;
-            }
+    window.onload = async function() {
+        const role = sessionStorage.getItem('signos_role');
+        if (role !== 'ADMIN' && role !== 'SUPER') {
+            alert("ACCESS DENIED: Must be Admin to use Product Forge.");
+            window.location.href = 'menu.html';
+            return;
+        }
+        fetchMasterLibrary();
+    };
+
+    // --- 1. FETCH MASTER INGREDIENTS ---
+    async function fetchMasterLibrary() {
+        try {
+            // Fetch Materials
+            const matRes = await fetch(`${SUPABASE_URL}/rest/v1/materials?select=sku,description,category&limit=500`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            const mats = await matRes.json();
             
-            fetchMasterLibrary();
+            let matHtml = '';
+            mats.forEach(m => {
+                matHtml += `<div class="p-2 border border-gray-200 rounded shadow-sm hover:border-blue-400 cursor-grab active:cursor-grabbing transition bg-white group">
+                    <div class="text-[10px] font-bold text-gray-800 truncate" title="${m.description}">${m.description}</div>
+                    <div class="flex justify-between mt-1 items-end">
+                        <span class="text-[8px] font-black text-gray-400 font-mono">${m.sku}</span>
+                        <span class="text-[8px] font-black text-blue-500 uppercase bg-blue-50 px-1 rounded border border-blue-100">${m.category}</span>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('lib-materials').innerHTML = matHtml;
+
+            // Fetch Labor Rates
+            const labRes = await fetch(`${SUPABASE_URL}/rest/v1/labor_rates?select=id,role_name&limit=100`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            const labor = await labRes.json();
+            
+            let labHtml = '';
+            labor.forEach(l => {
+                labHtml += `<div class="p-2 border border-gray-200 rounded shadow-sm hover:border-purple-400 cursor-grab active:cursor-grabbing transition bg-white group">
+                    <div class="text-[10px] font-bold text-gray-800 truncate">${l.role_name}</div>
+                    <div class="flex justify-between mt-1 items-end">
+                        <span class="text-[8px] font-black text-gray-400 font-mono">${l.id}</span>
+                        <span class="text-[8px] font-black text-purple-500 uppercase bg-purple-50 px-1 rounded border border-purple-100">Labor</span>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('lib-labor').innerHTML = labHtml;
+
+            // Fetch Machines
+            const macRes = await fetch(`${SUPABASE_URL}/rest/v1/machines?select=id,name,type&limit=100`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            const machines = await macRes.json();
+            
+            let macHtml = '';
+            machines.forEach(m => {
+                macHtml += `<div class="p-2 border border-gray-200 rounded shadow-sm hover:border-orange-400 cursor-grab active:cursor-grabbing transition bg-white group">
+                    <div class="text-[10px] font-bold text-gray-800 truncate">${m.name}</div>
+                    <div class="flex justify-between mt-1 items-end">
+                        <span class="text-[8px] font-black text-gray-400 font-mono">${m.id}</span>
+                        <span class="text-[8px] font-black text-orange-500 uppercase bg-orange-50 px-1 rounded border border-orange-100">${m.type}</span>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('lib-machines').innerHTML = macHtml;
+
+            // NEW: Fetch Global Variables for Override Matrix
+            const gvRes = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?select=id,default_value,category&limit=1000`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            globalVariables = await gvRes.json();
+            globalVariables.sort((a,b) => a.id.localeCompare(b.id));
+
+        } catch (e) {
+            console.error("Library Fetch Error", e);
+            document.getElementById('lib-materials').innerHTML = "<span class='text-red-500'>Connection failed.</span>";
+        }
+    }
+
+    // --- 2. UI SCHEMA BUILDER ---
+    function addUIControl() {
+        const controlId = `ctrl_${Date.now()}`;
+        uiControls.push({ id: controlId, paramKey: '', label: '', type: 'select', options: 'Opt 1, Opt 2' });
+        renderUIControls();
+        updatePreview();
+    }
+
+    function updateControl(id, field, value) {
+        const ctrl = uiControls.find(c => c.id === id);
+        if (ctrl) {
+            ctrl[field] = value;
+            if (field === 'type') renderUIControls(); 
+            updatePreview();
+        }
+    }
+
+    function removeControl(id) {
+        uiControls = uiControls.filter(c => c.id !== id);
+        renderUIControls();
+        updatePreview();
+    }
+
+    function renderUIControls() {
+        const container = document.getElementById('ui-controls-list');
+        let html = '';
+
+        if (uiControls.length === 0) {
+            container.innerHTML = '<div class="text-center text-xs font-bold text-gray-400 italic py-4">No custom controls added yet.</div>';
+            return;
+        }
+
+        uiControls.forEach((c, idx) => {
+            html += `
+            <div class="flex items-start gap-3 bg-blue-50/50 p-4 border border-blue-100 rounded-lg relative group">
+                <div class="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center font-black text-[10px] shrink-0">${idx + 1}</div>
+                <div class="flex-1 grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">JSON Key (e.g., 'thickness')</label>
+                        <input type="text" value="${c.paramKey}" oninput="updateControl('${c.id}', 'paramKey', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-mono focus:border-blue-500 outline-none shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Display Label (e.g., 'Select Thickness')</label>
+                        <input type="text" value="${c.label}" oninput="updateControl('${c.id}', 'label', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-bold focus:border-blue-500 outline-none shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Control Type</label>
+                        <select onchange="updateControl('${c.id}', 'type', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-bold focus:border-blue-500 outline-none bg-white shadow-sm">
+                            <option value="select" ${c.type === 'select' ? 'selected' : ''}>Dropdown Select</option>
+                            <option value="toggle" ${c.type === 'toggle' ? 'selected' : ''}>Boolean Toggle (Yes/No)</option>
+                        </select>
+                    </div>
+                    ${c.type === 'select' ? `
+                    <div>
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Options (Comma Separated)</label>
+                        <input type="text" value="${c.options}" oninput="updateControl('${c.id}', 'options', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-bold focus:border-blue-500 outline-none shadow-sm" placeholder="Opt 1, Opt 2">
+                    </div>` : '<div></div>'}
+                </div>
+                <button onclick="removeControl('${c.id}')" class="text-red-400 hover:text-red-600 p-1 font-black text-xs transition">✕</button>
+            </div>`;
+        });
+        container.innerHTML = html;
+    }
+
+    function generateSchemaJSON() {
+        const schema = { controls: [] };
+        uiControls.forEach(c => {
+            if (!c.paramKey) return;
+            const ctrlObj = { id: c.paramKey, label: c.label, type: c.type };
+            
+            if (c.type === 'select') {
+                ctrlObj.opts = c.options.split(',').map(o => {
+                    const clean = o.trim();
+                    return { t: clean, v: clean };
+                });
+            }
+            if (c.type === 'toggle') {
+                ctrlObj.def = false;
+            }
+            schema.controls.push(ctrlObj);
+        });
+        return schema;
+    }
+
+    // --- 3. OVERRIDE MATRIX BUILDER (Level 1.5) ---
+    function addOverrideControl() {
+        const controlId = `ovr_${Date.now()}`;
+        overrideControls.push({ id: controlId, varId: '', type: 'true', customVal: '' });
+        renderOverrides();
+        updatePreview();
+    }
+
+    function updateOverride(id, field, value) {
+        const ctrl = overrideControls.find(c => c.id === id);
+        if (ctrl) {
+            ctrl[field] = value;
+            if (field === 'type') renderOverrides(); 
+            updatePreview();
+        }
+    }
+
+    function removeOverride(id) {
+        overrideControls = overrideControls.filter(c => c.id !== id);
+        renderOverrides();
+        updatePreview();
+    }
+
+    function renderOverrides() {
+        const container = document.getElementById('matrix-controls-list');
+        let html = '';
+
+        if (overrideControls.length === 0) {
+            container.innerHTML = '<div class="text-center text-xs font-bold text-gray-400 italic py-4">No overrides active. Inheriting all global defaults.</div>';
+            return;
+        }
+
+        let varOptions = `<option value="" disabled selected>Select Variable...</option>`;
+        globalVariables.forEach(gv => {
+            varOptions += `<option value="${gv.id}">[${gv.category}] ${gv.id} (Master: ${gv.default_value})</option>`;
+        });
+
+        overrideControls.forEach((c, idx) => {
+            let currentVarOptions = varOptions.replace(`value="${c.varId}"`, `value="${c.varId}" selected`);
+
+            html += `
+            <div class="flex items-start gap-3 bg-orange-50/30 p-3 border border-orange-200 rounded-lg relative group transition shadow-sm hover:shadow-md">
+                <div class="bg-orange-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-black text-[10px] shrink-0">${idx + 1}</div>
+                <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Target Variable</label>
+                        <select onchange="updateOverride('${c.id}', 'varId', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-bold focus:border-orange-500 outline-none bg-white shadow-sm">
+                            ${currentVarOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Override Logic</label>
+                        <select onchange="updateOverride('${c.id}', 'type', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-bold focus:border-orange-500 outline-none bg-white shadow-sm">
+                            <option value="true" ${c.type === 'true' ? 'selected' : ''}>TRUE (Force Master Rate)</option>
+                            <option value="false" ${c.type === 'false' ? 'selected' : ''}>FALSE (Deactivate/Zero Out)</option>
+                            <option value="custom" ${c.type === 'custom' ? 'selected' : ''}>CUSTOM (Numeric Fallback)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Custom Value</label>
+                        <input type="number" step="0.01" value="${c.customVal}" oninput="updateOverride('${c.id}', 'customVal', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-bold focus:border-orange-500 outline-none bg-white shadow-sm disabled:bg-gray-100 disabled:opacity-50" ${c.type !== 'custom' ? 'disabled' : ''} placeholder="e.g. 1.25">
+                    </div>
+                </div>
+                <button onclick="removeOverride('${c.id}')" class="text-red-400 hover:text-red-600 p-1 font-black text-xs transition">✕</button>
+            </div>`;
+        });
+        container.innerHTML = html;
+    }
+
+    function generateOverrideJSON() {
+        let overrides = {};
+        overrideControls.forEach(c => {
+            if (!c.varId) return;
+            if (c.type === 'true') overrides[c.varId] = true;
+            else if (c.type === 'false') overrides[c.varId] = false;
+            else overrides[c.varId] = parseFloat(c.customVal) || 0;
+        });
+        return overrides;
+    }
+
+    // --- 4. COMPILER ---
+    function updatePreview() {
+        const schema = generateSchemaJSON();
+        const overrides = generateOverrideJSON();
+        
+        const preview = {
+            ui_schema: schema,
+            matrix_overrides: overrides
         };
 
-        // --- 1. FETCH MASTER INGREDIENTS ---
-        async function fetchMasterLibrary() {
-            try {
-                // Fetch Materials
-                const matRes = await fetch(`${SUPABASE_URL}/rest/v1/materials?select=sku,description,category&limit=500`, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                });
-                const mats = await matRes.json();
-                
-                let matHtml = '';
-                mats.forEach(m => {
-                    matHtml += `<div class="p-2 border border-gray-200 rounded shadow-sm hover:border-blue-400 cursor-grab active:cursor-grabbing transition bg-white group">
-                        <div class="text-[10px] font-bold text-gray-800 truncate" title="${m.description}">${m.description}</div>
-                        <div class="flex justify-between mt-1 items-end">
-                            <span class="text-[8px] font-black text-gray-400 font-mono">${m.sku}</span>
-                            <span class="text-[8px] font-black text-blue-500 uppercase bg-blue-50 px-1 rounded border border-blue-100">${m.category}</span>
-                        </div>
-                    </div>`;
-                });
-                document.getElementById('lib-materials').innerHTML = matHtml;
+        document.getElementById('json-preview').innerText = JSON.stringify(preview, null, 2);
+    }
 
-                // Fetch Labor Rates
-                const labRes = await fetch(`${SUPABASE_URL}/rest/v1/labor_rates?select=id,role_name&limit=100`, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                });
-                const labor = await labRes.json();
-                
-                let labHtml = '';
-                labor.forEach(l => {
-                    labHtml += `<div class="p-2 border border-gray-200 rounded shadow-sm hover:border-purple-400 cursor-grab active:cursor-grabbing transition bg-white">
-                        <div class="text-[10px] font-bold text-gray-800 truncate">${l.role_name}</div>
-                        <div class="text-[8px] font-black text-gray-400 font-mono mt-1">${l.id}</div>
-                    </div>`;
-                });
-                document.getElementById('lib-labor').innerHTML = labHtml;
+    async function compileAndSave() {
+        const pId = document.getElementById('prod-id').value.trim();
+        const pName = document.getElementById('prod-name').value.trim();
 
-                // Fetch Machines
-                const macRes = await fetch(`${SUPABASE_URL}/rest/v1/machines?select=id,name,type&limit=100`, {
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                });
-                const machines = await macRes.json();
-                
-                let macHtml = '';
-                machines.forEach(m => {
-                    macHtml += `<div class="p-2 border border-gray-200 rounded shadow-sm hover:border-orange-400 cursor-grab active:cursor-grabbing transition bg-white">
-                        <div class="text-[10px] font-bold text-gray-800 truncate">${m.name}</div>
-                        <div class="flex justify-between mt-1 items-end">
-                            <span class="text-[8px] font-black text-gray-400 font-mono">${m.id}</span>
-                            <span class="text-[8px] font-black text-orange-500 uppercase bg-orange-50 px-1 rounded border border-orange-100">${m.type}</span>
-                        </div>
-                    </div>`;
-                });
-                document.getElementById('lib-machines').innerHTML = macHtml;
-
-            } catch (e) {
-                console.error("Library Fetch Error", e);
-                document.getElementById('lib-materials').innerHTML = "<span class='text-red-500'>Connection failed.</span>";
-            }
+        if(!pId || !pName) {
+            alert("Please provide a Database ID and Display Name.");
+            return;
         }
 
-        // --- 2. UI SCHEMA BUILDER ---
-        function addUIControl() {
-            const controlId = `ctrl_${Date.now()}`;
-            uiControls.push({ id: controlId, paramKey: '', label: '', type: 'select', options: 'Opt 1, Opt 2' });
-            renderUIControls();
-        }
+        const compiledSchema = generateSchemaJSON();
+        const compiledOverrides = generateOverrideJSON();
 
-        function removeUIControl(id) {
-            uiControls = uiControls.filter(c => c.id !== id);
-            renderUIControls();
-            updateJSONPreview();
-        }
+        const payload = {
+            id: pId,
+            display_name: pName,
+            dev_status: 'DEV ONLY', // Forces it into Sandbox testing
+            ui_schema: compiledSchema,
+            required_skus: {},
+            matrix_overrides: compiledOverrides
+        };
 
-        function renderUIControls() {
-            const list = document.getElementById('ui-controls-list');
-            list.innerHTML = '';
-            
-            uiControls.forEach((c, idx) => {
-                const html = `
-                <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg shadow-inner flex items-start gap-4 relative">
-                    <div class="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center font-black text-[10px] shrink-0">${idx + 1}</div>
-                    
-                    <div class="flex-1 grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">JSON Key (e.g., 'thickness')</label>
-                            <input type="text" value="${c.paramKey}" oninput="updateControl('${c.id}', 'paramKey', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-mono focus:border-blue-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Display Label (e.g., 'Select Thickness')</label>
-                            <input type="text" value="${c.label}" oninput="updateControl('${c.id}', 'label', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-bold focus:border-blue-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Control Type</label>
-                            <select onchange="updateControl('${c.id}', 'type', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs font-bold focus:border-blue-500 outline-none">
-                                <option value="select" ${c.type === 'select' ? 'selected' : ''}>Dropdown (Select)</option>
-                                <option value="toggle" ${c.type === 'toggle' ? 'selected' : ''}>Toggle (Yes/No)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[9px] font-bold text-gray-500 uppercase mb-1">Dropdown Options (Comma separated)</label>
-                            <input type="text" value="${c.options}" oninput="updateControl('${c.id}', 'options', this.value)" class="w-full border border-gray-300 p-2 rounded text-xs focus:border-blue-500 outline-none" ${c.type === 'toggle' ? 'disabled bg-gray-200' : ''}>
-                        </div>
-                    </div>
-                    
-                    <button onclick="removeUIControl('${c.id}')" class="text-red-400 hover:text-red-600 font-bold p-1 transition focus:outline-none">✕</button>
-                </div>`;
-                list.insertAdjacentHTML('beforeend', html);
-            });
-            updateJSONPreview();
-        }
-
-        function updateControl(id, field, value) {
-            const ctrl = uiControls.find(c => c.id === id);
-            if (ctrl) {
-                ctrl[field] = value;
-                if (field === 'type') renderUIControls(); // Re-render to disable/enable options field
-                updateJSONPreview();
-            }
-        }
-
-        // --- 3. JSON COMPILER ---
-        function generateSchemaJSON() {
-            const schema = { controls: [] };
-            
-            uiControls.forEach(c => {
-                if(!c.paramKey) return;
-                
-                let ctrlObj = {
-                    id: c.paramKey,
-                    label: c.label || c.paramKey,
-                    type: c.type
-                };
-
-                if (c.type === 'select') {
-                    ctrlObj.opts = c.options.split(',').map(opt => {
-                        const trimmed = opt.trim();
-                        return { v: trimmed, t: trimmed };
-                    }).filter(opt => opt.v.length > 0);
-                } else if (c.type === 'toggle') {
-                    ctrlObj.def = false;
-                }
-                
-                schema.controls.push(ctrlObj);
-            });
-            
-            return schema;
-        }
-
-        function updateJSONPreview() {
-            const schema = generateSchemaJSON();
-            document.getElementById('json-preview').innerText = JSON.stringify(schema, null, 2);
-        }
-
-        async function compileAndSave() {
-            const pId = document.getElementById('prod-id').value.trim();
-            const pName = document.getElementById('prod-name').value.trim();
-            
-            if(!pId || !pName) {
-                alert("Please provide a Database ID and Display Name.");
-                return;
-            }
-
-            const compiledSchema = generateSchemaJSON();
-
-            const payload = {
-                id: pId,
-                display_name: pName,
-                dev_status: 'DEV ONLY', // Forces it into Sandbox testing
-                ui_schema: compiledSchema,
-                required_skus: {},
-                matrix_overrides: {}
-            };
-
-            console.log("Would POST to Supabase:", payload);
-            alert(`SUCCESS! Payload Generated.\n\nProduct: ${pName}\nStatus: DEV ONLY (Sandbox Ready)\n\n(Database WRITE function will be attached here).`);
-        }
-    </script>
+        console.log("Would POST to Supabase:", payload);
+        alert(`SUCCESS! Payload Generated.\n\nProduct: ${pName}\nOverrides Logged: ${Object.keys(compiledOverrides).length}\nStatus: DEV ONLY (Sandbox Ready)\n\n(Database WRITE function will be attached here).`);
+    }
+</script>
 </body>
 </html>
