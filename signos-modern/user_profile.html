@@ -132,8 +132,11 @@ async function fetchProfile() {
         if (!response.ok) throw new Error("Failed to fetch profile");
         const data = await response.json();
         
-        if (data.length > 0) {
-            userData = data; // I ACTUALLY ADDED THE  THIS TIME!
+        if (data && data.length > 0) {
+            // BULLETPROOF FIX: Using array destructuring so the chat UI cannot strip the index!
+            const [firstUserRecord] = data;
+            userData = firstUserRecord;
+            
             populateUI();
 
             // Update the Global Header Status to ONLINE
@@ -169,7 +172,9 @@ function populateUI() {
     document.getElementById('ui-fullname').innerText = `${userData.first_name || ''} ${userData.last_name || ''}`;
     document.getElementById('ui-email').innerText = userData.email || '';
     document.getElementById('ui-role-badge').innerText = userData.role || 'GUEST';
-    document.getElementById('ui-avatar').innerText = (userData.first_name ? userData.first_name.charAt(0) : '?') + (userData.last_name ? userData.last_name.charAt(0) : '');
+    
+    const initials = (userData.first_name ? userData.first_name.charAt(0) : '?') + (userData.last_name ? userData.last_name.charAt(0) : '');
+    document.getElementById('ui-avatar').innerText = initials.toUpperCase();
 
     // Read-only operational fields
     document.getElementById('inp-title').value = userData.title || 'Standard User';
@@ -228,6 +233,10 @@ async function saveProfile() {
         btn.classList.replace('hover:bg-blue-700', 'hover:bg-green-600');
         
         // Update local UI state
+        userData.first_name = payload.first_name;
+        userData.last_name = payload.last_name;
+        userData.personal_settings = newSettings;
+        
         document.getElementById('ui-fullname').innerText = `${payload.first_name} ${payload.last_name}`;
         
         // Update Session Storage so global headers match instantly
