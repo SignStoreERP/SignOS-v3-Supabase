@@ -119,6 +119,7 @@ SignOS_Export_v2.exportADA = function(manifest) {
 };
 
 // --- MANUFACTURING WORK ORDER GENERATOR ---
+window.SignOS_Export_v2 = window.SignOS_Export_v2 || {};
 SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId) {
     if (!calcResult || !calcResult.cost) {
         alert("No calculation data available to print. Please run the calculator first.");
