@@ -21,7 +21,7 @@
 <div class="max-w-2xl mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full">
     
     <!-- MODULE TITLE & SECURE ADMIN TOGGLE -->
-    <div class="bg-slate-900 rounded-t-xl px-6 py-4 flex justify-between items-center shadow-md border border-slate-800">
+    <div class="bg-slate-900 rounded-t-xl px-6 py-4 flex justify-between items-center shadow-md border border-slate-800 sticky top-0 z-50">
         <div>
             <h1 class="text-lg font-black text-white uppercase tracking-widest flex items-center gap-2">
                 Post & Panel <span class="text-xs text-slate-500">v2.0</span>
@@ -49,7 +49,7 @@
             </div>
 
             <!-- PRESET QUICK SELECTS -->
-            <div class="grid grid-cols-3 gap-3 mb-2">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
                 <button onclick="applyPreset('ground')" id="btn-pre-ground" class="p-2 border border-blue-600 rounded shadow-sm bg-blue-50 transition focus:outline-none text-left">
                     <span class="block text-[10px] font-black text-blue-800 uppercase tracking-widest">Ground Wayfinding</span>
                     <span class="block text-[9px] text-blue-600 mt-1 font-mono">24x36 Flush | 0" Clr</span>
@@ -61,6 +61,10 @@
                 <button onclick="applyPreset('between')" id="btn-pre-between" class="p-2 border border-gray-200 rounded shadow-sm bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition focus:outline-none text-left">
                     <span class="block text-[10px] font-black text-gray-700 uppercase tracking-widest">Wayfinding (Between)</span>
                     <span class="block text-[9px] text-gray-500 mt-1 font-mono">36x24 Between | 36" Clr</span>
+                </button>
+                <button onclick="applyPreset('custom')" id="btn-pre-custom" class="p-2 border border-gray-200 rounded shadow-sm bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition focus:outline-none text-left">
+                    <span class="block text-[10px] font-black text-gray-700 uppercase tracking-widest">Custom Build</span>
+                    <span class="block text-[9px] text-gray-500 mt-1 font-mono">User Defined</span>
                 </button>
             </div>
 
@@ -251,8 +255,9 @@
         activePreset = preset;
 
         // Visual UI Button Toggling
-        ['ground', 'flush', 'between'].forEach(p => {
+        ['ground', 'flush', 'between', 'custom'].forEach(p => {
             const btn = document.getElementById(`btn-pre-${p}`);
+            if (!btn) return;
             if (p === preset) {
                 btn.className = "p-2 border border-blue-600 rounded shadow-sm bg-blue-50 transition focus:outline-none text-left";
                 btn.querySelector('span:first-child').className = "block text-[10px] font-black text-blue-800 uppercase tracking-widest";
@@ -294,6 +299,9 @@
             document.getElementById('frameMat').value = "Cost_Frame_AlumAngle_1.5_1/8";
             document.getElementById('clearance').value = 36;
         }
+        // If preset === 'custom', we deliberately do NOT overwrite any document values,
+        // allowing the user to modify dropdowns and dimensions freely.
+
         updateConstraints();
     }
 
