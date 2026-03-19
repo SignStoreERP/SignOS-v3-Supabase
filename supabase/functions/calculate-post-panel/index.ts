@@ -100,10 +100,9 @@ Deno.serve(async (req: any) => {
         L('METAL_MAT', `Sign Faces (${inputs.sides} Sided)`, totalSqFt * faceCostSqFt * waste, `${totalSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/sf [[${inputs.faceKey}]] * ${wasteDisplay} Waste`);
         addBOM('Metal Fabrication', `${totalSqFt.toFixed(1)} SF`, `Sign Faces (${inputs.sides} Sided)`);
 
-        // PHYSICS FIX: Top & Bottom Face Caps for Angle Iron Frames
+        // PHYSICS FIX: Top & Bottom Face Caps for Angle Iron Frames (using Explicit Custom Depth from UI)
         if (inputs.isAngle) {
-            const frameDepth = inputs.sides === 2 ? (inputs.frameSize * 2) : inputs.frameSize;
-            const capSqFt = (inputs.w * frameDepth * 2) / 144; // Top + Bottom caps
+            const capSqFt = (inputs.w * inputs.frameDepth * 2) / 144; // Top + Bottom caps
             const totalCapSqFt = capSqFt * inputs.qty;
             
             L('METAL_MAT', `Sign Faces (Top/Bottom Caps)`, totalCapSqFt * faceCostSqFt * waste, `${totalCapSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/sf [[${inputs.faceKey}]] * ${wasteDisplay} Waste`);
