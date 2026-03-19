@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post & Panel v2.0 (Logic Only)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <style>
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10">
+
+<div class="max-w-2xl mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full">
+
+    <!-- HEADER -->
+    <div class="bg-slate-900 rounded-t-xl px-6 py-4 flex justify-between items-center shadow-md border border-slate-800">
+        <div>
+            <h1 class="text-lg font-black text-white uppercase tracking-widest flex items-center gap-2">
+                <span class="text-blue-500">🏗️</span> Post & Panel <span class="text-xs text-slate-500">v2.0</span>
+            </h1>
+            <p class="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">Heavy Fabrication Math Engine</p>
+        </div>
+        <!-- Admin Cost Toggle -->
+        <label class="flex items-center gap-2 cursor-pointer bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+            <span class="text-[10px] font-bold text-slate-300 uppercase">Admin Cost View</span>
+            <div class="relative">
+                <input type="checkbox" id="toggle-cost-view" class="sr-only">
+                <div class="block bg-slate-600 w-8 h-5 rounded-full"></div>
+                <div class="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform"></div>
+            </div>
+        </label>
+    </div>
+
+    <!-- MAIN ISLAND CARD -->
+    <div id="main-card" class="bg-white shadow-xl rounded-b-xl border-x border-b border-gray-200">
+        
+        <div class="p-6 space-y-6">
+            
+            <!-- SECTION 1: GLOBAL SPECS -->
+            <div>
+                <h3 class="text-[10px] font-black text-blue-800 uppercase tracking-widest border-b border-blue-100 pb-1 mb-3">1. Global Specifications</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Total Qty</label>
+                        <input type="number" value="1" class="w-full border border-gray-300 p-2 rounded text-lg font-black text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height Above Grade</label>
+                        <div class="flex items-center bg-white border border-gray-300 rounded shadow-inner focus-within:border-blue-500">
+                            <input type="number" value="60" class="w-full p-2 text-sm font-bold text-center outline-none bg-transparent">
+                            <span class="text-xs font-bold text-gray-400 pr-3">inches</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Ground Clearance</label>
+                        <div class="flex items-center bg-white border border-gray-300 rounded shadow-inner focus-within:border-blue-500">
+                            <input type="number" value="36" class="w-full p-2 text-sm font-bold text-center outline-none bg-transparent">
+                            <span class="text-xs font-bold text-gray-400 pr-3">inches</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 2: THE POSTS & FRAME -->
+            <div>
+                <h3 class="text-[10px] font-black text-blue-800 uppercase tracking-widest border-b border-blue-100 pb-1 mb-3">2. Structural Skeleton</h3>
+                <div class="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Post Material & Size</label>
+                        <select class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white shadow-sm focus:border-blue-500">
+                            <option>2" Aluminum Square Tube</option>
+                            <option>3" Aluminum Square Tube</option>
+                            <option>4" Aluminum Square Tube</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Internal Frame Material</label>
+                        <select class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white shadow-sm focus:border-blue-500">
+                            <option>1" Aluminum Square Tube</option>
+                            <option>2" Aluminum Square Tube</option>
+                            <option>2" Steel Angle Iron</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Mounting Style</label>
+                        <select class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white shadow-sm focus:border-blue-500">
+                            <option>Flush Mount (Face covers posts)</option>
+                            <option>Between Posts</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Foundation (Below Grade)</label>
+                        <select class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white shadow-sm focus:border-blue-500">
+                            <option>36" Direct Burial w/ Concrete</option>
+                            <option>48" Direct Burial w/ Concrete</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 3: THE PANELS -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
+                    <h3 class="text-[10px] font-black text-gray-700 uppercase tracking-widest">3. Face Panels</h3>
+                    <button class="text-[10px] font-bold bg-white text-blue-600 border border-blue-200 px-2 py-1 rounded shadow-sm">+ Add Panel</button>
+                </div>
+                
+                <div class="grid grid-cols-4 gap-3">
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Face Material</label>
+                        <select class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white shadow-sm">
+                            <option>.063 Aluminum</option>
+                            <option>.080 Aluminum</option>
+                            <option>3mm ACM</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Width</label>
+                        <input type="number" value="36" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-center outline-none shadow-inner bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Height</label>
+                        <input type="number" value="24" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-center outline-none shadow-inner bg-white">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RETAIL LEDGER & BIDIRECTIONAL MARGIN -->
+        <div class="bg-blue-50 p-6 border-t border-blue-200 shadow-inner rounded-b-xl">
+            <div class="flex justify-between items-end border-b border-blue-200 pb-3 mb-4">
+                <div class="flex flex-col gap-1">
+                    <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Target Profit Margin</span>
+                    <div class="flex items-center bg-white border border-blue-300 rounded shadow-inner w-24 overflow-hidden">
+                        <input type="number" value="60.0" class="w-full p-1.5 text-sm font-black text-blue-900 text-right outline-none bg-transparent">
+                        <span class="text-xs font-bold text-blue-500 pr-2">%</span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest block mb-1">Unit Retail Price</span>
+                    <span class="text-3xl font-black text-blue-900 tracking-tight leading-none">$1,250.00</span>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-end">
+                <div>
+                    <span class="text-xs font-bold text-blue-800 uppercase block">Grand Total</span>
+                </div>
+                <span class="text-4xl font-black text-blue-700 tracking-tight leading-none">$1,250.00</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>
