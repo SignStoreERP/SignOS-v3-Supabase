@@ -260,7 +260,14 @@
 
         <!-- JOB SUMMARY & BOM -->
         <div class="bg-white p-6 border-t border-gray-200 rounded-b-xl">
-            <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest mb-2">Job Summary & Bill of Materials</h3>
+            <div class="flex justify-between items-end mb-2">
+                <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest">Job Summary & Bill of Materials</h3>
+                
+                <button onclick="if(typeof SignOS_Export_v2 !== 'undefined' && SignOS_Export_v2.printWorkOrder) { SignOS_Export_v2.printWorkOrder(lastEdgeResult, 'svg-preview-container', 'job-summary'); } else { alert('Export pipeline not loaded.'); }" class="bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black px-4 py-1.5 rounded uppercase tracking-widest shadow-sm transition flex items-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Print Work Order
+                </button>
+            </div>
             <textarea id="job-summary" class="w-full h-[340px] bg-slate-50 border border-gray-300 rounded p-3 text-xs font-mono text-gray-700 outline-none shadow-inner resize-none custom-scroll" readonly></textarea>
         </div>
 
@@ -767,6 +774,8 @@
 
                 if (!response.ok) throw new Error("Calculation failed");
                 const result = await response.json();
+
+                window.lastEdgeResult = result;
                 
                 if (result.retail) {
                     const fmt = (n) => "$" + (n || 0).toFixed(2);
