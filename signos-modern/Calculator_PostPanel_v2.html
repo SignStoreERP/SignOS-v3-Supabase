@@ -571,12 +571,34 @@ Graphics: ${graphicStr}\n\n`;
             }
         }
 
+        const statusText = document.getElementById("status-text");
+        const statusDot = document.getElementById("status-dot");
+
         try {
             updateConstraints(); // Set initial math
             const payload = await SignOS.fetchProductData('PROD_Post_Panel');
+            
+            if(payload.error) throw new Error(payload.error);
             backendData = payload.config;
+            
+            // Tell the Universal Header that the connection was successful
+            if(statusText) {
+                statusText.innerText = "ONLINE";
+                statusText.className = "font-bold text-green-500";
+            }
+            if(statusDot) {
+                statusDot.className = "w-2 h-2 rounded-full bg-green-500";
+                statusDot.classList.remove("animate-pulse");
+            }
+
             runCalc(); 
-        } catch(e) { console.error("Initialization Failed:", e); }
+        } catch(e) { 
+            console.error("Initialization Failed:", e); 
+            if(statusText) {
+                statusText.innerText = "OFFLINE";
+                statusText.className = "font-bold text-red-500";
+            }
+        }
     });
 </script>
 
