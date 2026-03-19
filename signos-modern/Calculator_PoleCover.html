@@ -316,10 +316,9 @@
         let svgFront = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${w + padX*2} ${h + padY*2}">`;
         svgFront += `<rect x="${(w - inputs.poleSize)/2}" y="-10" width="${inputs.poleSize}" height="${h+20}" fill="#cbd5e1" stroke="#64748b" stroke-width="${sw}" opacity="0.3"/>`; // Ghost Pole
         
-        // Front Skeleton Box
+        // Front Skeleton Box (Outer Frame Only)
         svgFront += `<rect x="0" y="0" width="${w}" height="${h}" fill="none" stroke="#94a3b8" stroke-width="${sw}"/>`;
         svgFront += `<rect x="${fw}" y="${fw}" width="${w-(fw*2)}" height="${h-(fw*2)}" fill="none" stroke="#94a3b8" stroke-width="${sw}"/>`;
-        svgFront += `<rect x="0" y="${h/2 - fw/2}" width="${w}" height="${fw}" fill="none" stroke="#94a3b8" stroke-width="${sw}"/>`; // Middle Brace Reference
         
         // Front Face
         svgFront += `<rect x="0" y="0" width="${w}" height="${h}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="${sw*1.5}" opacity="${faceOpacity}"/>`; 
@@ -331,10 +330,9 @@
         let svgSide = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${d + padX*2} ${h + padY*2}">`;
         svgSide += `<rect x="${(d - inputs.poleSize)/2}" y="-10" width="${inputs.poleSize}" height="${h+20}" fill="#cbd5e1" stroke="#64748b" stroke-width="${sw}" opacity="0.3"/>`; // Ghost Pole
         
-        // Side Skeleton Box
+        // Side Skeleton Box (Outer Frame Only)
         svgSide += `<rect x="0" y="0" width="${d}" height="${h}" fill="none" stroke="#94a3b8" stroke-width="${sw}"/>`;
         svgSide += `<rect x="${fw}" y="${fw}" width="${d-(fw*2)}" height="${h-(fw*2)}" fill="none" stroke="#94a3b8" stroke-width="${sw}"/>`;
-        svgSide += `<rect x="0" y="${h/2 - fw/2}" width="${d}" height="${fw}" fill="none" stroke="#94a3b8" stroke-width="${sw}"/>`;
         
         // Side Face
         svgSide += `<rect x="0" y="0" width="${d}" height="${h}" fill="#2563eb" stroke="#1e3a8a" stroke-width="${sw*1.5}" opacity="${faceOpacity}"/>`; 

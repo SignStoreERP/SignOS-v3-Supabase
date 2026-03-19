@@ -14,13 +14,20 @@ Deno.serve(async (req: any) => {
         const config = requestData.config || {};
         const auditMode = requestData.audit_mode || 'full'; 
 
+        // Secure DB Fetcher and Formula Annotator
+        const num = (k: string, fallback: string) => {
+            const p = parseFloat(config[k]);
+            return isNaN(p) ? parseFloat(fallback) : p;
+        };
+        const V = (k: string, fb: string) => `[${k}: ${num(k, fb)}]`;
+
         // Physics Constants
-        const waste = parseFloat(config.Waste_Factor) || 1.15;
+        const waste = num('Waste_Factor', "1.15");
         const wasteDisplay = ((waste - 1) * 100).toFixed(0) + '%';
-        const risk = parseFloat(config.Factor_Risk) || 1.05;
-        const targetMargin = parseFloat(config.Target_Margin_Pct) || 0.60;
-        const rateShop = parseFloat(config.Rate_Shop_Labor) || 150.00;
-        const rateCnc = parseFloat(config.Rate_CNC_Labor) || 150.00;
+        const risk = num('Factor_Risk', "1.05");
+        const targetMargin = num('Target_Margin_Pct', "0.60");
+        const rateShop = num('Rate_Shop_Labor', "150");
+        const ratePaint = num('Rate_Paint_Labor', "150"); // Fallback to shop rate if missing
 
         const ret: any[] = [];
         const cst: any[] = [];
@@ -42,45 +49,59 @@ Deno.serve(async (req: any) => {
         const L = (category: string, label: string, total: number, formula: string) => { cst.push({label, total, formula, category}); return total; };
 
         // 1. FRAME & BRACING MATH
-        // Frame is a 12-edge box (4x Width, 4x Depth, 4x Height) - Angle iron overlaps, so full edge lengths are used
+        // Outer Skeleton: 4 Widths, 4 Depths, 4 Heights. No middle brace.
         const frameLF_per = ((inputs.w * 4) + (inputs.d * 4) + (inputs.h * 4)) / 12;
-        // 4 Braces running "short ways" (Depth) hugging the pole
         const braceLF_per = (inputs.d * 4) / 12; 
         
         const totalFrameLF = frameLF_per * inputs.qty;
         const totalBraceLF = braceLF_per * inputs.qty;
         
         const frameSize = parseFloat(inputs.frameMat) || 1.5;
-        const frameCostLF = parseFloat(config[`Cost_Frame_AlumAngle_${frameSize}_1/8`]) || 1.15;
-        const braceCostLF = parseFloat(config[`Cost_Frame_AlumAngle_1.5_1/8`]) || 1.15;
+        const frameKey = `Cost_Frame_AlumAngle_${frameSize}_1/8`;
+        const frameCostLF = num(frameKey, "1.45");
 
-        // Yield calculation for 24' Aluminum Sticks
-        const frameSticks = Math.ceil(totalFrameLF / 24);
-        const braceSticks = Math.ceil(totalBraceLF / 24);
+        const braceKey = `Cost_Frame_AlumAngle_1.5_1/8`;
+        const braceCostLF = num(braceKey, "1.45");
 
-        addBOM('Metal Fabrication', {
-            name: `Aluminum Skeleton Frame (${frameSize}" Angle)`,
-            pull: `${frameSticks}x 24' Sticks (${frameSticks * 24} LF)`,
-            cut: `${4 * inputs.qty}x @ ${inputs.w}", ${4 * inputs.qty}x @ ${inputs.d}", ${4 * inputs.qty}x @ ${inputs.h}"`,
-            drop: `${((frameSticks * 24) - totalFrameLF).toFixed(1)} LF`
-        });
+        // BOM NESTING: Combine Frame and Braces if they share the same material
+        if (frameKey === braceKey) {
+            const combinedLF = totalFrameLF + totalBraceLF;
+            const combinedSticks = Math.ceil(combinedLF / 24);
+            addBOM('Metal Fabrication', {
+                name: `Aluminum Structure (${frameSize}" Angle)`,
+                pull: `${combinedSticks}x 24' Sticks (${combinedSticks * 24} LF)`,
+                cut: `${4 * inputs.qty}x @ ${inputs.w}", ${4 * inputs.qty}x @ ${inputs.h}" (Frame), ${8 * inputs.qty}x @ ${inputs.d}" (Frame & Braces)`,
+                drop: `${((combinedSticks * 24) - combinedLF).toFixed(1)} LF`
+            });
+            L('METAL_MAT', `Aluminum Structure (${frameSize}" Angle)`, combinedLF * frameCostLF * waste, `${combinedLF.toFixed(1)} LF * $${frameCostLF.toFixed(2)}/LF ${V(frameKey, "1.45")} * ${wasteDisplay} Waste`);
+        } else {
+            const frameSticks = Math.ceil(totalFrameLF / 24);
+            addBOM('Metal Fabrication', {
+                name: `Aluminum Skeleton Frame (${frameSize}" Angle)`,
+                pull: `${frameSticks}x 24' Sticks (${frameSticks * 24} LF)`,
+                cut: `${4 * inputs.qty}x @ ${inputs.w}", ${4 * inputs.qty}x @ ${inputs.d}", ${4 * inputs.qty}x @ ${inputs.h}"`,
+                drop: `${((frameSticks * 24) - totalFrameLF).toFixed(1)} LF`
+            });
+            L('METAL_MAT', `Aluminum Skeleton (${frameSize}" Angle)`, totalFrameLF * frameCostLF * waste, `${totalFrameLF.toFixed(1)} LF * $${frameCostLF.toFixed(2)}/LF ${V(frameKey, "1.45")} * ${wasteDisplay} Waste`);
 
-        addBOM('Metal Fabrication', {
-            name: `Mounting Braces (1.5" Alum Angle)`,
-            pull: `${braceSticks}x 24' Sticks (${braceSticks * 24} LF)`,
-            cut: `${4 * inputs.qty}x @ ${inputs.d}"`,
-            drop: `${((braceSticks * 24) - totalBraceLF).toFixed(1)} LF`
-        });
-
-        L('METAL_MAT', `Aluminum Skeleton (${frameSize}" Angle)`, totalFrameLF * frameCostLF * waste, `${totalFrameLF.toFixed(1)} LF * $${frameCostLF.toFixed(2)}/LF * ${wasteDisplay} Waste`);
-        L('METAL_MAT', `Bracing Angles (1.5" Angle)`, totalBraceLF * braceCostLF * waste, `${totalBraceLF.toFixed(1)} LF * $${braceCostLF.toFixed(2)}/LF * ${wasteDisplay} Waste`);
+            const braceSticks = Math.ceil(totalBraceLF / 24);
+            addBOM('Metal Fabrication', {
+                name: `Mounting Braces (1.5" Alum Angle)`,
+                pull: `${braceSticks}x 24' Sticks (${braceSticks * 24} LF)`,
+                cut: `${4 * inputs.qty}x @ ${inputs.d}"`,
+                drop: `${((braceSticks * 24) - totalBraceLF).toFixed(1)} LF`
+            });
+            L('METAL_MAT', `Bracing Angles (1.5" Angle)`, totalBraceLF * braceCostLF * waste, `${totalBraceLF.toFixed(1)} LF * $${braceCostLF.toFixed(2)}/LF ${V(braceKey, "1.45")} * ${wasteDisplay} Waste`);
+        }
 
         // 2. STEEL BRACKET FABRICATION
         const bracketsPer = 4;
         const totalBrackets = bracketsPer * inputs.qty;
-        const bracketLength = Math.max(1, inputs.poleSize - 1); // 1" less than OD
+        const bracketLength = Math.max(1, inputs.poleSize - 1); 
         const steelLF = (totalBrackets * bracketLength) / 12; 
-        const steelCostLF = parseFloat(config[inputs.bracketMat]) || 1.45;
+        
+        const steelKey = inputs.bracketMat;
+        const steelCostLF = num(steelKey, "1.45");
         const steelSizeTxt = inputs.bracketMat.includes('1.5') ? '1.5"' : (inputs.bracketMat.includes('3') ? '3"' : '2"');
 
         addBOM('Metal Fabrication', {
@@ -90,23 +111,18 @@ Deno.serve(async (req: any) => {
             drop: `--`
         });
 
-        L('METAL_MAT', `Steel Brackets (${steelSizeTxt} Angle)`, steelLF * steelCostLF * waste, `${totalBrackets} Brackets (${bracketLength}" ea = ${steelLF.toFixed(1)} LF) * $${steelCostLF.toFixed(2)}/LF`);
+        L('METAL_MAT', `Steel Brackets (${steelSizeTxt} Angle)`, steelLF * steelCostLF * waste, `${totalBrackets} Brackets (${bracketLength}" ea = ${steelLF.toFixed(1)} LF) * $${steelCostLF.toFixed(2)}/LF ${V(steelKey, "1.45")}`);
         
-        // Bracket Fabrication Labor (Saw Cuts)
-        const bracketCutMins = totalBrackets * 1; 
-        addLabor('Metal Fabrication', 'Saw Cuts (Steel Brackets)', bracketCutMins);
-        L('METAL_LAB', `Saw Cuts (Steel Brackets)`, (bracketCutMins / 60) * rateShop, `${totalBrackets} Brackets * 1 Min/cut * $${rateShop}/hr`);
-
         // 3. FACE PANELS
         const sqftW = (inputs.w * inputs.h) / 144;
         const sqftD = (inputs.d * inputs.h) / 144;
         const sqftPerUnit = (sqftW * 2) + (sqftD * 2);
         const totalSqFt = sqftPerUnit * inputs.qty;
 
-        let faceCost = 84.44; 
-        if (inputs.faceThk === '.040') faceCost = parseFloat(config.Cost_Stock_040_4x8) || 84.44;
-        if (inputs.faceThk === '.063') faceCost = parseFloat(config.Cost_Stock_063_4x8) || 98.12;
-        if (inputs.faceThk === '.080') faceCost = parseFloat(config.Cost_Stock_080_4x8) || 124.57;
+        let faceCostKey = 'Cost_Stock_040_4x8';
+        if (inputs.faceThk === '.063') faceCostKey = 'Cost_Stock_063_4x8';
+        if (inputs.faceThk === '.080') faceCostKey = 'Cost_Stock_080_4x8';
+        const faceCost = num(faceCostKey, "84.44");
         
         const faceCostSqFt = faceCost / 32;
         const sheetsNeeded = Math.ceil(totalSqFt / 32);
@@ -121,21 +137,19 @@ Deno.serve(async (req: any) => {
             drop: `${((sheetsNeeded * 32) - totalSqFt).toFixed(1)} SqFt`
         });
 
-        L('METAL_MAT', `Skin Panels (${faceName})`, totalSqFt * faceCostSqFt * waste, `${totalSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/SF * ${wasteDisplay} Waste`);
+        L('METAL_MAT', `Skin Panels (${faceName})`, totalSqFt * faceCostSqFt * waste, `${totalSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/SF ${V(faceCostKey, "84.44")} * ${wasteDisplay} Waste`);
 
         // 4. ADHESIVE & MECHANICAL FASTENERS
-        // 3 sides glued, 1 side screwed (Assume Access Panel is on the narrow D side)
-        const narrowSide = Math.min(inputs.w, inputs.d);
         const adhesiveLF = ((inputs.w * 4) + (inputs.d * 2) + (inputs.h * 2)) * inputs.qty / 12;
-        const cartridges = Math.ceil(adhesiveLF / 10); // 10 LF per tube
+        const cartridges = Math.ceil(adhesiveLF / 10); 
+        const adhesiveCost = num('Cost_Adhesive_Tube', "18.71");
         
         addBOM('Assembly & Hardware', {
             name: `Metal Adhesive (0.25" bead)`,
             pull: `${cartridges} Cartridges`, cut: '--', drop: '--'
         });
-        L('METAL_MAT', `Structural Adhesive (3 Sides)`, cartridges * (parseFloat(config.Cost_Adhesive_Tube) || 18.71), `${adhesiveLF.toFixed(1)} LF / 10 LF per tube = ${cartridges} Tubes`);
+        L('METAL_MAT', `Structural Adhesive (3 Sides)`, cartridges * adhesiveCost, `${adhesiveLF.toFixed(1)} LF / 10 LF per tube = ${cartridges} Tubes * $${adhesiveCost.toFixed(2)}/ea ${V('Cost_Adhesive_Tube', "18.71")}`);
 
-        // Screw Math: 2 vertical rows on the narrow side. Min 4 (corners), evenly spaced every ~7 inches.
         const spaces = Math.ceil(inputs.h / 7);
         const screwsNeeded = (spaces + 1) * 2 * inputs.qty; 
         const screwCost = 0.035;
@@ -146,49 +160,54 @@ Deno.serve(async (req: any) => {
         });
         L('INSTALL_HDW', `Mechanical Fasteners`, screwsNeeded * screwCost, `${screwsNeeded} Screws (Spaced ~7" on access panel) * $${screwCost}/ea`);
 
-        // Paint hardware heads
-        L('PAINT_MAT', `Primer & Paint Cup (Screws)`, 2.00, `Small mix to match fastener heads`);
-        const screwPaintMins = 10 + (screwsNeeded * 0.1);
-        addLabor('Paint & Finishes', 'Mix & Spray Fasteners', screwPaintMins);
-        L('PAINT_LAB', `Mix & Spray Fasteners`, (screwPaintMins / 60) * rateShop, `10 Min Mix + Spray * $${rateShop}/hr`);
+        // Paint Hardware Heads
+        L('PAINT_MAT', `Primer Cup (Fasteners)`, 1.00, `Small mix to match fastener heads`);
+        L('PAINT_MAT', `Paint Cup (Fasteners)`, 1.00, `Small mix to match fastener heads`);
 
-        // 5. METAL LABOR (Frame welding and skinning)
+        // 5. METAL LABOR (Sequential Workflow)
         const gatherMins = 10;
         addLabor('Metal Fabrication', 'Gather Materials', gatherMins);
-        L('METAL_LAB', `Gather Materials`, (gatherMins / 60) * rateShop, `10 Mins * $${rateShop}/hr`);
+        L('METAL_LAB', `Gather Materials`, (gatherMins / 60) * rateShop, `10 Mins * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`);
 
-        const cutMins = (12 + 4) * inputs.qty * 2; // 16 pieces * 2 mins
-        addLabor('Metal Fabrication', 'Saw Cuts (Alum Frame & Braces)', cutMins);
-        L('METAL_LAB', `Saw Cuts (Alum Frame)`, (cutMins / 60) * rateShop, `${16 * inputs.qty} cuts @ 2 mins * $${rateShop}/hr`);
+        const shearMins = 5 + (16 * inputs.qty * 1); 
+        addLabor('Metal Fabrication', 'Shear Face Panels', shearMins);
+        L('METAL_LAB', `Shear Face Panels`, (shearMins / 60) * rateShop, `5 Min Setup + (${16 * inputs.qty} Cuts * 1 Min) * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`);
+
+        const alumCuts = 16 * inputs.qty; // 12 frame + 4 braces
+        const totalCuts = alumCuts + totalBrackets;
+        const cutMins = totalCuts * 1; 
+        addLabor('Metal Fabrication', 'Saw Cuts', cutMins);
+        L('METAL_LAB', `Saw Cuts (Alum & Steel)`, (cutMins / 60) * rateShop, `${totalCuts} cuts @ 1 min/cut * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`);
 
         const weldPoints = (12 + 8) * inputs.qty; // 12 box joints + 8 brace joints
-        const weldMins = weldPoints * 1.5; 
+        const weldMins = weldPoints * 0.5; 
         addLabor('Metal Fabrication', 'Tack & Bead Welding', weldMins);
-        L('METAL_LAB', `Frame Welding`, (weldMins / 60) * rateShop, `${weldPoints} welds @ 1.5 mins * $${rateShop}/hr`);
+        L('METAL_LAB', `Frame Welding`, (weldMins / 60) * rateShop, `${weldPoints} welds @ 0.5 mins * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`);
 
-        const grindMins = weldPoints * 0.5;
+        const grindMins = weldPoints * 0.33;
         addLabor('Metal Fabrication', 'Weld Grinding & Cleaning', grindMins);
-        L('METAL_LAB', `Weld Grinding`, (grindMins / 60) * rateShop, `${weldPoints} welds @ 0.5 mins * $${rateShop}/hr`);
+        L('METAL_LAB', `Weld Grinding & Cleaning`, (grindMins / 60) * rateShop, `${weldPoints} welds @ 0.33 mins * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`);
 
-        const shearMins = 5 + (16 * inputs.qty * 1); // 4 faces * 4 cuts = 16 cuts
-        addLabor('Metal Fabrication', 'Shear Face Panels', shearMins);
-        L('METAL_LAB', `Shear Face Panels`, (shearMins / 60) * rateShop, `5 Min Setup + (${16 * inputs.qty} Cuts * 1 Min) * $${rateShop}/hr`);
+        const glueMins = adhesiveLF * (10 / 60); // 10 secs per LF
+        addLabor('Metal Fabrication', 'Adhesive Application', glueMins);
+        L('METAL_LAB', `Adhesive Application`, (glueMins / 60) * rateShop, `${adhesiveLF.toFixed(1)} LF @ 10 sec/LF * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`);
 
-        const glueMins = adhesiveLF * 1;
-        addLabor('Metal Fabrication', 'Adhesive Application (3 Sides)', glueMins);
-        L('METAL_LAB', `Adhesive Application`, (glueMins / 60) * rateShop, `${adhesiveLF.toFixed(1)} LF @ 1 min/LF * $${rateShop}/hr`);
-
-        // Drilling & screwing 10 seconds per screw
-        const screwMins = screwsNeeded * (10 / 60); 
+        const screwMins = screwsNeeded * (10 / 60); // 10 secs per screw
         addLabor('Metal Fabrication', 'Drill/Tap Access Panel', screwMins);
-        L('METAL_LAB', `Drill/Tap Access Panel`, (screwMins / 60) * rateShop, `${screwsNeeded} Screws @ 10 secs/ea * $${rateShop}/hr`);
+        L('METAL_LAB', `Drill/Tap Access Panel`, (screwMins / 60) * rateShop, `${screwsNeeded} Screws @ 10 sec/ea * $${rateShop}/hr ${V('Rate_Shop_Labor', "150")}`);
 
         // 6. PAINT LOGIC
+        const screwMixMins = 10;
+        const screwSprayMins = screwsNeeded * 0.1;
+        const screwPaintMins = screwMixMins + screwSprayMins;
+        addLabor('Paint & Finishes', 'Mix & Spray Fasteners', screwPaintMins);
+        L('PAINT_LAB', `Mix & Spray Fasteners`, (screwPaintMins / 60) * ratePaint, `10 Min Mix + (${screwsNeeded} Screws * 0.1 Min) * $${ratePaint}/hr ${V('Rate_Paint_Labor', "150")}`);
+
         if (inputs.paintOption === 'Custom Paint') {
-            const paintCostSqFt = parseFloat(config.Cost_Paint_SqFt) || 2.50;
+            const paintCostSqFt = num('Cost_Paint_SqFt', "2.50");
             
-            L('PAINT_MAT', `Automotive Primer`, (totalSqFt * (paintCostSqFt * 0.4) * waste) + 1.00, `${totalSqFt.toFixed(1)} SF * $${(paintCostSqFt * 0.4).toFixed(2)}/SF * ${wasteDisplay} Waste + $1.00 Cup`);
-            L('PAINT_MAT', `Automotive Paint (Color)`, (totalSqFt * (paintCostSqFt * 0.6) * waste) + 1.00, `${totalSqFt.toFixed(1)} SF * $${(paintCostSqFt * 0.6).toFixed(2)}/SF * ${wasteDisplay} Waste + $1.00 Cup`);
+            L('PAINT_MAT', `Automotive Primer`, (totalSqFt * (paintCostSqFt * 0.4) * waste) + 1.00, `${totalSqFt.toFixed(1)} SF * $${(paintCostSqFt * 0.4).toFixed(2)}/SF ${V('Cost_Paint_SqFt', "2.50")} * ${wasteDisplay} Waste + $1.00 Cup`);
+            L('PAINT_MAT', `Automotive Paint (Color)`, (totalSqFt * (paintCostSqFt * 0.6) * waste) + 1.00, `${totalSqFt.toFixed(1)} SF * $${(paintCostSqFt * 0.6).toFixed(2)}/SF ${V('Cost_Paint_SqFt', "2.50")} * ${wasteDisplay} Waste + $1.00 Cup`);
             
             addBOM('Paint & Finishes', {
                 name: `Automotive Paint/Primer Coverage`,
@@ -197,15 +216,15 @@ Deno.serve(async (req: any) => {
 
             const paintSetupMins = 15;
             addLabor('Paint & Finishes', 'Paint Mix & Setup', paintSetupMins);
-            L('PAINT_LAB', `Paint Mix & Setup`, (paintSetupMins / 60) * rateShop, `${paintSetupMins} Mins * $${rateShop}/hr`);
+            L('PAINT_LAB', `Paint Mix & Setup`, (paintSetupMins / 60) * ratePaint, `${paintSetupMins} Mins * $${ratePaint}/hr ${V('Rate_Paint_Labor', "150")}`);
 
             const prepMins = totalSqFt * 0.15;
             addLabor('Paint & Finishes', 'Sign Prep & Sanding', prepMins);
-            L('PAINT_LAB', `Sign Prep`, (prepMins / 60) * rateShop, `${totalSqFt.toFixed(1)} SF * 0.15 Mins/SF * $${rateShop}/hr`);
+            L('PAINT_LAB', `Sign Prep`, (prepMins / 60) * ratePaint, `${totalSqFt.toFixed(1)} SF * 0.15 Mins/SF * $${ratePaint}/hr ${V('Rate_Paint_Labor', "150")}`);
 
             const sprayMins = totalSqFt * 0.40;
             addLabor('Paint & Finishes', 'Spray Primer & Color Coats', sprayMins);
-            L('PAINT_LAB', `Spray Application`, (sprayMins / 60) * rateShop, `${totalSqFt.toFixed(1)} SF * 0.40 Mins/SF * $${rateShop}/hr`);
+            L('PAINT_LAB', `Spray Application`, (sprayMins / 60) * ratePaint, `${totalSqFt.toFixed(1)} SF * 0.40 Mins/SF * $${ratePaint}/hr ${V('Rate_Paint_Labor', "150")}`);
         }
 
         // 7. TOTALS & BIDIRECTIONAL MARGIN
@@ -215,15 +234,11 @@ Deno.serve(async (req: any) => {
 
         const specs = {
             product: 'PoleCover',
-            qty: inputs.qty, 
-            w: inputs.w, 
-            h: inputs.h, 
-            d: inputs.d,
-            poleSize: inputs.poleSize,
-            frameMat: inputs.frameMat,
-            bracketMat: inputs.bracketMat,
-            faceThk: inputs.faceThk,
-            paintOption: inputs.paintOption
+            qty: inputs.qty, w: inputs.w, h: inputs.h, d: inputs.d,
+            sides: 4, mountStyle: `Pole Cover (${inputs.poleSize}" OD Pole)`,
+            postMetalName: 'Steel Brackets / On-Site Weld',
+            frameDepth: inputs.d, isAngle: true,
+            graphicType: inputs.paintOption, faceKey: faceName
         };
 
         const payload = {
