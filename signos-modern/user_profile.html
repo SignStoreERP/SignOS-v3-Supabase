@@ -36,7 +36,7 @@
                 <!-- SECTION: OPERATIONAL IDENTITY (READ-ONLY) -->
                 <div>
                     <div class="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                         <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Operational Identity (Management Controlled)</h2>
                     </div>
                     
@@ -71,17 +71,9 @@
                             <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Last Name</label>
                             <input type="text" id="inp-last" class="w-full border border-gray-300 p-2.5 rounded bg-white text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-sm transition" oninput="showSaveBtn()">
                         </div>
-                        <div>
+                        <div class="md:col-span-2">
                             <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Mobile Phone (Optional)</label>
                             <input type="tel" id="inp-phone" placeholder="(555) 555-5555" class="w-full border border-gray-300 p-2.5 rounded bg-white text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-sm transition" oninput="showSaveBtn()">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">UI Theme Preference</label>
-                            <select id="inp-theme" class="w-full border border-gray-300 p-2.5 rounded bg-white text-sm font-bold text-gray-800 outline-none focus:border-blue-500 shadow-sm transition" onchange="showSaveBtn()">
-                                <option value="system">System Default</option>
-                                <option value="light">Light Mode (Forced)</option>
-                                <option value="dark">Dark Mode (Forced)</option>
-                            </select>
                         </div>
                     </div>
                 </div>
@@ -187,7 +179,6 @@ function populateUI() {
     // Parse the personal_settings JSONB column
     const settings = userData.personal_settings || {};
     document.getElementById('inp-phone').value = settings.phone || '';
-    document.getElementById('inp-theme').value = settings.theme || 'system';
 }
 
 function showSaveBtn() {
@@ -204,8 +195,7 @@ async function saveProfile() {
     
     const newSettings = {
         ...(userData.personal_settings || {}),
-        phone: document.getElementById('inp-phone').value,
-        theme: document.getElementById('inp-theme').value
+        phone: document.getElementById('inp-phone').value
     };
 
     const payload = {
