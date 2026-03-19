@@ -123,13 +123,12 @@ SignOS_Export_v2.exportADA = function(manifest) {
 // --- MANUFACTURING WORK ORDER GENERATOR ---
 window.SignOS_Export_v2 = window.SignOS_Export_v2 || {};
 
-SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
+SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId) {
     if (!calcResult || !calcResult.build) {
         alert("No calculation data available to print. Please run the calculator first.");
         return;
     }
 
-    // Helper: Format decimal minutes into readable Hours and Minutes
     const formatTime = (mins) => {
         if (!mins) return '0 mins';
         const h = Math.floor(mins / 60);
@@ -139,33 +138,52 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
         return `${m} mins`;
     };
 
-    // 1. EXTRACT PURE SVG DRAWINGS (COMPACT)
+    // 1. EXTRACT PURE SVG DRAWINGS (Now Capturing Pan/Zoom State!)
     const svgContainer = document.getElementById(svgContainerId);
     let svgHtml = '';
     
     if (svgContainer) {
-        const svgs = svgContainer.querySelectorAll('svg');
-        if (svgs.length > 0) {
-            svgHtml = `<div style="display: flex; gap: 20px; justify-content: center; align-items: center; width: 100%;">`;
-            svgs.forEach((svg, index) => {
+        // Target the zoom containers instead of the raw SVGs to preserve user's pan & scale
+        const targets = svgContainer.querySelectorAll('.zoom-target');
+        if (targets.length > 0) {
+            svgHtml = `<div style="display: flex; gap: 20px; justify-content: center; align-items: stretch; width: 100%; height: 380px;">`;
+            
+            targets.forEach((target, index) => {
                 const title = index === 0 ? 'Front Elevation' : 'Side Profile';
-                const clonedSvg = svg.cloneNode(true);
-                clonedSvg.removeAttribute('class');
-                clonedSvg.style.maxHeight = '150px';
-                clonedSvg.style.width = 'auto';
-                
+                const clonedTarget = target.cloneNode(true);
+
+                // Extract the exact pan/zoom matrix the user framed on their screen
+                const transformStyle = target.style.transform || 'translate(0px, 0px) scale(1)';
+
+                // Strip the dark tailwind classes but lock the transform logic inside an overflow-hidden box
+                clonedTarget.className = '';
+                clonedTarget.style.cssText = `width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform-origin: center; transform: ${transformStyle};`;
+
+                const innerSvg = clonedTarget.querySelector('svg');
+                if (innerSvg) {
+                    innerSvg.style.width = '100%';
+                    innerSvg.style.height = '100%';
+                    innerSvg.style.maxHeight = 'none'; // Unconstrain so it dynamically fills the new 380px height
+                }
+
                 svgHtml += `
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
-                    <span style="font-size: 9px; font-weight: bold; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">${title}</span>
-                    ${clonedSvg.outerHTML}
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; position: relative;">
+                    <span style="position: absolute; top: 12px; left: 12px; font-size: 10px; font-weight: bold; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; z-index: 10; background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${title}</span>
+                    <div style="width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                        ${clonedTarget.outerHTML}
+                    </div>
                 </div>`;
             });
             svgHtml += `</div>`;
         }
     }
-    if (!svgHtml) svgHtml = '<div style="text-align:center; padding:10px; font-size:9px; color:#94a3b8;">No drawing available</div>';
+    if (!svgHtml) svgHtml = '<div style="text-align:center; padding:10px; font-size:12px; color:#94a3b8;">No drawing available</div>';
 
-    // 2. EXTRACT LABOR DATA 
+    // Extract Job Narrative
+    const descEl = jobDescId ? document.getElementById(jobDescId) : null;
+    const jobDesc = descEl ? descEl.value : 'No narrative provided.';
+
+    // 2. EXTRACT LABOR DATA
     let laborHtml = '';
     let totalShopMins = 0;
 
@@ -205,7 +223,7 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
         </div>`;
     }
 
-    // 3. EXTRACT BILL OF MATERIALS & CUT LIST (Dynamic Sub-Columns & Filtering)
+    // 3. EXTRACT BILL OF MATERIALS
     let bomHtml = '';
     if (calcResult.build.bom) {
         for (const [dept, items] of Object.entries(calcResult.build.bom)) {
@@ -213,7 +231,6 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
             let validItemsCount = 0;
 
             items.forEach(item => {
-                // Strip out Concrete and rename Lord's Adhesive
                 let nameStr = typeof item === 'object' ? item.name : item;
                 if (!nameStr) return;
                 if (nameStr.toLowerCase().includes('concrete')) return;
@@ -227,7 +244,6 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
                 validItemsCount++;
 
                 if (typeof item === 'object') {
-                    // Only build the sub-columns if data actually exists
                     let detailsHtml = [];
                     if (item.pull && item.pull !== '--') detailsHtml.push(`<span class="font-bold text-slate-400">PULL:</span> ${item.pull}`);
                     if (item.cut && item.cut !== '--') detailsHtml.push(`<span class="font-bold text-slate-400">CUT:</span> ${item.cut}`);
@@ -262,22 +278,22 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
         }
     }
 
-    // 4. GENERATE NATIVE PRODUCT SPECIFICATIONS (Tight Layout)
+    // 4. GENERATE NATIVE PRODUCT SPECIFICATIONS (Stacked Layout)
     let specsHtml = '';
     if (calcResult.build.specs) {
         const s = calcResult.build.specs;
         specsHtml = `
-            <div class="flex flex-wrap gap-x-6 gap-y-2 text-[10px] text-slate-800">
-                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
-                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}" x ${s.h}"</span></div>
-                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Sides:</span> <span class="font-mono font-bold">${s.sides}</span></div>
-                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Mount & Posts:</span> <span class="font-mono font-bold">${s.mountStyle} / ${s.postSize}" ${s.postMetalName} (${s.thag}" AG / ${s.belowGrade}" BG)</span></div>
-                <div class="flex items-center gap-1.5"><span class="font-bold text-slate-400 uppercase tracking-widest text-[8px]">Frame & Face:</span> <span class="font-mono font-bold">${s.frameDepth}" ${s.isAngle ? 'Angle' : 'Tube'} / ${(s.graphicType || '').replace(/_/g, ' ')}</span></div>
+            <div class="flex flex-col gap-2 text-[10px] text-slate-800">
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}" x ${s.h}"</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Sides:</span> <span class="font-mono font-bold">${s.sides}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Mount & Posts:</span> <span class="font-mono font-bold text-right">${s.mountStyle} / ${s.postSize}" ${s.postMetalName}<br/><span class="text-slate-400">(${s.thag}" AG / ${s.belowGrade}" BG)</span></span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Frame & Face:</span> <span class="font-mono font-bold text-right">${s.frameDepth}" ${s.isAngle ? 'Angle' : 'Tube'}<br/><span class="text-slate-400">${(s.graphicType || '').replace(/_/g, ' ')}</span></span></div>
             </div>
         `;
     }
 
-    // 5. GENERATE THE PRINT WINDOW HTML (Standard Document Flow for Native Pagination)
+    // 5. GENERATE THE PRINT WINDOW HTML 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -300,14 +316,12 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
             .print-container {
                 max-width: 8.5in;
                 margin: 0 auto;
-                display: block; /* Enables native browser pagination to flow freely */
+                display: block; 
             }
-            /* Guardrails against physical print slices */
             .avoid-break { page-break-inside: avoid; break-inside: avoid; }
             
             @media print {
                 .print-container { width: 100%; max-width: 100%; }
-                /* Browsers automatically inject "Page X of Y" in their native headers/footers */
             }
         </style>
     </head>
@@ -328,22 +342,38 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
                 </div>
             </div>
 
-            <!-- DRAWING & SPECS -->
-            <div class="mb-5 avoid-break">
-                <div class="bg-white border border-slate-200 rounded p-3 mb-3 flex flex-col items-center shadow-sm">
+            <!-- LARGE DRAWING -->
+            <div class="mb-4 avoid-break">
+                <div class="bg-white border border-slate-200 rounded p-4 shadow-sm w-full">
                      ${svgHtml}
                 </div>
+            </div>
 
+            <!-- NARRATIVE & SPECS (SIDE-BY-SIDE) -->
+            <div class="grid grid-cols-2 gap-6 mb-6 avoid-break items-stretch">
+                <!-- Job Narrative -->
                 <div class="border border-slate-200 rounded bg-slate-50 overflow-hidden flex flex-col">
-                    <div class="p-2.5">
+                    <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-700">Job Narrative</span>
+                    </div>
+                    <div class="p-3 bg-white text-[10px] font-mono text-slate-700 whitespace-pre-wrap leading-relaxed flex-1 h-full">
+                        ${jobDesc}
+                    </div>
+                </div>
+                
+                <!-- Specs -->
+                <div class="border border-slate-200 rounded bg-slate-50 overflow-hidden flex flex-col">
+                    <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-700">Project Specifications</span>
+                    </div>
+                    <div class="p-3 bg-white flex-1 h-full">
                         ${specsHtml}
                     </div>
                 </div>
             </div>
 
             <!-- TWO-COLUMN GRID FOR BOM & LABOR -->
-            <div class="grid grid-cols-2 gap-6 items-start">
-                
+            <div class="grid grid-cols-2 gap-6 items-start mt-2">
                 <!-- Bill of Materials (Left) -->
                 <div>
                     <h3 class="text-[11px] font-black uppercase tracking-widest text-slate-800 border-b border-slate-300 pb-1 mb-3">Pull List & Cuts</h3>
@@ -355,10 +385,9 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
                     <h3 class="text-[11px] font-black uppercase tracking-widest text-slate-800 border-b border-slate-300 pb-1 mb-3">Fabrication Routing</h3>
                     ${laborHtml || '<div class="text-[10px] text-slate-400 italic">No labor tasks calculated.</div>'}
                 </div>
-                
             </div>
             
-            <!-- Simple Footer at the end of the data stream -->
+            <!-- Footer -->
             <div class="mt-6 pt-2 border-t border-slate-300 text-right text-[8px] font-bold text-slate-400 uppercase tracking-widest">
                 Internal Shop Use Only • SignFabricator OS
             </div>
@@ -366,7 +395,6 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
         </div>
         
         <script>
-            // Tell the browser to automatically print
             window.onload = () => { setTimeout(() => window.print(), 500); }
         </script>
     </body>
