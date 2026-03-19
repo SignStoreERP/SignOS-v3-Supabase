@@ -56,10 +56,8 @@
                 <button id="btn-toggle-xray" onclick="toggleXRay()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition focus:outline-none">X-Ray Frame</button>
             </div>
 
-            <!-- The Zoom Stage Wrapper -->
-            <div id="zoom-stage" class="w-full h-full cursor-grab active:cursor-grabbing">
-                <div id="svg-preview-container" class="w-full h-full flex pt-12 pb-4 pointer-events-none"></div>
-            </div>
+            <!-- The Container -->
+            <div id="svg-preview-container" class="w-full h-full flex pt-12 pb-4 cursor-grab active:cursor-grabbing"></div>
         </div>
 
         <div class="p-6 space-y-6">
@@ -481,12 +479,12 @@
         cont.innerHTML = `
             <div class="grid grid-cols-3 gap-3 w-full h-full p-3 animate-in fade-in duration-300">
                 <div class="col-span-2 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner overflow-hidden">
-                    <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest z-10">Front Elevation</span>
-                    <div class="w-full h-full flex items-center justify-center mt-6 relative">${svgFront}</div>
+                    <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest z-10 pointer-events-none">Front Elevation</span>
+                    <div class="zoom-target w-full h-full flex items-center justify-center mt-6 relative pointer-events-none">${svgFront}</div>
                 </div>
                 <div class="col-span-1 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner overflow-hidden">
-                    <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest z-10">Side Profile</span>
-                    <div class="w-full h-full flex items-center justify-center mt-6 relative">${svgSide}</div>
+                    <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest z-10 pointer-events-none">Side Profile</span>
+                    <div class="zoom-target w-full h-full flex items-center justify-center mt-6 relative pointer-events-none">${svgSide}</div>
                 </div>
             </div>
         `;
@@ -855,10 +853,17 @@ Graphics: ${graphicStr}\n\n`;
     window.addEventListener('load', async () => {
         if (typeof injectHeader === 'function') injectHeader("Post & Panel Signs");
         
-        // Initialize Pan & Zoom logic on the 2D stage
+        // Initialize Pan & Zoom logic targeting the SVGs inside the fixed windows
         if(window.SignOS_UI && SignOS_UI.Camera3D) {
-            SignOS_UI.Camera3D.init('zoom-stage');
-            SignOS_UI.Camera3D.toggle(true); // Force active so mouse events trigger
+            // Override the default engine to target our custom internal class
+            SignOS_UI.Camera3D.update = function() {
+                document.querySelectorAll('.zoom-target').forEach(stage => {
+                    stage.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scaleZ})`;
+                    stage.style.transition = this.isDragging ? 'none' : 'transform 0.2s ease-out';
+                });
+            };
+            SignOS_UI.Camera3D.init('svg-preview-container');
+            SignOS_UI.Camera3D.toggle(true); 
         }
         
         // Ensure Admin View is restricted
