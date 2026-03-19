@@ -626,62 +626,70 @@ Graphics: ${graphicStr}\n\n`;
         if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
         currentGeom = geom;
 
-        // 1. PURE 1:1 PHYSICAL MAPPING (No manual JS scaling!)
-        const th = geom.above + geom.under;
+        // 1. PHYSICAL CONSTANTS
+        const above = geom.above;
+        const under = geom.under;
         const ow = geom.overallW;
         
-        // Exact padding to frame the view (e.g. 48 inches around the sign for dimensions)
-        const padX = 48; 
-        const padY = 48; 
+        // 2. THE CAMERA FIX (Zooming in on the sign)
+        // We calculate padding based on the sign size, but we intentionally 
+        // DO NOT include the underground depth in the camera's viewbox height.
+        const padX = Math.max(36, ow * 0.2); 
+        const padY = Math.max(30, above * 0.15); 
 
-        // 2. THE CAD FIX: Non-scaling strokes ensure lines are ALWAYS 1.5px thick on screen 
-        // regardless of how zoomed in or out the SVG gets, preventing dimension distortion!
-        const strokeProp = 'stroke-width="1.5" vector-effect="non-scaling-stroke"';
-        const dimStroke = 'stroke-width="1" vector-effect="non-scaling-stroke"';
+        // 3. THE STROKE FIX
+        // Removing vector-effect. Lines are now physically 0.25" thick in the math engine,
+        // so they scale perfectly and proportionally without distorting the frame thickness.
+        const sw = 0.25; 
         const dimColor = "#64748b"; 
-        
-        // Dynamic font size relative to the sign size so it remains readable
-        const fSize = Math.max((th + ow) * 0.02, 4); 
+        const fSize = Math.max(above * 0.035, 2.5); 
         
         const clr = geom.clearance;
         const postD = geom.post;
-        const under = geom.under;
         const holeD = geom.holeD;
 
         let p1X = (ow - (geom.postSpacing + 2*postD)) / 2;
         let p2X = p1X + postD + geom.postSpacing;
 
-        // Dynamic Dimension Line Generators
+        // Dimension Line Generators
         const drawHDim = (x1, x2, y, label) => { 
-            return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${dimColor}" ${dimStroke}/>
-                    <line x1="${x1}" y1="${y-fSize/2}" x2="${x1}" y2="${y+fSize/2}" stroke="${dimColor}" ${dimStroke}/>
-                    <line x1="${x2}" y1="${y-fSize/2}" x2="${x2}" y2="${y+fSize/2}" stroke="${dimColor}" ${dimStroke}/>
+            return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${dimColor}" stroke-width="${sw}"/>
+                    <line x1="${x1}" y1="${y-fSize/2}" x2="${x1}" y2="${y+fSize/2}" stroke="${dimColor}" stroke-width="${sw}"/>
+                    <line x1="${x2}" y1="${y-fSize/2}" x2="${x2}" y2="${y+fSize/2}" stroke="${dimColor}" stroke-width="${sw}"/>
                     <text x="${(x1+x2)/2}" y="${y - fSize*0.4}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="middle" font-weight="bold">${label}</text>`; 
         };
         const drawVDim = (x, y1, y2, label, align="end") => { 
             let textX = align === "end" ? x - fSize*0.5 : x + fSize*0.5; 
-            return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${dimColor}" ${dimStroke}/>
-                    <line x1="${x-fSize/2}" y1="${y1}" x2="${x+fSize/2}" y2="${y1}" stroke="${dimColor}" ${dimStroke}/>
-                    <line x1="${x-fSize/2}" y1="${y2}" x2="${x+fSize/2}" y2="${y2}" stroke="${dimColor}" ${dimStroke}/>
+            return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${dimColor}" stroke-width="${sw}"/>
+                    <line x1="${x-fSize/2}" y1="${y1}" x2="${x+fSize/2}" y2="${y1}" stroke="${dimColor}" stroke-width="${sw}"/>
+                    <line x1="${x-fSize/2}" y1="${y2}" x2="${x+fSize/2}" y2="${y2}" stroke="${dimColor}" stroke-width="${sw}"/>
                     <text x="${textX}" y="${(y1+y2)/2 + fSize*0.3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="${align}" font-weight="bold">${label}</text>`; 
         };
 
         // Foundation & Ground Layer
-        const footerH = under * 0.66;
-        const footerY = th - footerH;
+        const gradeY = above; 
+        const groundW = ow * 4;       // 4x Wider
+        const groundX = -(ow * 1.5);  // Centers the 4x wide box
+        const groundH = under * 2;    // 2x Deeper
         
-        let bgLayer = `<rect x="-${ow}" y="${th - under}" width="${ow * 3}" height="${under + padY}" fill="#22c55e" opacity="0.1"/>`;
-        bgLayer += `<line x1="-${ow}" y1="${th - under}" x2="${ow * 3}" y2="${th - under}" stroke="#22c55e" ${strokeProp} stroke-dasharray="4,3"/>`;
+        let bgLayer = `<rect x="${groundX}" y="${gradeY}" width="${groundW}" height="${groundH}" fill="#22c55e" opacity="0.1"/>`;
+        bgLayer += `<line x1="${groundX}" y1="${gradeY}" x2="${groundX + groundW}" y2="${gradeY}" stroke="#22c55e" stroke-width="${sw}" stroke-dasharray="4,3"/>`;
+        
+        // Concrete footers
+        const footerH = under * 0.66;
+        const footerY = gradeY + under - footerH;
         bgLayer += `<rect x="${p1X - (holeD/2 - postD/2)}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
         bgLayer += `<rect x="${p2X - (holeD/2 - postD/2)}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
-        bgLayer += `<rect x="${p1X}" y="0" width="${postD}" height="${th}" fill="#94a3b8" stroke="#334155" ${strokeProp}/>`;
-        bgLayer += `<rect x="${p2X}" y="0" width="${postD}" height="${th}" fill="#94a3b8" stroke="#334155" ${strokeProp}/>`;
+        
+        // Posts (Start at 0, extend through grade, down into footers)
+        bgLayer += `<rect x="${p1X}" y="0" width="${postD}" height="${above + under}" fill="#94a3b8" stroke="#334155" stroke-width="${sw}"/>`;
+        bgLayer += `<rect x="${p2X}" y="0" width="${postD}" height="${above + under}" fill="#94a3b8" stroke="#334155" stroke-width="${sw}"/>`;
 
         // ==========================================
         // WINDOW 1: FRONT ELEVATION
         // ==========================================
-        // We use native SVG viewBox with "preserveAspectRatio" to auto-center and auto-zoom the layout perfectly!
-        let svgFront = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${ow + padX*2} ${th + padY*2}" preserveAspectRatio="xMidYMid meet" class="max-h-full">` + bgLayer;
+        // Viewbox height is now just "above + padY*1.5" to force zoom on the sign, letting the rest bleed off the bottom safely!
+        let svgFront = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${ow + padX*2} ${above + padY*1.5}" preserveAspectRatio="xMidYMid meet" class="max-h-full">` + bgLayer;
 
         let currY = geom.topOffset;
         geom.panels.forEach((p, i) => {
@@ -695,19 +703,19 @@ Graphics: ${graphicStr}\n\n`;
             let fX = isFlush ? p1X + postD : (ow - frameW_real) / 2;
 
             // Horizontal Frame
-            svgFront += `<rect x="${fX}" y="${currY + p.h - geom.frameThick}" width="${frameW_real}" height="${geom.frameThick}" fill="#475569" stroke="#1e293b" ${strokeProp}/>`;
-            if (!shareTop) svgFront += `<rect x="${fX}" y="${currY}" width="${frameW_real}" height="${geom.frameThick}" fill="#475569" stroke="#1e293b" ${strokeProp}/>`;
+            svgFront += `<rect x="${fX}" y="${currY + p.h - geom.frameThick}" width="${frameW_real}" height="${geom.frameThick}" fill="#475569" stroke="#1e293b" stroke-width="${sw}"/>`;
+            if (!shareTop) svgFront += `<rect x="${fX}" y="${currY}" width="${frameW_real}" height="${geom.frameThick}" fill="#475569" stroke="#1e293b" stroke-width="${sw}"/>`;
 
             // Vertical Frame (Strictly Between Mounts Only)
             if (!isFlush) {
                 let vHeight = p.h - (shareTop ? geom.frameThick : geom.frameThick*2);
                 let vY = currY + (shareTop ? 0 : geom.frameThick);
-                svgFront += `<rect x="${fX}" y="${vY}" width="${geom.frameThick}" height="${vHeight}" fill="#475569" stroke="#1e293b" ${strokeProp}/>`;
-                svgFront += `<rect x="${fX + frameW_real - geom.frameThick}" y="${vY}" width="${geom.frameThick}" height="${vHeight}" fill="#475569" stroke="#1e293b" ${strokeProp}/>`;
+                svgFront += `<rect x="${fX}" y="${vY}" width="${geom.frameThick}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="${sw}"/>`;
+                svgFront += `<rect x="${fX + frameW_real - geom.frameThick}" y="${vY}" width="${geom.frameThick}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="${sw}"/>`;
             }
 
             let faceOpacity = isXray ? 0.25 : (isFlush ? 0.95 : 0.85);
-            svgFront += `<rect x="${panelX}" y="${currY}" width="${p.w}" height="${p.h}" fill="#3b82f6" stroke="#1e3a8a" ${strokeProp} opacity="${faceOpacity}"/>`;
+            svgFront += `<rect x="${panelX}" y="${currY}" width="${p.w}" height="${p.h}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="${sw*2}" opacity="${faceOpacity}"/>`;
 
             if (!isXray) {
                 let tSize = Math.min(p.w * 0.15, p.h * 0.3); // Dynamically size "SIGN FACE" text
@@ -718,13 +726,13 @@ Graphics: ${graphicStr}\n\n`;
 
         if (showDims) {
             let dY = -padY * 0.4;
-            let dXLeft = -padX * 0.4;
-            let dXRight = ow + padX * 0.4;
+            let dXLeft = -padX * 0.5;
+            let dXRight = ow + padX * 0.5;
             svgFront += drawHDim(0, ow, dY, geom.overallW + '" O.A.W');
-            svgFront += drawHDim(p1X + postD, p2X, th - under - (clr/2), geom.postSpacing + '" I.D.');
-            svgFront += drawVDim(dXLeft, 0, th - under, geom.above + '" A.G.', "end");
-            svgFront += drawVDim(dXLeft, th - under, th, geom.under + '" B.G.', "end");
-            if (clr > 0) svgFront += drawVDim(dXRight, th - under - clr, th - under, geom.clearance + '" Clr', "start");
+            svgFront += drawHDim(p1X + postD, p2X, gradeY - Math.max(clr/2, 6), geom.postSpacing + '" I.D.');
+            svgFront += drawVDim(dXLeft, 0, gradeY, geom.above + '" A.G.', "end");
+            svgFront += drawVDim(dXLeft, gradeY, gradeY + under, geom.under + '" B.G.', "end");
+            if (clr > 0) svgFront += drawVDim(dXRight, gradeY - clr, gradeY, geom.clearance + '" Clr', "start");
         }
         svgFront += `</svg>`;
 
@@ -733,14 +741,16 @@ Graphics: ${graphicStr}\n\n`;
         // ==========================================
         const sideW = Math.max(postD * 3, 20);
         const visFaceThick = Math.max(sideW * 0.05, 1);
-        const padXSide = 48; // Standardized Padding
+        const padXSide = 36; 
         const px = (sideW - postD) / 2;
 
-        let svgSide = `<svg width="100%" height="100%" viewBox="-${padXSide} -${padY} ${sideW + padXSide*2} ${th + padY*2}" preserveAspectRatio="xMidYMid meet" class="max-h-full">`;
-        svgSide += `<rect x="-${sideW*2}" y="${th - under}" width="${sideW * 5}" height="${under + padY}" fill="#22c55e" opacity="0.1"/>`;
-        svgSide += `<line x1="-${sideW*2}" y1="${th - under}" x2="${sideW * 5}" y2="${th - under}" stroke="#22c55e" ${strokeProp} stroke-dasharray="4,3"/>`;
+        let svgSide = `<svg width="100%" height="100%" viewBox="-${padXSide} -${padY} ${sideW + padXSide*2} ${above + padY*1.5}" preserveAspectRatio="xMidYMid meet" class="max-h-full">`;
+        
+        // Re-inject the identical ground and posts for the side profile
+        svgSide += `<rect x="-${sideW*2}" y="${gradeY}" width="${sideW * 5}" height="${groundH}" fill="#22c55e" opacity="0.1"/>`;
+        svgSide += `<line x1="-${sideW*2}" y1="${gradeY}" x2="${sideW * 5}" y2="${gradeY}" stroke="#22c55e" stroke-width="${sw}" stroke-dasharray="4,3"/>`;
         svgSide += `<rect x="${px - (holeD/2 - postD/2)}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
-        svgSide += `<rect x="${px}" y="0" width="${postD}" height="${th}" fill="#94a3b8" stroke="#334155" ${strokeProp}/>`;
+        svgSide += `<rect x="${px}" y="0" width="${postD}" height="${above + under}" fill="#94a3b8" stroke="#334155" stroke-width="${sw}"/>`;
 
         let sy = geom.topOffset;
         geom.panels.forEach((p, i) => {
@@ -748,17 +758,17 @@ Graphics: ${graphicStr}\n\n`;
             let faceOpacity = isXray ? 0.4 : 1;
 
             if (p.mountStyle === 'Between') {
-                svgSide += `<rect x="${px + (postD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#1e40af" opacity="${faceOpacity}" stroke="#1e3a8a" ${strokeProp}/>`;
+                svgSide += `<rect x="${px + (postD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#1e40af" opacity="${faceOpacity}" stroke="#1e3a8a" stroke-width="${sw}"/>`;
             } else {
-                svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}" stroke="#1e3a8a" ${strokeProp}/>`;
-                if(p.sides === 2) svgSide += `<rect x="${px + postD}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}" stroke="#1e3a8a" ${strokeProp}/>`;
+                svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}" stroke="#1e3a8a" stroke-width="${sw}"/>`;
+                if(p.sides === 2) svgSide += `<rect x="${px + postD}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}" stroke="#1e3a8a" stroke-width="${sw}"/>`;
             }
             sy += p.h;
         });
 
         if (showDims) {
             let dY = -padY * 0.4;
-            let dXRight = sideW + padXSide * 0.4;
+            let dXRight = sideW + padXSide * 0.5;
             svgSide += drawHDim(px, px + postD, dY, geom.post + '"');
             let dy = geom.topOffset;
             geom.panels.forEach((p, i) => {
@@ -783,7 +793,7 @@ Graphics: ${graphicStr}\n\n`;
             </div>
         `;
     }
-    
+
     window.addEventListener('load', async () => {
         if (typeof injectHeader === 'function') injectHeader("Post & Panel Signs");
         
