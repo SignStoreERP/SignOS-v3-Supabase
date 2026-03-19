@@ -630,25 +630,29 @@ Graphics: ${graphicStr}\n\n`;
         const above = geom.above;
         const under = geom.under;
         const ow = geom.overallW;
-        
-        // 2. THE CAMERA FIX (Zooming in on the sign)
-        // We calculate padding based on the sign size, but we intentionally 
-        // DO NOT include the underground depth in the camera's viewbox height.
-        const padX = Math.max(36, ow * 0.2); 
-        const padY = Math.max(30, above * 0.15); 
-
-        // 3. THE STROKE FIX
-        // Removing vector-effect. Lines are now physically 0.25" thick in the math engine,
-        // so they scale perfectly and proportionally without distorting the frame thickness.
-        const sw = 0.25; 
-        const dimColor = "#64748b"; 
-        const fSize = Math.max(above * 0.035, 2.5); 
-        
         const clr = geom.clearance;
         const postD = geom.post;
         const holeD = geom.holeD;
 
-        let p1X = (ow - (geom.postSpacing + 2*postD)) / 2;
+        // 2. TRUE BOUNDING BOX MATH (Separate cameras for Front and Side)
+        // We pad the width and height mathematically based on the size of the sign to fit the dimension lines.
+        // We only tell the camera to look at a small portion of the dirt (dirtVisible) so it doesn't zoom out for the deep footers.
+        const padX = Math.max(36, ow * 0.25); 
+        const padY = Math.max(24, above * 0.15); 
+        const dirtVisible = Math.max(12, above * 0.1); 
+
+        const frontViewBox = `-${padX} -${padY} ${ow + padX * 2} ${above + padY + dirtVisible}`;
+        
+        const padSideX = 36;
+        const sideViewBox = `-${padSideX} -${padY} ${postD + padSideX * 2} ${above + padY + dirtVisible}`;
+
+        // 3. DYNAMIC SCALING FOR STROKES & TEXT
+        // Strokes scale mathematically with the sign's physical size so they never look artificially thick or thin.
+        const sw = Math.max((above + ow) * 0.0015, 0.2);
+        const fSize = Math.max(above * 0.03, 2.5);
+        const dimColor = "#64748b"; 
+
+        let p1X = (ow - (geom.postSpacing + 2 * postD)) / 2;
         let p2X = p1X + postD + geom.postSpacing;
 
         // Dimension Line Generators
@@ -666,18 +670,16 @@ Graphics: ${graphicStr}\n\n`;
                     <text x="${textX}" y="${(y1+y2)/2 + fSize*0.3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="${align}" font-weight="bold">${label}</text>`; 
         };
 
-        // Foundation & Ground Layer
+        // SHARED BACKGROUND (Grade line and posts that extend downwards)
         const gradeY = above; 
-        const groundW = ow * 4;       // 4x Wider
-        const groundX = -(ow * 1.5);  // Centers the 4x wide box
-        const groundH = under * 2;    // 2x Deeper
-        
-        let bgLayer = `<rect x="${groundX}" y="${gradeY}" width="${groundW}" height="${groundH}" fill="#22c55e" opacity="0.1"/>`;
-        bgLayer += `<line x1="${groundX}" y1="${gradeY}" x2="${groundX + groundW}" y2="${gradeY}" stroke="#22c55e" stroke-width="${sw}" stroke-dasharray="4,3"/>`;
-        
-        // Concrete footers
         const footerH = under * 0.66;
         const footerY = gradeY + under - footerH;
+
+        // Draw ground extending infinitely left/right so it never cuts off
+        let bgLayer = `<rect x="-1000" y="${gradeY}" width="2000" height="${under * 2}" fill="#22c55e" opacity="0.1"/>`;
+        bgLayer += `<line x1="-1000" y1="${gradeY}" x2="1000" y2="${gradeY}" stroke="#22c55e" stroke-width="${sw}" stroke-dasharray="4,3"/>`;
+        
+        // Concrete footers
         bgLayer += `<rect x="${p1X - (holeD/2 - postD/2)}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
         bgLayer += `<rect x="${p2X - (holeD/2 - postD/2)}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
         
@@ -688,8 +690,7 @@ Graphics: ${graphicStr}\n\n`;
         // ==========================================
         // WINDOW 1: FRONT ELEVATION
         // ==========================================
-        // Viewbox height is now just "above + padY*1.5" to force zoom on the sign, letting the rest bleed off the bottom safely!
-        let svgFront = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${ow + padX*2} ${above + padY*1.5}" preserveAspectRatio="xMidYMid meet" class="max-h-full">` + bgLayer;
+        let svgFront = `<svg width="100%" height="100%" viewBox="${frontViewBox}" preserveAspectRatio="xMidYMid meet" style="max-height: 100%; max-width: 100%;">` + bgLayer;
 
         let currY = geom.topOffset;
         geom.panels.forEach((p, i) => {
@@ -715,7 +716,7 @@ Graphics: ${graphicStr}\n\n`;
             }
 
             let faceOpacity = isXray ? 0.25 : (isFlush ? 0.95 : 0.85);
-            svgFront += `<rect x="${panelX}" y="${currY}" width="${p.w}" height="${p.h}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="${sw*2}" opacity="${faceOpacity}"/>`;
+            svgFront += `<rect x="${panelX}" y="${currY}" width="${p.w}" height="${p.h}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="${sw*1.5}" opacity="${faceOpacity}"/>`;
 
             if (!isXray) {
                 let tSize = Math.min(p.w * 0.15, p.h * 0.3); // Dynamically size "SIGN FACE" text
@@ -726,8 +727,8 @@ Graphics: ${graphicStr}\n\n`;
 
         if (showDims) {
             let dY = -padY * 0.4;
-            let dXLeft = -padX * 0.5;
-            let dXRight = ow + padX * 0.5;
+            let dXLeft = -padX * 0.6;
+            let dXRight = ow + padX * 0.6;
             svgFront += drawHDim(0, ow, dY, geom.overallW + '" O.A.W');
             svgFront += drawHDim(p1X + postD, p2X, gradeY - Math.max(clr/2, 6), geom.postSpacing + '" I.D.');
             svgFront += drawVDim(dXLeft, 0, gradeY, geom.above + '" A.G.', "end");
@@ -739,18 +740,15 @@ Graphics: ${graphicStr}\n\n`;
         // ==========================================
         // WINDOW 2: SIDE PROFILE
         // ==========================================
-        const sideW = Math.max(postD * 3, 20);
-        const visFaceThick = Math.max(sideW * 0.05, 1);
-        const padXSide = 36; 
-        const px = (sideW - postD) / 2;
+        const visFaceThick = Math.max(postD * 0.1, 0.5); // Visual face thickness
 
-        let svgSide = `<svg width="100%" height="100%" viewBox="-${padXSide} -${padY} ${sideW + padXSide*2} ${above + padY*1.5}" preserveAspectRatio="xMidYMid meet" class="max-h-full">`;
+        let svgSide = `<svg width="100%" height="100%" viewBox="${sideViewBox}" preserveAspectRatio="xMidYMid meet" style="max-height: 100%; max-width: 100%;">`;
         
         // Re-inject the identical ground and posts for the side profile
-        svgSide += `<rect x="-${sideW*2}" y="${gradeY}" width="${sideW * 5}" height="${groundH}" fill="#22c55e" opacity="0.1"/>`;
-        svgSide += `<line x1="-${sideW*2}" y1="${gradeY}" x2="${sideW * 5}" y2="${gradeY}" stroke="#22c55e" stroke-width="${sw}" stroke-dasharray="4,3"/>`;
-        svgSide += `<rect x="${px - (holeD/2 - postD/2)}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
-        svgSide += `<rect x="${px}" y="0" width="${postD}" height="${above + under}" fill="#94a3b8" stroke="#334155" stroke-width="${sw}"/>`;
+        svgSide += `<rect x="-1000" y="${gradeY}" width="2000" height="${under * 2}" fill="#22c55e" opacity="0.1"/>`;
+        svgSide += `<line x1="-1000" y1="${gradeY}" x2="1000" y2="${gradeY}" stroke="#22c55e" stroke-width="${sw}" stroke-dasharray="4,3"/>`;
+        svgSide += `<rect x="-${holeD/2 - postD/2}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
+        svgSide += `<rect x="0" y="0" width="${postD}" height="${above + under}" fill="#94a3b8" stroke="#334155" stroke-width="${sw}"/>`;
 
         let sy = geom.topOffset;
         geom.panels.forEach((p, i) => {
@@ -758,18 +756,18 @@ Graphics: ${graphicStr}\n\n`;
             let faceOpacity = isXray ? 0.4 : 1;
 
             if (p.mountStyle === 'Between') {
-                svgSide += `<rect x="${px + (postD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#1e40af" opacity="${faceOpacity}" stroke="#1e3a8a" stroke-width="${sw}"/>`;
+                svgSide += `<rect x="${(postD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#1e40af" opacity="${faceOpacity}" stroke="#1e3a8a" stroke-width="${sw}"/>`;
             } else {
-                svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}" stroke="#1e3a8a" stroke-width="${sw}"/>`;
-                if(p.sides === 2) svgSide += `<rect x="${px + postD}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}" stroke="#1e3a8a" stroke-width="${sw}"/>`;
+                svgSide += `<rect x="-${visFaceThick}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}" stroke="#1e3a8a" stroke-width="${sw}"/>`;
+                if(p.sides === 2) svgSide += `<rect x="${postD}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}" stroke="#1e3a8a" stroke-width="${sw}"/>`;
             }
             sy += p.h;
         });
 
         if (showDims) {
             let dY = -padY * 0.4;
-            let dXRight = sideW + padXSide * 0.5;
-            svgSide += drawHDim(px, px + postD, dY, geom.post + '"');
+            let dXRight = postD + padSideX * 0.6;
+            svgSide += drawHDim(0, postD, dY, geom.post + '"');
             let dy = geom.topOffset;
             geom.panels.forEach((p, i) => {
                 if (i > 0) dy += p.gap;
@@ -784,11 +782,11 @@ Graphics: ${graphicStr}\n\n`;
             <div class="grid grid-cols-3 gap-3 w-full h-full p-3 animate-in fade-in duration-300">
                 <div class="col-span-2 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner overflow-hidden">
                     <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest z-10">Front Elevation</span>
-                    <div class="w-full flex-1 flex items-center justify-center mt-6 h-[calc(100%-2rem)] relative">${svgFront}</div>
+                    <div class="w-full h-full flex items-center justify-center mt-6 relative">${svgFront}</div>
                 </div>
                 <div class="col-span-1 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner overflow-hidden">
                     <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest z-10">Side Profile</span>
-                    <div class="w-full flex-1 flex items-center justify-center mt-6 h-[calc(100%-2rem)] relative">${svgSide}</div>
+                    <div class="w-full h-full flex items-center justify-center mt-6 relative">${svgSide}</div>
                 </div>
             </div>
         `;
