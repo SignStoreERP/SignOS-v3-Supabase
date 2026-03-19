@@ -1,5 +1,5 @@
 SIGNOS REPOSITORY STATE
-Generated: 2026-03-18T14:24:57.612Z
+Generated: 2026-03-19T00:56:40.669Z
 
 ├── .cursorrules
 ├── .github
@@ -26,7 +26,6 @@ Generated: 2026-03-18T14:24:57.612Z
 │   ├── Calculator_Banner.html
 │   ├── Calculator_BulkNameplates.html
 │   ├── Calculator_Coro.html
-│   ├── Calculator_Coro_v3.html
 │   ├── Calculator_CutVinyl.html
 │   ├── Calculator_Decal.html
 │   ├── Calculator_Engraved.html
@@ -62,12 +61,15 @@ Generated: 2026-03-18T14:24:57.612Z
 │   │   └── Arimo-SemiBoldItalic.ttf
 │   ├── index.html
 │   ├── menu.html
+│   ├── sign_store_logo_cloudflare_v01.svg
+│   ├── sign_store_logo_cloudflare_v02.svg
 │   ├── signos-builder.js
 │   ├── signos-canvas.js
 │   ├── signos-core.js
 │   ├── signos-sandbox.js
 │   ├── signos-ui.js
 │   ├── signos-view-svg.js
+│   └── user_profile.html
 ├── supabase
 │   ├── .branches
 │   │   └── _current_branch
@@ -95,8 +97,6 @@ Generated: 2026-03-18T14:24:57.612Z
 │   │   ├── calculate-coro
 │   │   │   ├── .npmrc
 │   │   │   ├── deno.json
-│   │   │   └── index.ts
-│   │   ├── calculate-coro-v3
 │   │   │   └── index.ts
 │   │   ├── calculate-cut
 │   │   │   ├── .npmrc
@@ -134,9 +134,10 @@ Generated: 2026-03-18T14:24:57.612Z
 │   │       ├── .npmrc
 │   │       ├── deno.json
 │   │       └── index.ts
-│   └── migrations
-│       ├── 20260312175500_remote_schema.sql
-│       └── 20260312184436_remote_schema.sql
+│   ├── migrations
+│   │   ├── 20260312175500_remote_schema.sql
+│   │   └── 20260312184436_remote_schema.sql
+│   └── snippets
 └── tools
     ├── backfill-commits.cjs
     └── generate-context.cjs

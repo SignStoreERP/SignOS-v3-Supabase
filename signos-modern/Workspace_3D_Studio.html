@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Design Studio | SignOS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans flex flex-col pb-10">
+
+    <!-- The SignOS Floating Island Header will be injected here -->
+    
+    <div class="max-w-7xl mx-auto w-full px-4 sm:px-0 mt-6 flex-1 flex flex-col">
+        <div class="bg-white shadow-xl rounded-2xl border border-gray-200 overflow-hidden flex flex-col flex-1 relative min-h-[800px]">
+            
+            <!-- Tool Header -->
+            <div class="bg-slate-900 px-6 py-4 flex justify-between items-center shrink-0 border-b border-slate-800">
+                <div>
+                    <h2 class="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                        <span>🧊</span> 3D Spatial Studio
+                    </h2>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Distributed VPS Module</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="vps-status" class="bg-orange-500/20 border border-orange-500/50 text-orange-400 text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></span> Connecting to VPS...
+                    </span>
+                </div>
+            </div>
+
+            <!-- The React 19 / Three.js App Injection Point -->
+            <div class="flex-1 w-full relative bg-gray-900">
+                <!-- Replace the src with the URL where your React app is hosted (e.g., your VPS IP or a Vercel deployment) -->
+                <iframe 
+                    id="react-3d-frame" 
+                    src="http://YOUR_VPS_IP_OR_REACT_APP_URL" 
+                    class="absolute inset-0 w-full h-full border-none"
+                    allow="webgl; pointer-lock; fullscreen"
+                ></iframe>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+    window.onload = async function() {
+        // 1. Inject the Standard SignOS Header
+        if (typeof injectHeader === 'function') injectHeader("Channel Letter Studio");
+
+        // 2. Extract the Secure JWT Token from the SignOS session
+        const secureToken = sessionStorage.getItem('supabase.auth.token');
+        const iframe = document.getElementById('react-3d-frame');
+        const vpsStatus = document.getElementById('vps-status');
+
+        if (!secureToken) {
+            alert("Security Violation: Missing Auth Token.");
+            window.location.href = 'index.html';
+            return;
+        }
+
+        // 3. The Cross-Origin Handshake
+        // We wait for the React iframe to load, then use postMessage to securely hand it the token.
+        iframe.onload = function() {
+            vpsStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span> SECURE BRIDGE ACTIVE`;
+            vpsStatus.className = "bg-green-500/20 border border-green-500/50 text-green-400 text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest flex items-center gap-1.5";
+            
+            // Send the token to the React app
+            iframe.contentWindow.postMessage({
+                type: 'SIGNOS_AUTH_HANDSHAKE',
+                token: secureToken
+            }, '*'); // NOTE: In production, change '*' to your exact VPS/React Domain for strict security.
+        };
+    };
+
+    // 4. Listen for payloads coming back from the React App
+    window.addEventListener('message', async (event) => {
+        // Listen for the "SAVE_QUOTE" event from your React app
+        if (event.data && event.data.type === 'SAVE_QUOTE_SUCCESS') {
+            alert("Quote successfully saved to the SignOS Vault (Supabase)!");
+            // You can trigger further SignOS UI updates here based on the VPS response
+        }
+    });
+</script>
+</body>
+</html>
