@@ -1,0 +1,7 @@
+# Node Dependencies
+node_modules/
+vps-proxy/node_modules/
+
+# Environment Variables & Secrets
+.env
+vps-proxy/.env
