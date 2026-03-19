@@ -626,8 +626,9 @@ Graphics: ${graphicStr}\n\n`;
         if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
         currentGeom = geom;
 
-        const padX = 40;
-        const padY = 30;
+        // FIXED: Doubled padding to "zoom out" the camera and prevent dimension cutoff
+        const padX = 80; 
+        const padY = 60; 
         const th = geom.above + geom.under;
         const ow = geom.overallW;
         const maxH = 280;
@@ -647,11 +648,11 @@ Graphics: ${graphicStr}\n\n`;
         const dimColor = "#64748b"; 
         const fSize = 8;
         
-        const drawHDim = (x1, x2, y, label) => { return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${dimColor}" stroke-width="1"/><line x1="${x1}" y1="${y-2}" x2="${x1}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x2}" y1="${y-2}" x2="${x2}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="middle" font-weight="bold">${label}</text>`; };
-        const drawVDim = (x, y1, y2, label, align="end") => { let textX = align === "end" ? x - 4 : x + 4; return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y1}" x2="${x+2}" y2="${y1}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y2}" x2="${x+2}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><text x="${textX}" y="${(y1+y2)/2 + 3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="${align}" font-weight="bold">${label}</text>`; };
+        const drawHDim = (x1, x2, y, label) => { return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${dimColor}" stroke-width="1"/><line x1="${x1}" y1="${y-2}" x2="${x1}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x2}" y1="${y-2}" x2="${x2}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-4}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="middle" font-weight="bold">${label}</text>`; };
+        const drawVDim = (x, y1, y2, label, align="end") => { let textX = align === "end" ? x - 6 : x + 6; return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y1}" x2="${x+2}" y2="${y1}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y2}" x2="${x+2}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><text x="${textX}" y="${(y1+y2)/2 + 3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="${align}" font-weight="bold">${label}</text>`; };
 
-        let bgLayer = `<rect x="-100" y="${sTh - sUnder}" width="${sOw + 200}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
-        bgLayer += `<line x1="-100" y1="${sTh - sUnder}" x2="${sOw + 100}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
+        let bgLayer = `<rect x="-150" y="${sTh - sUnder}" width="${sOw + 300}" height="${sUnder + padY}" fill="#22c55e" opacity="0.1"/>`;
+        bgLayer += `<line x1="-150" y1="${sTh - sUnder}" x2="${sOw + 150}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
 
         const footerH = sUnder * 0.66;
         const footerY = sTh - footerH;
@@ -681,17 +682,21 @@ Graphics: ${graphicStr}\n\n`;
             let sFw = frameW_real * scale;
             let fX = isFlush ? p1X + sPostD : (sOw - sFw) / 2;
 
+            // DRAW HORIZONTAL FRAMING (Top and Bottom Strings)
             svgFront += `<rect x="${fX}" y="${currY + sPh - ft}" width="${sFw}" height="${ft}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
             if (!shareTop) svgFront += `<rect x="${fX}" y="${currY}" width="${sFw}" height="${ft}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
 
-            let vHeight = sPh - (shareTop ? ft : ft*2);
-            let vY = currY + (shareTop ? 0 : ft);
+            // FIXED: STRICT PHYSICS ADHERENCE - ONLY DRAW VERTICAL FRAMES IF *NOT* FLUSH
+            if (!isFlush) {
+                let vHeight = sPh - (shareTop ? ft : ft*2);
+                let vY = currY + (shareTop ? 0 : ft);
 
-            let vLeftX = isFlush ? p1X + sPostD : fX;
-            let vRightX = isFlush ? p2X - ft : fX + sFw - ft;
+                let vLeftX = fX;
+                let vRightX = fX + sFw - ft;
 
-            svgFront += `<rect x="${vLeftX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
-            svgFront += `<rect x="${vRightX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
+                svgFront += `<rect x="${vLeftX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
+                svgFront += `<rect x="${vRightX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
+            }
 
             let faceOpacity = isXray ? 0.25 : (isFlush ? 0.95 : 0.85);
             svgFront += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="${faceOpacity}"/>`;
@@ -704,11 +709,11 @@ Graphics: ${graphicStr}\n\n`;
         });
 
         if (showDims) {
-            svgFront += drawHDim(0, sOw, -10, geom.overallW + '" O.A.W');
+            svgFront += drawHDim(0, sOw, -15, geom.overallW + '" O.A.W');
             svgFront += drawHDim(p1X + sPostD, p2X, sTh - sUnder - (sClr/2), geom.postSpacing + '" I.D.');
-            svgFront += drawVDim(-12, 0, sTh - sUnder, geom.above + '" A.G.', "end");
-            svgFront += drawVDim(-12, sTh - sUnder, sTh, geom.under + '" B.G.', "end");
-            if (sClr > 0) svgFront += drawVDim(sOw + 12, sTh - sUnder - sClr, sTh - sUnder, geom.clearance + '" Clr', "start");
+            svgFront += drawVDim(-15, 0, sTh - sUnder, geom.above + '" A.G.', "end");
+            svgFront += drawVDim(-15, sTh - sUnder, sTh, geom.under + '" B.G.', "end");
+            if (sClr > 0) svgFront += drawVDim(sOw + 15, sTh - sUnder - sClr, sTh - sUnder, geom.clearance + '" Clr', "start");
         }
         svgFront += `</svg>`;
 
@@ -718,8 +723,8 @@ Graphics: ${graphicStr}\n\n`;
         const px = (sSideW - sPostD) / 2;
 
         let svgSide = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sSideW + padX*2} ${sTh + padY*2}" style="overflow: visible;">`;
-        svgSide += `<rect x="-100" y="${sTh - sUnder}" width="${sSideW + 200}" height="${sUnder}" fill="#22c55e" opacity="0.1"/>`;
-        svgSide += `<line x1="-100" y1="${sTh - sUnder}" x2="${sSideW + 100}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
+        svgSide += `<rect x="-150" y="${sTh - sUnder}" width="${sSideW + 300}" height="${sUnder + padY}" fill="#22c55e" opacity="0.1"/>`;
+        svgSide += `<line x1="-150" y1="${sTh - sUnder}" x2="${sSideW + 150}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
         svgSide += `<rect x="${px - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
         svgSide += `<rect x="${px}" y="0" width="${sPostD}" height="${sTh}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
 
@@ -740,12 +745,12 @@ Graphics: ${graphicStr}\n\n`;
         });
 
         if (showDims) {
-            svgSide += drawHDim(px, px + sPostD, -10, geom.post + '"');
+            svgSide += drawHDim(px, px + sPostD, -15, geom.post + '"');
             let dy = geom.topOffset * scale;
             geom.panels.forEach((p, i) => {
                 let sPh = p.h * scale;
                 if (i > 0) dy += (p.gap * scale);
-                svgSide += drawVDim(sSideW + 12, dy, dy + sPh, p.h + '"', "start");
+                svgSide += drawVDim(sSideW + 15, dy, dy + sPh, p.h + '"', "start");
                 dy += sPh;
             });
         }
