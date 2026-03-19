@@ -214,11 +214,16 @@ Deno.serve(async (req: any) => {
         const unitRetail = finalCost / (1 - targetMargin);
 
         const specs = {
-            qty: inputs.qty, w: inputs.w, h: inputs.h, d: inputs.d,
-            sides: 4, mountStyle: `Pole Cover (${inputs.poleSize}" OD Pole)`,
-            postMetalName: 'Steel Brackets / On-Site Weld',
-            frameDepth: inputs.d, isAngle: true,
-            graphicType: inputs.paintOption, faceKey: faceName
+            product: 'PoleCover',
+            qty: inputs.qty, 
+            w: inputs.w, 
+            h: inputs.h, 
+            d: inputs.d,
+            poleSize: inputs.poleSize,
+            frameMat: inputs.frameMat,
+            bracketMat: inputs.bracketMat,
+            faceThk: inputs.faceThk,
+            paintOption: inputs.paintOption
         };
 
         const payload = {

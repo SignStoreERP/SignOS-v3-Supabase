@@ -280,17 +280,30 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId
 
     // 4. GENERATE NATIVE PRODUCT SPECIFICATIONS (Stacked Layout)
     let specsHtml = '';
-    if (calcResult.build.specs) {
+    if (calcResult.build && calcResult.build.specs) {
         const s = calcResult.build.specs;
-        specsHtml = `
-            <div class="flex flex-col gap-2 text-[10px] text-slate-800">
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}" x ${s.h}"</span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Sides:</span> <span class="font-mono font-bold">${s.sides}</span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Mount & Posts:</span> <span class="font-mono font-bold text-right">${s.mountStyle} / ${s.postSize}" ${s.postMetalName}<br/><span class="text-slate-400">(${s.thag}" AG / ${s.belowGrade}" BG)</span></span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Frame & Face:</span> <span class="font-mono font-bold text-right">${s.frameDepth}" ${s.isAngle ? 'Angle' : 'Tube'}<br/><span class="text-slate-400">${(s.graphicType || '').replace(/_/g, ' ')}</span></span></div>
-            </div>
-        `;
+        if (s.product === 'PoleCover') {
+            specsHtml = `
+                <div class="flex flex-col gap-2 text-[10px] text-slate-800">
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}"W x ${s.h}"H x ${s.d}"D</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Faces:</span> <span class="font-mono font-bold text-right">${s.faceThk} Aluminum<br/><span class="text-slate-400">${s.paintOption}</span></span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Frame:</span> <span class="font-mono font-bold text-right">${s.frameMat}" Alum Angle</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Hardware:</span> <span class="font-mono font-bold text-right">Raw Steel Brackets<br/><span class="text-slate-400">Weld to ${s.poleSize}" OD Pole</span></span></div>
+                </div>
+            `;
+        } else {
+            // Default Post & Panel Fallback
+            specsHtml = `
+                <div class="flex flex-col gap-2 text-[10px] text-slate-800">
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}" x ${s.h}"</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Sides:</span> <span class="font-mono font-bold">${s.sides}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Mount & Posts:</span> <span class="font-mono font-bold text-right">${s.mountStyle} / ${s.postSize}" ${s.postMetalName}<br/><span class="text-slate-400">(${s.thag}" AG / ${s.belowGrade}" BG)</span></span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Frame & Face:</span> <span class="font-mono font-bold text-right">${s.frameDepth}" ${s.isAngle ? 'Angle' : 'Tube'}<br/><span class="text-slate-400">${(s.graphicType || '').replace(/_/g, ' ')}</span></span></div>
+                </div>
+            `;
+        }
     }
 
     // 5. GENERATE THE PRINT WINDOW HTML 
@@ -461,15 +474,28 @@ SignOS_Export_v2.printCostLedger = function(calcResult, svgContainerId, jobDescI
     let specsHtml = '';
     if (calcResult.build && calcResult.build.specs) {
         const s = calcResult.build.specs;
-        specsHtml = `
-            <div class="flex flex-col gap-2 text-[10px] text-slate-800">
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}" x ${s.h}"</span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Sides:</span> <span class="font-mono font-bold">${s.sides}</span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Mount & Posts:</span> <span class="font-mono font-bold text-right">${s.mountStyle} / ${s.postSize}" ${s.postMetalName}<br/><span class="text-slate-400">(${s.thag}" AG / ${s.belowGrade}" BG)</span></span></div>
-                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Frame & Face:</span> <span class="font-mono font-bold text-right">${s.frameDepth}" ${s.isAngle ? 'Angle' : 'Tube'}<br/><span class="text-slate-400">${(s.graphicType || '').replace(/_/g, ' ')}</span></span></div>
-            </div>
-        `;
+        if (s.product === 'PoleCover') {
+            specsHtml = `
+                <div class="flex flex-col gap-2 text-[10px] text-slate-800">
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}"W x ${s.h}"H x ${s.d}"D</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Faces:</span> <span class="font-mono font-bold text-right">${s.faceThk} Aluminum<br/><span class="text-slate-400">${s.paintOption}</span></span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Frame:</span> <span class="font-mono font-bold text-right">${s.frameMat}" Alum Angle</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Hardware:</span> <span class="font-mono font-bold text-right">Raw Steel Brackets<br/><span class="text-slate-400">Weld to ${s.poleSize}" OD Pole</span></span></div>
+                </div>
+            `;
+        } else {
+            // Default Post & Panel Fallback
+            specsHtml = `
+                <div class="flex flex-col gap-2 text-[10px] text-slate-800">
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Qty:</span> <span class="font-mono text-blue-700 font-bold">${s.qty}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Dims:</span> <span class="font-mono text-blue-700 font-bold">${s.w}" x ${s.h}"</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Sides:</span> <span class="font-mono font-bold">${s.sides}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Mount & Posts:</span> <span class="font-mono font-bold text-right">${s.mountStyle} / ${s.postSize}" ${s.postMetalName}<br/><span class="text-slate-400">(${s.thag}" AG / ${s.belowGrade}" BG)</span></span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Frame & Face:</span> <span class="font-mono font-bold text-right">${s.frameDepth}" ${s.isAngle ? 'Angle' : 'Tube'}<br/><span class="text-slate-400">${(s.graphicType || '').replace(/_/g, ' ')}</span></span></div>
+                </div>
+            `;
+        }
     }
 
     // 4. GROUP & RENDER COST LEDGER
