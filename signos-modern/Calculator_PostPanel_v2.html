@@ -626,145 +626,153 @@ Graphics: ${graphicStr}\n\n`;
         if (!cont || !geom || !geom.panels || geom.panels.length === 0) return;
         currentGeom = geom;
 
-        // FIXED: Doubled padding to "zoom out" the camera and prevent dimension cutoff
-        const padX = 80; 
-        const padY = 60; 
+        // 1:1 Physical Mapping (No manual JS scaling)
         const th = geom.above + geom.under;
         const ow = geom.overallW;
-        const maxH = 280;
-        const maxW = 320;
-        const scale = Math.min(maxW / ow, maxH / th);
-
-        const sTh = th * scale;
-        const sOw = ow * scale;
-        const sClr = geom.clearance * scale;
-        const sPostD = geom.post * scale;
-        const sUnder = geom.under * scale;
-        const sHoleD = geom.holeD * scale;
-
-        let p1X = (sOw - (geom.postSpacing * scale + 2*sPostD)) / 2;
-        let p2X = p1X + sPostD + (geom.postSpacing * scale);
-
-        const dimColor = "#64748b"; 
-        const fSize = 8;
         
-        const drawHDim = (x1, x2, y, label) => { return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${dimColor}" stroke-width="1"/><line x1="${x1}" y1="${y-2}" x2="${x1}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x2}" y1="${y-2}" x2="${x2}" y2="${y+2}" stroke="${dimColor}" stroke-width="1"/><text x="${(x1+x2)/2}" y="${y-4}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="middle" font-weight="bold">${label}</text>`; };
-        const drawVDim = (x, y1, y2, label, align="end") => { let textX = align === "end" ? x - 6 : x + 6; return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y1}" x2="${x+2}" y2="${y1}" stroke="${dimColor}" stroke-width="1"/><line x1="${x-2}" y1="${y2}" x2="${x+2}" y2="${y2}" stroke="${dimColor}" stroke-width="1"/><text x="${textX}" y="${(y1+y2)/2 + 3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="${align}" font-weight="bold">${label}</text>`; };
+        // Dynamic padding to ensure dimensions always stay in frame
+        const padX = Math.max(40, ow * 0.25); 
+        const padY = Math.max(30, th * 0.15); 
 
-        let bgLayer = `<rect x="-150" y="${sTh - sUnder}" width="${sOw + 300}" height="${sUnder + padY}" fill="#22c55e" opacity="0.1"/>`;
-        bgLayer += `<line x1="-150" y1="${sTh - sUnder}" x2="${sOw + 150}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
+        // Dynamic stroke widths and font sizes based on sign size
+        const strokeW = Math.max(th * 0.003, 0.5);
+        const fSize = Math.max(th * 0.03, 4);
+        const dimColor = "#64748b"; 
+        
+        const clr = geom.clearance;
+        const postD = geom.post;
+        const under = geom.under;
+        const holeD = geom.holeD;
 
-        const footerH = sUnder * 0.66;
-        const footerY = sTh - footerH;
-        bgLayer += `<rect x="${p1X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
-        bgLayer += `<rect x="${p2X - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
+        let p1X = (ow - (geom.postSpacing + 2*postD)) / 2;
+        let p2X = p1X + postD + geom.postSpacing;
 
-        const postDrawH = sTh;
-        bgLayer += `<rect x="${p1X}" y="0" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
-        bgLayer += `<rect x="${p2X}" y="0" width="${sPostD}" height="${postDrawH}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
+        // Dynamic Dimension Line Generators
+        const drawHDim = (x1, x2, y, label) => { 
+            return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${dimColor}" stroke-width="${strokeW}"/>
+                    <line x1="${x1}" y1="${y-fSize/2}" x2="${x1}" y2="${y+fSize/2}" stroke="${dimColor}" stroke-width="${strokeW}"/>
+                    <line x1="${x2}" y1="${y-fSize/2}" x2="${x2}" y2="${y+fSize/2}" stroke="${dimColor}" stroke-width="${strokeW}"/>
+                    <text x="${(x1+x2)/2}" y="${y - fSize*0.4}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="middle" font-weight="bold">${label}</text>`; 
+        };
+        const drawVDim = (x, y1, y2, label, align="end") => { 
+            let textX = align === "end" ? x - fSize*0.5 : x + fSize*0.5; 
+            return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${dimColor}" stroke-width="${strokeW}"/>
+                    <line x1="${x-fSize/2}" y1="${y1}" x2="${x+fSize/2}" y2="${y1}" stroke="${dimColor}" stroke-width="${strokeW}"/>
+                    <line x1="${x-fSize/2}" y1="${y2}" x2="${x+fSize/2}" y2="${y2}" stroke="${dimColor}" stroke-width="${strokeW}"/>
+                    <text x="${textX}" y="${(y1+y2)/2 + fSize*0.3}" fill="${dimColor}" font-size="${fSize}" font-family="sans-serif" text-anchor="${align}" font-weight="bold">${label}</text>`; 
+        };
 
-        let svgFront = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sOw + padX*2} ${sTh + padY*2}" style="overflow: visible;">` + bgLayer;
+        // Foundation & Ground Layer
+        const footerH = under * 0.66;
+        const footerY = th - footerH;
+        let bgLayer = `<rect x="-${ow}" y="${th - under}" width="${ow * 3}" height="${under + padY}" fill="#22c55e" opacity="0.1"/>`;
+        bgLayer += `<line x1="-${ow}" y1="${th - under}" x2="${ow * 3}" y2="${th - under}" stroke="#22c55e" stroke-width="${strokeW}" stroke-dasharray="4,3"/>`;
+        bgLayer += `<rect x="${p1X - (holeD/2 - postD/2)}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
+        bgLayer += `<rect x="${p2X - (holeD/2 - postD/2)}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
+        bgLayer += `<rect x="${p1X}" y="0" width="${postD}" height="${th}" fill="#94a3b8" stroke="#334155" stroke-width="${strokeW}"/>`;
+        bgLayer += `<rect x="${p2X}" y="0" width="${postD}" height="${th}" fill="#94a3b8" stroke="#334155" stroke-width="${strokeW}"/>`;
 
-        let currY = geom.topOffset * scale;
+        // ==========================================
+        // WINDOW 1: FRONT ELEVATION
+        // ==========================================
+        let svgFront = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${ow + padX*2} ${th + padY*2}" style="overflow: visible;">` + bgLayer;
 
+        let currY = geom.topOffset;
         geom.panels.forEach((p, i) => {
-            let sPw = p.w * scale;
-            let sPh = p.h * scale;
-            let panelX = (sOw - sPw) / 2;
+            let panelX = (ow - p.w) / 2;
+            if (i > 0) currY += p.gap;
 
-            if (i > 0) currY += (p.gap * scale);
-
-            const ft = geom.frameThick * scale;
             let shareTop = (i > 0 && p.gap === 0 && p.mountStyle === geom.panels[i-1].mountStyle);
             let isFlush = p.mountStyle === 'Flush';
 
             let frameW_real = isFlush ? geom.postSpacing : p.w;
-            let sFw = frameW_real * scale;
-            let fX = isFlush ? p1X + sPostD : (sOw - sFw) / 2;
+            let fX = isFlush ? p1X + postD : (ow - frameW_real) / 2;
 
-            // DRAW HORIZONTAL FRAMING (Top and Bottom Strings)
-            svgFront += `<rect x="${fX}" y="${currY + sPh - ft}" width="${sFw}" height="${ft}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
-            if (!shareTop) svgFront += `<rect x="${fX}" y="${currY}" width="${sFw}" height="${ft}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
+            // Horizontal Frame
+            svgFront += `<rect x="${fX}" y="${currY + p.h - geom.frameThick}" width="${frameW_real}" height="${geom.frameThick}" fill="#475569" stroke="#1e293b" stroke-width="${strokeW}"/>`;
+            if (!shareTop) svgFront += `<rect x="${fX}" y="${currY}" width="${frameW_real}" height="${geom.frameThick}" fill="#475569" stroke="#1e293b" stroke-width="${strokeW}"/>`;
 
-            // FIXED: STRICT PHYSICS ADHERENCE - ONLY DRAW VERTICAL FRAMES IF *NOT* FLUSH
+            // Vertical Frame
             if (!isFlush) {
-                let vHeight = sPh - (shareTop ? ft : ft*2);
-                let vY = currY + (shareTop ? 0 : ft);
-
-                let vLeftX = fX;
-                let vRightX = fX + sFw - ft;
-
-                svgFront += `<rect x="${vLeftX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
-                svgFront += `<rect x="${vRightX}" y="${vY}" width="${ft}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="0.5"/>`;
+                let vHeight = p.h - (shareTop ? geom.frameThick : geom.frameThick*2);
+                let vY = currY + (shareTop ? 0 : geom.frameThick);
+                svgFront += `<rect x="${fX}" y="${vY}" width="${geom.frameThick}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="${strokeW}"/>`;
+                svgFront += `<rect x="${fX + frameW_real - geom.frameThick}" y="${vY}" width="${geom.frameThick}" height="${vHeight}" fill="#475569" stroke="#1e293b" stroke-width="${strokeW}"/>`;
             }
 
             let faceOpacity = isXray ? 0.25 : (isFlush ? 0.95 : 0.85);
-            svgFront += `<rect x="${panelX}" y="${currY}" width="${sPw}" height="${sPh}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="1.5" opacity="${faceOpacity}"/>`;
+            svgFront += `<rect x="${panelX}" y="${currY}" width="${p.w}" height="${p.h}" fill="#3b82f6" stroke="#1e3a8a" stroke-width="${strokeW*2}" opacity="${faceOpacity}"/>`;
 
             if (!isXray) {
-                svgFront += `<text x="${panelX + sPw/2}" y="${currY + sPh/2 + 2}" font-family="sans-serif" font-weight="900" font-size="${Math.min(10, sPh/4)}" fill="#ffffff" text-anchor="middle" opacity="0.9">SIGN FACE</text>`;
+                let tSize = Math.min(p.w * 0.15, p.h * 0.3); // Dynamically size "SIGN FACE" text
+                svgFront += `<text x="${panelX + p.w/2}" y="${currY + p.h/2 + tSize/3}" font-family="sans-serif" font-weight="900" font-size="${tSize}" fill="#ffffff" text-anchor="middle" opacity="0.9">SIGN FACE</text>`;
             }
-
-            currY += sPh;
+            currY += p.h;
         });
 
         if (showDims) {
-            svgFront += drawHDim(0, sOw, -15, geom.overallW + '" O.A.W');
-            svgFront += drawHDim(p1X + sPostD, p2X, sTh - sUnder - (sClr/2), geom.postSpacing + '" I.D.');
-            svgFront += drawVDim(-15, 0, sTh - sUnder, geom.above + '" A.G.', "end");
-            svgFront += drawVDim(-15, sTh - sUnder, sTh, geom.under + '" B.G.', "end");
-            if (sClr > 0) svgFront += drawVDim(sOw + 15, sTh - sUnder - sClr, sTh - sUnder, geom.clearance + '" Clr', "start");
+            let dY = -padY * 0.4;
+            let dXLeft = -padX * 0.3;
+            let dXRight = ow + padX * 0.3;
+            svgFront += drawHDim(0, ow, dY, geom.overallW + '" O.A.W');
+            svgFront += drawHDim(p1X + postD, p2X, th - under - (clr/2), geom.postSpacing + '" I.D.');
+            svgFront += drawVDim(dXLeft, 0, th - under, geom.above + '" A.G.', "end");
+            svgFront += drawVDim(dXLeft, th - under, th, geom.under + '" B.G.', "end");
+            if (clr > 0) svgFront += drawVDim(dXRight, th - under - clr, th - under, geom.clearance + '" Clr', "start");
         }
         svgFront += `</svg>`;
 
-        const sideW = Math.max(geom.post + 8, 24);
-        const visFaceThick = 2;
-        const sSideW = sideW * scale;
-        const px = (sSideW - sPostD) / 2;
+        // ==========================================
+        // WINDOW 2: SIDE PROFILE
+        // ==========================================
+        const sideW = Math.max(postD * 3, 20);
+        const visFaceThick = Math.max(sideW * 0.05, 1);
+        const padXSide = 40;
+        const px = (sideW - postD) / 2;
 
-        let svgSide = `<svg width="100%" height="100%" viewBox="-${padX} -${padY} ${sSideW + padX*2} ${sTh + padY*2}" style="overflow: visible;">`;
-        svgSide += `<rect x="-150" y="${sTh - sUnder}" width="${sSideW + 300}" height="${sUnder + padY}" fill="#22c55e" opacity="0.1"/>`;
-        svgSide += `<line x1="-150" y1="${sTh - sUnder}" x2="${sSideW + 150}" y2="${sTh - sUnder}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>`;
-        svgSide += `<rect x="${px - (sHoleD/2 - sPostD/2)}" y="${footerY}" width="${sHoleD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
-        svgSide += `<rect x="${px}" y="0" width="${sPostD}" height="${sTh}" fill="#94a3b8" stroke="#334155" stroke-width="1"/>`;
+        let svgSide = `<svg width="100%" height="100%" viewBox="-${padXSide} -${padY} ${sideW + padXSide*2} ${th + padY*2}" style="overflow: visible;">`;
+        svgSide += `<rect x="-${sideW}" y="${th - under}" width="${sideW * 3}" height="${under + padY}" fill="#22c55e" opacity="0.1"/>`;
+        svgSide += `<line x1="-${sideW}" y1="${th - under}" x2="${sideW * 3}" y2="${th - under}" stroke="#22c55e" stroke-width="${strokeW}" stroke-dasharray="4,3"/>`;
+        svgSide += `<rect x="${px - (holeD/2 - postD/2)}" y="${footerY}" width="${holeD}" height="${footerH}" fill="#475569" opacity="0.4" rx="2"/>`;
+        svgSide += `<rect x="${px}" y="0" width="${postD}" height="${th}" fill="#94a3b8" stroke="#334155" stroke-width="${strokeW}"/>`;
 
-        let sy = geom.topOffset * scale;
+        let sy = geom.topOffset;
         geom.panels.forEach((p, i) => {
-            let sPh = p.h * scale;
-            if (i > 0) sy += (p.gap * scale);
-
+            if (i > 0) sy += p.gap;
             let faceOpacity = isXray ? 0.4 : 1;
 
             if (p.mountStyle === 'Between') {
-                svgSide += `<rect x="${px + (sPostD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#1e40af" opacity="${faceOpacity}"/>`;
+                svgSide += `<rect x="${px + (postD/2) - (visFaceThick/2)}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#1e40af" opacity="${faceOpacity}"/>`;
             } else {
-                svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6" opacity="${faceOpacity}"/>`;
-                if(p.sides === 2) svgSide += `<rect x="${px + sPostD}" y="${sy}" width="${visFaceThick}" height="${sPh}" fill="#3b82f6" opacity="${faceOpacity}"/>`;
+                svgSide += `<rect x="${px - visFaceThick}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}"/>`;
+                if(p.sides === 2) svgSide += `<rect x="${px + postD}" y="${sy}" width="${visFaceThick}" height="${p.h}" fill="#3b82f6" opacity="${faceOpacity}"/>`;
             }
-            sy += sPh;
+            sy += p.h;
         });
 
         if (showDims) {
-            svgSide += drawHDim(px, px + sPostD, -15, geom.post + '"');
-            let dy = geom.topOffset * scale;
+            let dY = -padY * 0.4;
+            let dXRight = sideW + padXSide * 0.3;
+            svgSide += drawHDim(px, px + postD, dY, geom.post + '"');
+            let dy = geom.topOffset;
             geom.panels.forEach((p, i) => {
-                let sPh = p.h * scale;
-                if (i > 0) dy += (p.gap * scale);
-                svgSide += drawVDim(sSideW + 15, dy, dy + sPh, p.h + '"', "start");
-                dy += sPh;
+                if (i > 0) dy += p.gap;
+                svgSide += drawVDim(dXRight, dy, dy + p.h, p.h + '"', "start");
+                dy += p.h;
             });
         }
         svgSide += `</svg>`;
 
+        // INJECT INDEPENDENT WINDOW CONTAINERS
         cont.innerHTML = `
-            <div class="flex gap-2 w-full h-full p-2 animate-in fade-in duration-300">
-                <div class="flex-1 flex flex-col items-center">
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Front Elevation</span>
-                    <div class="w-full flex-1 flex items-center justify-center">${svgFront}</div>
+            <div class="grid grid-cols-3 gap-3 w-full h-full p-3 animate-in fade-in duration-300">
+                <div class="col-span-2 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner">
+                    <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest">Front Elevation</span>
+                    <div class="w-full flex-1 flex items-center justify-center mt-4">${svgFront}</div>
                 </div>
-                <div class="w-1/3 flex flex-col items-center border-l border-gray-700 pl-2">
-                    <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Side Profile</span>
-                    <div class="w-full flex-1 flex items-center justify-center">${svgSide}</div>
+                <div class="col-span-1 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner">
+                    <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest">Side Profile</span>
+                    <div class="w-full flex-1 flex items-center justify-center mt-4">${svgSide}</div>
                 </div>
             </div>
         `;
