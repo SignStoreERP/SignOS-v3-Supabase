@@ -21,7 +21,7 @@
     <div class="bg-slate-900 rounded-t-xl px-6 py-4 flex justify-between items-center shadow-md border border-slate-800">
         <div>
             <h1 class="text-lg font-black text-white uppercase tracking-widest flex items-center gap-2">
-                <span class="text-blue-500">🏗️</span> Post & Panel <span class="text-xs text-slate-500">v2.0</span>
+                <span class="text-blue-500"></span> Post & Panel <span class="text-xs text-slate-500">v2.0</span>
             </h1>
             <p class="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">Heavy Fabrication Math Engine</p>
         </div>
@@ -215,11 +215,12 @@
     let calcTimeout = null;
 
     // --- LOGIC: METAL MATCHING & CONSTRAINTS ---
+    // --- LOGIC: METAL MATCHING & CONSTRAINTS ---
     function updateConstraints() {
         const thag = parseFloat(document.getElementById('thag').value) || 60;
         const postSplit = document.getElementById('postParams').value.split('|');
-        const postSize = parseFloat(postSplit[6]) || 2;
-        const postMetal = postSplit[7] || 'Aluminum';
+        const postSize = parseFloat(postSplit[3]) || 2;       // FIXED INDEX
+        const postMetal = postSplit[4] || 'Aluminum';         // FIXED INDEX
         const mount = document.getElementById('mountStyle').value;
         const sides = parseInt(document.getElementById('sides').value) || 2;
         const frameSel = document.getElementById('frameMat');
@@ -240,8 +241,8 @@
         Array.from(frameSel.options).forEach(opt => {
             const optSplit = opt.value.split('|');
             const isAngle = opt.value.includes('Angle');
-            const frameMetal = optSplit[7];
-            const frameSize = parseFloat(optSplit[6]) || 1.5;
+            const frameSize = parseFloat(optSplit[3]) || 1.5; // FIXED INDEX
+            const frameMetal = optSplit[4];                   // FIXED INDEX
 
             // Physics Constraint: Angle iron on double-sided sign creates a 2x deep structural panel!
             const internalDepth = (isAngle && sides === 2) ? (frameSize * 2) : frameSize;
@@ -366,29 +367,29 @@
             document.getElementById('ui-total').classList.add('opacity-50');
             document.getElementById('ui-unit').classList.add('opacity-50');
 
-            try {
-                const postSplit = document.getElementById('postParams').value.split('|');
-                const frameSplit = document.getElementById('frameMat').value.split('|');
-                const targetMargin = parseFloat(document.getElementById('targetMargin').value) / 100;
-                let dynamicConfig = { ...backendData, Target_Margin_Pct: targetMargin };
+    try {
+        const postSplit = document.getElementById('postParams').value.split('|');
+        const frameSplit = document.getElementById('frameMat').value.split('|');
+        const targetMargin = parseFloat(document.getElementById('targetMargin').value) / 100;
+        let dynamicConfig = { ...backendData, Target_Margin_Pct: targetMargin };
 
-                const inputs = {
-                    qty: parseFloat(document.getElementById('qty').value) || 1,
-                    thag: parseFloat(document.getElementById('thag').value) || 60,
-                    belowGrade: parseFloat(document.getElementById('underground').value) || 20,
-                    postKey: postSplit,
-                    postSize: parseFloat(postSplit[6]),
-                    postMetalName: postSplit[7],
-                    frameKey: frameSplit,
-                    frameSize: parseFloat(frameSplit[6]),
-                    faceKey: document.getElementById('faceMat').value,
-                    mountStyle: document.getElementById('mountStyle').value,
-                    graphicType: document.getElementById('graphicType').value,
-                    weedingLevel: document.getElementById('weeding').value,
-                    w: parseFloat(document.getElementById('panelW').value) || 36, 
-                    h: parseFloat(document.getElementById('panelH').value) || 24, 
-                    sides: parseInt(document.getElementById('sides').value) || 2
-                };
+        const inputs = {
+            qty: parseFloat(document.getElementById('qty').value) || 1,
+            thag: parseFloat(document.getElementById('thag').value) || 60,
+            belowGrade: parseFloat(document.getElementById('underground').value) || 20,
+            postKey: postSplit,                 // FIXED
+            postSize: parseFloat(postSplit[3]),    // FIXED
+            postMetalName: postSplit[4],           // FIXED
+            frameKey: frameSplit,               // FIXED
+            frameSize: parseFloat(frameSplit[3]),  // FIXED
+            faceKey: document.getElementById('faceMat').value,
+            mountStyle: document.getElementById('mountStyle').value,
+            graphicType: document.getElementById('graphicType').value,
+            weedingLevel: document.getElementById('weeding').value,
+            w: parseFloat(document.getElementById('panelW').value) || 36, 
+            h: parseFloat(document.getElementById('panelH').value) || 24, 
+            sides: parseInt(document.getElementById('sides').value) || 2
+        };
 
                 const auditMode = adminCostEnabled ? 'full' : 'retail_only';
 
