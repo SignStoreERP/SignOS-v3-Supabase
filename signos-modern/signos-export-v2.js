@@ -151,7 +151,8 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
                 const title = index === 0 ? 'Front Elevation' : 'Side Profile';
                 const clonedSvg = svg.cloneNode(true);
                 clonedSvg.removeAttribute('class');
-                clonedSvg.style.maxHeight = '280px';
+                // Constrain height strictly so it doesn't blow out the first page
+                clonedSvg.style.maxHeight = '220px';
                 clonedSvg.style.width = 'auto';
                 
                 svgHtml += `
@@ -165,7 +166,7 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
     }
     if (!svgHtml) svgHtml = '<div style="text-align:center; padding:20px; color:#94a3b8;">No drawing available</div>';
 
-    // 2. EXTRACT LABOR DATA (With Checkboxes & Time Formatting)
+    // 2. EXTRACT LABOR DATA
     let laborHtml = '';
     let totalShopMins = 0;
 
@@ -179,7 +180,7 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
                 totalShopMins += t.time;
                 const timeStr = t.time > 0 ? `<span class="float-right font-mono text-slate-500">${formatTime(t.time)}</span>` : '';
                 taskListHtml += `
-                <li class="flex justify-between border-b border-slate-100 pb-1.5 pt-1 items-start">
+                <li class="flex justify-between border-b border-slate-100 pb-1.5 pt-1.5 items-start avoid-break">
                     <span class="flex gap-2 items-start">
                         <span class="border border-slate-300 w-3 h-3 inline-block mt-0.5 shrink-0 bg-white shadow-sm"></span>
                         <span>${t.task}</span>
@@ -189,57 +190,57 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
             });
             
             laborHtml += `
-            <div class="mb-4 avoid-break">
-                <div class="border-b border-slate-800 pb-1 mb-2 flex justify-between items-end">
-                    <h4 class="font-bold uppercase text-[11px]">${dept}</h4>
-                    <span class="font-bold text-[10px] bg-slate-100 px-2 py-0.5 rounded">Dept Total: ${formatTime(deptMins)}</span>
+            <div class="mb-5 avoid-break border border-slate-200 rounded-lg bg-white overflow-hidden">
+                <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex justify-between items-center">
+                    <h4 class="font-black uppercase text-[10px] text-slate-700 tracking-widest">${dept}</h4>
+                    <span class="font-bold text-[9px] text-slate-500">Dept Total: ${formatTime(deptMins)}</span>
                 </div>
-                <ul class="text-[10px] space-y-1">${taskListHtml}</ul>
+                <ul class="text-[10px] px-3 pb-1">${taskListHtml}</ul>
             </div>`;
         }
         
-        // Add Total Labor Time at the bottom of the Fabrication Steps
         laborHtml += `
-        <div class="mt-4 pt-3 border-t-2 border-slate-800 flex justify-between items-center bg-slate-50 p-3 rounded-lg shadow-inner">
-            <span class="font-black uppercase text-[11px] text-slate-700 tracking-widest">Total Labor Time</span>
-            <span class="font-black text-emerald-600 text-base">${formatTime(totalShopMins)}</span>
+        <div class="mt-4 pt-3 border-t-2 border-slate-800 flex justify-between items-center bg-slate-50 p-3 rounded-lg avoid-break">
+            <span class="font-black uppercase text-[11px] text-slate-700 tracking-widest">Total Estimated Labor</span>
+            <span class="font-black text-emerald-600 text-sm">${formatTime(totalShopMins)}</span>
         </div>`;
     }
 
-    // 3. EXTRACT BILL OF MATERIALS & CUT LIST (With Sub-Columns)
+    // 3. EXTRACT BILL OF MATERIALS & CUT LIST 
     let bomHtml = '';
     if (calcResult.build.bom) {
         for (const [dept, items] of Object.entries(calcResult.build.bom)) {
-            bomHtml += `
-            <div class="mb-4 avoid-break">
-                <h4 class="font-bold uppercase text-[11px] text-slate-800 mb-2 border-b border-slate-300 pb-1">${dept}</h4>
-                <div class="text-[10px] space-y-2 pl-1">`;
-            
+            let deptItemsHtml = '';
             items.forEach(item => {
                 if (typeof item === 'object') {
-                    // Pull / Cut / Drop Structured Layout
-                    bomHtml += `
-                    <div class="flex items-start gap-2 border-b border-slate-100 pb-2">
+                    deptItemsHtml += `
+                    <div class="flex items-start gap-2 border-b border-slate-100 py-2 avoid-break">
                         <span class="border border-slate-300 w-3 h-3 inline-block mt-0.5 shrink-0 bg-white shadow-sm"></span>
                         <div class="flex-1">
                             <div class="font-bold text-slate-900 text-[11px] mb-1.5">${item.name}</div>
-                            <div class="grid grid-cols-3 gap-2 text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-100">
+                            <div class="grid grid-cols-3 gap-3 text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-100">
                                 <div><span class="text-slate-400 font-bold uppercase text-[8px] tracking-widest block mb-0.5">Pull</span> <span class="font-mono text-[9px]">${item.pull}</span></div>
                                 <div><span class="text-slate-400 font-bold uppercase text-[8px] tracking-widest block mb-0.5">Cut</span> <span class="font-mono text-[9px]">${item.cut}</span></div>
-                                <div><span class="text-slate-400 font-bold uppercase text-[8px] tracking-widest block mb-0.5">Drop</span> <span class="font-mono text-[9px]">${item.drop}</span></div>
+                                <div><span class="text-slate-400 font-bold uppercase text-[8px] tracking-widest block mb-0.5">Drop / Remnant</span> <span class="font-mono text-[9px]">${item.drop}</span></div>
                             </div>
                         </div>
                     </div>`;
                 } else {
-                    // Legacy Fallback for other Edge Functions that haven't been updated yet
-                    bomHtml += `
-                    <div class="flex items-start gap-2 border-b border-slate-100 pb-1.5">
+                    deptItemsHtml += `
+                    <div class="flex items-start gap-2 border-b border-slate-100 py-1.5 avoid-break">
                         <span class="border border-slate-300 w-3 h-3 inline-block mt-0.5 shrink-0 bg-white shadow-sm"></span>
-                        <span>${item}</span>
+                        <span class="text-[10px]">${item}</span>
                     </div>`;
                 }
             });
-            bomHtml += `</div></div>`;
+
+            bomHtml += `
+            <div class="mb-5 avoid-break border border-slate-200 rounded-lg bg-white overflow-hidden">
+                <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+                    <h4 class="font-black uppercase text-[10px] text-slate-700 tracking-widest">${dept}</h4>
+                </div>
+                <div class="px-3 pb-1">${deptItemsHtml}</div>
+            </div>`;
         }
     }
 
@@ -248,7 +249,7 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
     if (calcResult.build.specs) {
         const s = calcResult.build.specs;
         specsHtml = `
-            <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-[10px] text-slate-700">
+            <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-[10px] text-slate-700">
                 <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Quantity</span> <span class="font-mono text-blue-700 font-bold">${s.qty} Unit(s)</span></div>
                 <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Dimensions</span> <span class="font-mono text-blue-700 font-bold">${s.w}" W x ${s.h}" H</span></div>
                 <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Sides</span> <span class="font-mono font-bold">${s.sides}-Sided</span></div>
@@ -258,12 +259,10 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
                 <div class="col-span-2 flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Graphic Finish</span> <span class="font-mono font-bold">${(s.graphicType || '').replace(/_/g, ' ')}</span></div>
             </div>
         `;
-    } else {
-        specsHtml = '<div class="text-[10px] text-slate-400 italic">No specifications provided in calculation payload.</div>';
     }
 
-    // 5. GENERATE THE PRINT WINDOW HTML
-    const printWindow = window.open('', '_blank', 'width=900,height=1100');
+    // 5. GENERATE THE PRINT WINDOW HTML (NATIVE PAGINATION)
+    const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
     const dateStr = new Date().toLocaleDateString();
@@ -276,84 +275,93 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
         <title>Work Order - ${dateStr}</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <style>
-            @page { size: 8.5in 11in; margin: 0.3in; }
-            body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .avoid-break { page-break-inside: avoid; }
+            /* STRICT PAGE CONSTRAINTS FOR 8.5x11 PORTRAIT */
+            @page { size: letter portrait; margin: 0.5in; }
+            body { 
+                background: #f1f5f9; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                font-family: ui-sans-serif, system-ui, sans-serif;
+            }
+            .page-wrapper {
+                max-width: 8.5in;
+                margin: 20px auto;
+                background: white;
+                padding: 0.5in;
+                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            }
+            /* Ensure blocks don't get sliced in half by the printer */
+            .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+            .page-break-before { page-break-before: always; break-before: page; }
+            
+            /* Remove shadows and margins when physically printing */
+            @media print {
+                body { background: white; margin: 0; padding: 0; }
+                .page-wrapper { max-width: 100%; margin: 0; padding: 0; box-shadow: none; }
+            }
         </style>
     </head>
-    <body class="font-sans text-slate-900 p-6 max-w-4xl mx-auto border border-slate-200 min-h-screen flex flex-col relative">
-        
-        <!-- HEADER -->
-        <div class="flex justify-between items-start border-b-4 border-slate-900 pb-3 mb-4 shrink-0">
-            <div class="flex items-center gap-4">
-                <div class="w-10 h-10 bg-slate-900 text-white flex items-center justify-center font-black text-lg rounded">SF</div>
-                <div>
-                    <h1 class="text-xl font-black uppercase tracking-tight leading-none m-0">Manufacturing Work Order</h1>
-                    <span class="text-[9px] text-slate-500 uppercase tracking-widest font-bold">SignFabricator OS • Shop Floor Instructions</span>
-                </div>
-            </div>
-            <div class="text-right">
-                <div class="text-lg font-black font-mono">#WO-${orderNum}</div>
-                <div class="text-[10px] text-slate-500 uppercase font-bold mt-1">Generated: ${dateStr}</div>
-            </div>
-        </div>
-
-        <div class="flex flex-col gap-4 flex-1">
+    <body>
+        <div class="page-wrapper">
             
-            <!-- TOP SECTION: COMPACT DRAWING -->
-            <div class="bg-white border border-slate-200 rounded-lg p-4 avoid-break flex flex-col items-center">
-                 ${svgHtml}
-            </div>
-
-            <!-- MIDDLE SECTION: SPECS -->
-            <div class="border border-slate-200 rounded-lg overflow-hidden flex flex-col avoid-break">
-                <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-700">Project Specifications</span>
-                </div>
-                <div class="p-4 bg-white">
-                    ${specsHtml}
-                </div>
-            </div>
-
-            <!-- BOTTOM SECTION: BOM & LABOR -->
-            <div class="grid grid-cols-2 gap-6 flex-1 mt-2">
-                
-                <!-- Bill of Materials -->
-                <div class="flex flex-col h-full">
-                    <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex justify-between items-center shrink-0 border border-b-0 rounded-t-lg">
-                        <span class="text-[9px] font-black uppercase tracking-widest text-slate-700">Pull List & Cuts</span>
-                    </div>
-                    <div class="p-4 flex-1 border border-slate-200 rounded-b-lg">
-                        ${bomHtml || '<div class="text-[10px] text-slate-400 italic">No materials calculated.</div>'}
+            <!-- HEADER -->
+            <div class="flex justify-between items-start border-b-4 border-slate-900 pb-3 mb-6 avoid-break">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-slate-900 text-white flex items-center justify-center font-black text-lg rounded">SF</div>
+                    <div>
+                        <h1 class="text-xl font-black uppercase tracking-tight leading-none m-0">Manufacturing Work Order</h1>
+                        <span class="text-[9px] text-slate-500 uppercase tracking-widest font-bold">SignFabricator OS • Shop Floor Instructions</span>
                     </div>
                 </div>
+                <div class="text-right">
+                    <div class="text-lg font-black font-mono">#WO-${orderNum}</div>
+                    <div class="text-[10px] text-slate-500 uppercase font-bold mt-1">Generated: ${dateStr}</div>
+                </div>
+            </div>
 
-                <!-- Labor Execution -->
-                <div class="flex flex-col h-full">
-                    <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex justify-between items-center shrink-0 border border-b-0 rounded-t-lg">
-                        <span class="text-[9px] font-black uppercase tracking-widest text-slate-700">Fabrication Steps</span>
-                    </div>
-                    <div class="p-4 flex-1 border border-slate-200 rounded-b-lg">
-                        ${laborHtml || '<div class="text-[10px] text-slate-400 italic">No labor tasks calculated.</div>'}
-                    </div>
+            <!-- DRAWING & SPECS (Always kept together on Page 1) -->
+            <div class="avoid-break mb-8">
+                <div class="bg-white border border-slate-200 rounded-lg p-4 mb-4">
+                     ${svgHtml}
                 </div>
 
+                <div class="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
+                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-700">Project Specifications</span>
+                    </div>
+                    <div class="p-4 bg-white">
+                        ${specsHtml}
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- FOOTER SIGNOFF -->
-        <div class="mt-4 pt-3 border-t-2 border-slate-800 grid grid-cols-3 gap-4 shrink-0 text-[8px] font-bold uppercase text-slate-500">
-            <div>
-                <div class="mb-3">Fabricator Signature:</div>
-                <div class="border-b border-slate-400 w-40"></div>
+            <!-- BILL OF MATERIALS (Flows naturally to Page 2 if needed) -->
+            <div class="mb-8">
+                <h3 class="text-sm font-black uppercase tracking-widest text-slate-800 border-b-2 border-slate-300 pb-1 mb-4">Pull List & Cuts</h3>
+                ${bomHtml || '<div class="text-[10px] text-slate-400 italic">No materials calculated.</div>'}
             </div>
-            <div>
-                <div class="mb-3">QA / Final Inspection:</div>
-                <div class="border-b border-slate-400 w-40"></div>
+
+            <!-- FABRICATION STEPS (Flows naturally downward) -->
+            <div class="mb-8">
+                <h3 class="text-sm font-black uppercase tracking-widest text-slate-800 border-b-2 border-slate-300 pb-1 mb-4">Fabrication Routing</h3>
+                ${laborHtml || '<div class="text-[10px] text-slate-400 italic">No labor tasks calculated.</div>'}
             </div>
-            <div class="text-right flex flex-col justify-end">
-                Page 1 of 1 • Internal Shop Use Only
+
+            <!-- FOOTER SIGNOFF -->
+            <div class="mt-8 pt-4 border-t-2 border-slate-800 grid grid-cols-3 gap-4 text-[8px] font-bold uppercase text-slate-500 avoid-break">
+                <div>
+                    <div class="mb-4">Fabricator Signature:</div>
+                    <div class="border-b border-slate-400 w-48"></div>
+                </div>
+                <div>
+                    <div class="mb-4">QA / Final Inspection:</div>
+                    <div class="border-b border-slate-400 w-48"></div>
+                </div>
+                <div class="text-right flex flex-col justify-end">
+                    Internal Shop Use Only • SignFabricator OS
+                </div>
             </div>
+
         </div>
         
         <script>
