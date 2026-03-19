@@ -12,118 +12,136 @@ Deno.serve(async (req: any) => {
         const requestData = await req.json();
         const inputs = requestData.inputs || {};
         const config = requestData.config || {};
-        const auditMode = requestData.audit_mode || 'retail_only';
+        const auditMode = requestData.audit_mode || 'full'; // Forced to Full to allow BOM extraction
 
         // Physics Constants & Global Overrides
         const waste = parseFloat(config.Waste_Factor) || 1.15;
         const risk = parseFloat(config.Factor_Risk) || 1.05;
         const targetMargin = parseFloat(config.Target_Margin_Pct) || 0.60;
         
-        const rateFab = parseFloat(config.Rate_Shop_Labor) || 20.00;
-        const rateProd = parseFloat(config.Rate_Operator) || 25.00;
-        const ratePaint = parseFloat(config.Rate_Paint_Labor) || 30.00;
-        const rateCnc = parseFloat(config.Rate_CNC_Labor) || 25.00;
+        // Labor Rates (Forcing Shop rate for paint as per audit request)
+        const rateShop = parseFloat(config.Rate_Shop_Labor) || 150.00;
 
         const ret: any[] = [];
         const cst: any[] = [];
 
         const R = (label: string, total: number, formula: string) => { if (total > 0) ret.push({label, total, formula}); return total; };
-        const L = (category: string, label: string, total: number, formula: string) => { if (total > 0) cst.push({label, total, formula, category}); return total; };
+        const L = (category: string, label: string, total: number, formula: string) => { cst.push({label, total, formula, category}); return total; };
 
         // 1. POST MATH
-        const postInches = (inputs.thag + inputs.belowGrade) * 2;
-        const postLF = postInches / 12;
+        const postInchesPer = inputs.thag + inputs.belowGrade;
+        const postLFPer = Math.ceil(postInchesPer / 12);
+        const totalPostLF = postLFPer * 2 * inputs.qty;
+        
         const postCostLF = parseFloat(config[inputs.postKey]) || 6.00;
-        L('METAL_MAT', `Structural Posts (${inputs.postSize}")`, postLF * postCostLF * waste, `${postInches}" (${postLF.toFixed(1)} LF) * $${postCostLF.toFixed(2)}/LF [[${inputs.postKey}]] * Waste`);
+        const postMetalName = inputs.postKey.includes('Aluminum') ? 'Aluminum' : 'Steel';
+        
+        L('METAL_MAT', `Structural Posts (${inputs.postSize}")`, totalPostLF * postCostLF * waste, `${postInchesPer}" (${postLFPer} LF/Ea) * 2 Posts * $${postCostLF.toFixed(2)}/LF [[${inputs.postKey}]] * Waste`);
 
-        const capCost = parseFloat(config.Cost_Post_Cap) || 5.00;
-        L('METAL_MAT', `Post Caps (${inputs.postSize}")`, 2 * capCost, `2 Caps * $${capCost.toFixed(2)}/ea`);
+        const capCount = inputs.mountStyle === 'Flush' ? 0 : (2 * inputs.qty);
+        if (capCount > 0) {
+            const capCost = parseFloat(config.Cost_Post_Cap) || 5.00;
+            L('METAL_MAT', `Post Caps (${inputs.postSize}")`, capCount * capCost, `${capCount} Caps * $${capCost.toFixed(2)}/ea`);
+        }
 
+        // Concrete Metrics (Cost explicitly untracked in ledger, but yield retained for info)
         const holeRadiusFt = ((inputs.postSize * 3) / 2) / 12;
         const footerHeightFt = (inputs.belowGrade * 0.66) / 12;
         const holeVolumeCuFt = Math.PI * Math.pow(holeRadiusFt, 2) * footerHeightFt;
-        const bagsNeeded = Math.ceil((holeVolumeCuFt * 2) / 0.6); 
-        L('METAL_MAT', `Concrete Tap Footers (80lb)`, bagsNeeded * (parseFloat(config.Cost_Concrete_Bag) || 4.50), `${bagsNeeded} Bags * $4.50/bag`);
+        const bagsNeeded = Math.ceil((holeVolumeCuFt * 2) / 0.6) * inputs.qty;
+        L('METAL_MAT', `${bagsNeeded} Bags (80lb) Concrete`, 0, `Yield only - Cost excluded from job ledger.`);
 
-        // 2. FRAME MATH (Flush vs Between constraint)
-        let frameInches = 0;
-        let cutCount = 2; // Posts
+        // 2. FRAME MATH
+        let frameLF = 0;
+        let cutCount = 2; // 2 cuts for the posts
         let weldPoints = 0;
 
         if (inputs.mountStyle === 'Flush') {
-            frameInches = (inputs.w - (inputs.postSize * 2)) * 2;
-            cutCount += 2; weldPoints += 4;
+            const hBarInches = inputs.w - (inputs.postSize * 2);
+            frameLF = Math.ceil(hBarInches / 12) * 2; // Round up each piece
+            cutCount += 2; 
+            weldPoints = 8; // 4 points * 2 tacks each
         } else {
-            frameInches = (inputs.w * 2) + (inputs.h * 2);
-            cutCount += 4; weldPoints += 8;
+            frameLF = (Math.ceil(inputs.w / 12) * 2) + (Math.ceil(inputs.h / 12) * 2);
+            cutCount += 4; 
+            weldPoints = 16; // 8 points * 2 tacks each
         }
-        
-        const frameLF = frameInches / 12;
+        const totalFrameLF = frameLF * inputs.qty;
         const frameCostLF = parseFloat(config[inputs.frameKey]) || 1.45;
-        L('METAL_MAT', `Internal Frame (${inputs.mountStyle})`, frameLF * frameCostLF * waste, `${frameInches}" (${frameLF.toFixed(1)} LF) * $${frameCostLF.toFixed(2)}/LF [[${inputs.frameKey}]] * Waste`);
+        L('METAL_MAT', `Internal Frame (${inputs.mountStyle})`, totalFrameLF * frameCostLF * waste, `Calculated LF rounded up per piece (${totalFrameLF} LF total) * $${frameCostLF.toFixed(2)}/LF [[${inputs.frameKey}]] * Waste`);
 
         // 3. FACE PANELS & ADHESIVE
         const sqftPerFace = (inputs.w * inputs.h) / 144;
-        const totalSqFt = sqftPerFace * inputs.sides;
-        const faceCostSqFt = parseFloat(config[inputs.faceKey]) || 3.07;
-        
+        const totalSqFt = sqftPerFace * inputs.sides * inputs.qty;
+        const sheetCost = parseFloat(config[inputs.faceKey]) || 98.12; 
+        const faceCostSqFt = sheetCost / 32; // Derive sqft cost from standard 4x8 sheet
         L('METAL_MAT', `Sign Faces (${inputs.sides} Sided)`, totalSqFt * faceCostSqFt * waste, `${totalSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/sf [[${inputs.faceKey}]] * Waste`);
-        L('METAL_MAT', `Structural Adhesive`, Math.ceil(frameLF/10) * (parseFloat(config.Cost_Adhesive_Tube) || 18.71), `Cartridges required to bond faces`);
+
+        const perimeterInches = (inputs.w * 2 + inputs.h * 2) * inputs.sides * inputs.qty;
+        const perimeterLF = perimeterInches / 12;
+        const cartridges = Math.ceil(perimeterLF / 10); // 10 LF yield for 0.25" bead
+        L('METAL_MAT', `Structural Adhesive`, cartridges * (parseFloat(config.Cost_Adhesive_Tube) || 18.71), `${perimeterLF.toFixed(1)} LF (0.25" bead) / 10 LF per tube`);
 
         // 4. METAL LABOR
-        L('METAL_LAB', `Gather Materials`, (10 / 60) * rateFab, `10 Mins * $${rateFab}/hr`);
-        L('METAL_LAB', `Saw Cuts (Posts & Frame)`, (cutCount * 5 / 60) * rateFab, `${cutCount} cuts @ 5 mins * $${rateFab}/hr`);
-        L('METAL_LAB', `Tack Welding`, (weldPoints * 1.5 / 60) * rateFab, `${weldPoints} points @ 1.5 mins * $${rateFab}/hr`);
-        L('METAL_LAB', `Weld Grinding & Cleaning`, (weldPoints * 0.33 / 60) * rateFab, `${weldPoints} points @ 0.33 mins * $${rateFab}/hr`);
-        L('METAL_LAB', `Adhesive Application`, (inputs.sides * 7 / 60) * rateFab, `${inputs.sides} Sides @ 7 mins * $${rateFab}/hr`);
+        L('METAL_LAB', `Gather Materials`, (10 / 60) * rateShop, `10 Mins * $${rateShop}/hr`);
         
-        // Router vs Shear
+        const totalCuts = cutCount * inputs.qty;
+        L('METAL_LAB', `Saw Cuts (Posts & Frame)`, (totalCuts * 2 / 60) * rateShop, `${totalCuts} cuts @ 2 mins * $${rateShop}/hr`);
+        
+        const totalWelds = weldPoints * inputs.qty;
+        L('METAL_LAB', `Tack Welding`, (totalWelds * 0.5 / 60) * rateShop, `${totalWelds} welds @ 0.5 mins * $${rateShop}/hr`);
+        L('METAL_LAB', `Weld Grinding & Cleaning`, (totalWelds * 0.33 / 60) * rateShop, `${totalWelds} welds @ 0.33 mins * $${rateShop}/hr`);
+        
+        L('METAL_LAB', `Adhesive Application`, (perimeterLF * 1 / 60) * rateShop, `${perimeterLF.toFixed(1)} LF @ 1 min/LF * $${rateShop}/hr`);
+
         if (inputs.faceKey.includes('ACM')) {
-            L('METAL_LAB', `CNC Router Setup & Run`, (10/60 * rateCnc) + ((totalSqFt * 1 / 60) * rateCnc), `10 Min Setup + (1 Min/SF Run) * $${rateCnc}/hr`);
+            L('METAL_LAB', `CNC Router Setup & Run`, (10/60 * rateShop) + ((totalSqFt * 1 / 60) * rateShop), `10 Min Setup + (1 Min/SF Run) * $${rateShop}/hr`);
         } else {
-            L('METAL_LAB', `Shear Setup & Run`, ((5 + (4 * 1)) / 60) * rateFab, `5 Min Setup + (4 Cuts * 1 Min) * $${rateFab}/hr`);
+            L('METAL_LAB', `Shear Setup & Run`, ((5 + ((4 * inputs.sides * inputs.qty) * 1)) / 60) * rateShop, `5 Min Setup + (4 Cuts * 1 Min) * $${rateShop}/hr`);
         }
+
+        // Metal Stage 1 Sanding Prep
+        const postArea = ((totalPostLF * inputs.postSize * 4) / 12);
+        const paintArea = (inputs.graphicType === 'NoPaint_Print') ? postArea : postArea + totalSqFt;
+        L('METAL_LAB', `Stage 1 Sanding & Prep (Metal Fab)`, (paintArea * 0.25 / 60) * rateShop, `${paintArea.toFixed(1)} SF * 0.25 Mins/SF * $${rateShop}/hr`);
 
         // 5. PAINT LOGIC
-        const postArea = ((postLF * inputs.postSize * 4) / 12);
-        const paintArea = (inputs.graphicType === 'NoPaint_Print') ? postArea : postArea + totalSqFt;
+        const paintCostSqFt = parseFloat(config.Cost_Paint_SqFt) || 2.50;
+        
+        L('PAINT_MAT', `Automotive Primer`, (paintArea * (paintCostSqFt * 0.4) * waste) + 1.00, `${paintArea.toFixed(1)} SF * $${(paintCostSqFt * 0.4).toFixed(2)}/SF * Waste + $1.00 Cup`);
+        L('PAINT_MAT', `Automotive Paint (Color)`, (paintArea * (paintCostSqFt * 0.6) * waste) + 1.00, `${paintArea.toFixed(1)} SF * $${(paintCostSqFt * 0.6).toFixed(2)}/SF * Waste + $1.00 Cup`);
 
-        L('PAINT_MAT', `Automotive Polyurethane Paint`, paintArea * (parseFloat(config.Cost_Paint_SqFt) || 2.50) * waste, `${paintArea.toFixed(1)} SF * $2.50/SF * Waste`);
-        L('PAINT_LAB', `Paint Booth Setup & Clean`, (20 / 60) * ratePaint, `20 Mins * $${ratePaint}/hr`);
-        L('PAINT_LAB', `Sanding & Prep`, (paintArea * 0.25 / 60) * ratePaint, `${paintArea.toFixed(1)} SF * 0.25 Mins/SF * $${ratePaint}/hr`);
-        L('PAINT_LAB', `Primer Coat`, (paintArea * 0.10 / 60) * ratePaint, `${paintArea.toFixed(1)} SF * 0.10 Mins/SF * $${ratePaint}/hr`);
-        L('PAINT_LAB', `Finish Coat`, (paintArea * 0.31 / 60) * ratePaint, `${paintArea.toFixed(1)} SF * 0.31 Mins/SF * $${ratePaint}/hr`);
+        L('PAINT_LAB', `Prep and Move Sign`, (20 / 60) * rateShop, `20 Mins * $${rateShop}/hr`);
+        L('PAINT_LAB', `Sanding & Prep`, (paintArea * 0.25 / 60) * rateShop, `${paintArea.toFixed(1)} SF * 0.25 Mins/SF * $${rateShop}/hr`);
+        L('PAINT_LAB', `Primer Coat`, (paintArea * 0.10 / 60) * rateShop, `${paintArea.toFixed(1)} SF * 0.10 Mins/SF * $${rateShop}/hr`);
+        L('PAINT_LAB', `Finish Coat`, (paintArea * 0.31 / 60) * rateShop, `${paintArea.toFixed(1)} SF * 0.31 Mins/SF * $${rateShop}/hr`);
 
         // 6. GRAPHICS LOGIC
-        L('VINYL_LAB', `Job Setup (File RIP)`, (15 / 60) * rateProd, `15 Mins * $${rateProd}/hr`);
+        L('VINYL_LAB', `Job Setup (File RIP)`, (5 / 60) * rateShop, `5 Mins * $${rateShop}/hr`);
 
-        if (inputs.graphicType === 'Paint_Print') {
-            L('VINYL_MAT', `Cast Vinyl Media`, totalSqFt * (parseFloat(config.Cost_Vin_Cast)||1.30) * waste, `${totalSqFt.toFixed(1)} SF * $1.30/SF * Waste`);
+        const isPrint = inputs.graphicType.includes('Print');
+        const mediaName = isPrint ? '3M IJ180 Cast Wrap' : 'Oracal 751 High Perf';
+
+        L('VINYL_MAT', `Cast Vinyl Media (${mediaName})`, totalSqFt * (parseFloat(config.Cost_Vin_Cast)||1.30) * waste, `${totalSqFt.toFixed(1)} SF * $1.30/SF * Waste`);
+        
+        if (isPrint) {
             L('VINYL_MAT', `Latex Ink`, totalSqFt * (parseFloat(config.Cost_Ink_Latex)||0.16) * waste, `${totalSqFt.toFixed(1)} SF * $0.16/SF * Waste`);
-            L('VINYL_MAT', `Transfer Tape (Masking)`, totalSqFt * (parseFloat(config.Cost_Transfer_Tape)||0.15) * waste, `${totalSqFt.toFixed(1)} SF * Mask * Waste`);
+            L('VINYL_MAT', `Overlaminate Media (3M 8518)`, totalSqFt * (parseFloat(config.Cost_Lam_Cast)||0.96) * waste, `${totalSqFt.toFixed(1)} SF * $0.96/SF * Waste`);
             
             L('VINYL_LAB', `Print Machine Run`, (totalSqFt / 150) * (parseFloat(config.Rate_Machine_Print)||5), `150 SF/Hr Speed * $5/hr`);
-            L('VINYL_LAB', `Plotter/Cutter Run`, (totalSqFt / 50) * (parseFloat(config.Rate_Machine_Cut)||5), `50 SF/Hr Speed * $5/hr`);
-            L('VINYL_LAB', `Weeding Labor (Standard)`, (totalSqFt * 2 / 60) * rateFab, `${totalSqFt.toFixed(1)} SF * 2 Mins/SF * $${rateFab}/hr`);
-            L('VINYL_LAB', `Masking Labor`, (totalSqFt * 1 / 60) * rateFab, `${totalSqFt.toFixed(1)} SF * 1 Mins/SF * $${rateFab}/hr`);
-        } 
-        else if (inputs.graphicType === 'Paint_Vinyl') {
-            L('VINYL_MAT', `Colored Cast Vinyl Media`, totalSqFt * (parseFloat(config.Cost_Vin_Cast)||1.30) * waste, `${totalSqFt.toFixed(1)} SF * $1.30/SF * Waste`);
-            L('VINYL_MAT', `Transfer Tape (Masking)`, totalSqFt * (parseFloat(config.Cost_Transfer_Tape)||0.15) * waste, `${totalSqFt.toFixed(1)} SF * Mask * Waste`);
-            
-            L('VINYL_LAB', `Plotter/Cutter Run`, (totalSqFt / 50) * (parseFloat(config.Rate_Machine_Cut)||5), `50 SF/Hr Speed * $5/hr`);
-            L('VINYL_LAB', `Weeding Labor (Complex)`, (totalSqFt * 8 / 60) * rateFab, `${totalSqFt.toFixed(1)} SF * 8 Mins/SF * $${rateFab}/hr`);
-            L('VINYL_LAB', `Masking Labor`, (totalSqFt * 1 / 60) * rateFab, `${totalSqFt.toFixed(1)} SF * 1 Mins/SF * $${rateFab}/hr`);
-        } 
-        else if (inputs.graphicType === 'NoPaint_Print') {
-            L('VINYL_MAT', `Cast Vinyl Media`, totalSqFt * (parseFloat(config.Cost_Vin_Cast)||1.30) * waste, `${totalSqFt.toFixed(1)} SF * $1.30/SF * Waste`);
-            L('VINYL_MAT', `Latex Ink`, totalSqFt * (parseFloat(config.Cost_Ink_Latex)||0.16) * waste, `${totalSqFt.toFixed(1)} SF * $0.16/SF * Waste`);
-            L('VINYL_MAT', `Overlaminate Media`, totalSqFt * (parseFloat(config.Cost_Lam_Cast)||0.96) * waste, `${totalSqFt.toFixed(1)} SF * $0.96/SF * Waste`);
-            
-            L('VINYL_LAB', `Print Machine Run`, (totalSqFt / 150) * (parseFloat(config.Rate_Machine_Print)||5), `150 SF/Hr Speed * $5/hr`);
-            L('VINYL_LAB', `Lamination Machine Run`, (totalSqFt / 300) * rateFab, `300 SF/Hr Speed * $${rateFab}/hr`);
-            L('VINYL_LAB', `Vinyl Mount Labor`, (totalSqFt * 0.25 / 60) * rateFab, `${totalSqFt.toFixed(1)} SF * 0.25 Mins/SF * $${rateFab}/hr`);
+            L('VINYL_LAB', `Lamination Machine Run`, (totalSqFt / 300) * rateShop, `300 SF/Hr Speed * $${rateShop}/hr`);
         }
+        
+        L('VINYL_MAT', `Transfer Tape (Masking)`, totalSqFt * (parseFloat(config.Cost_Transfer_Tape)||0.15) * waste, `${totalSqFt.toFixed(1)} SF * $0.15/SF * Waste`);
+
+        if (isPrint || inputs.graphicType === 'Paint_Vinyl') {
+            L('VINYL_LAB', `Plotter/Cutter Run`, (totalSqFt / 50) * (parseFloat(config.Rate_Machine_Cut)||5), `50 SF/Hr Speed * $5/hr`);
+        }
+
+        const weedMins = inputs.graphicType === 'Paint_Vinyl' ? 8 : 0.5;
+        L('VINYL_LAB', `Weeding Labor`, (totalSqFt * weedMins / 60) * rateShop, `${totalSqFt.toFixed(1)} SF * ${weedMins} Mins/SF * $${rateShop}/hr`);
+        L('VINYL_LAB', `Masking Labor`, (totalSqFt * 0.25 / 60) * rateShop, `${totalSqFt.toFixed(1)} SF * 0.25 Mins/SF * $${rateShop}/hr`);
+        L('VINYL_LAB', `Graphics Installation (Shop)`, (totalSqFt * 0.333 / 60) * rateShop, `${totalSqFt.toFixed(1)} SF * 20 Sec/SF * $${rateShop}/hr`);
 
         // 7. TOTALS & BIDIRECTIONAL MARGIN
         const rawHardCost = cst.reduce((s,i) => s + i.total, 0);
@@ -132,7 +150,7 @@ Deno.serve(async (req: any) => {
 
         const payload = {
             retail: { unitPrice: unitRetail, grandTotal: unitRetail * inputs.qty },
-            cost: { total: finalCost * inputs.qty, breakdown: cst },
+            cost: { total: finalCost, breakdown: cst }, // Ensure we pass the clean total cost
             metrics: { margin: targetMargin }
         };
 

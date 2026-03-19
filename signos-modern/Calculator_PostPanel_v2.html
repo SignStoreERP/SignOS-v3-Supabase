@@ -8,12 +8,15 @@
     <script src="signos-core.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10">
 
 <div class="max-w-2xl mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full">
-
+    
     <!-- HEADER -->
     <div class="bg-slate-900 rounded-t-xl px-6 py-4 flex justify-between items-center shadow-md border border-slate-800">
         <div>
@@ -156,7 +159,7 @@
         </div>
 
         <!-- RETAIL LEDGER -->
-        <div class="bg-blue-50 p-6 border-t border-blue-200 shadow-inner rounded-b-xl">
+        <div class="bg-blue-50 p-6 border-t border-blue-200 shadow-inner">
             <div class="flex justify-between items-end border-b border-blue-200 pb-3 mb-4">
                 <div class="flex flex-col gap-1">
                     <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Target Profit Margin</span>
@@ -175,6 +178,13 @@
                 <span id="ui-total" class="text-4xl font-black text-blue-700 tracking-tight leading-none">---</span>
             </div>
         </div>
+
+        <!-- JOB SUMMARY & BOM -->
+        <div class="bg-white p-6 border-t border-gray-200 rounded-b-xl">
+            <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest mb-2">Job Summary & Bill of Materials</h3>
+            <textarea id="job-summary" class="w-full h-56 bg-slate-50 border border-gray-300 rounded p-3 text-xs font-mono text-gray-700 outline-none shadow-inner resize-none custom-scroll" readonly></textarea>
+        </div>
+
     </div>
 </div>
 
@@ -206,7 +216,15 @@
 
             let isDisabled = false;
             if (frameMetal !== postMetal) isDisabled = true; // Match metals
-            if (mount === 'Flush' && internalDepth > postSize) isDisabled = true; // Guard against physical protrusion
+
+            // RIGOROUS FLUSH MOUNT GUARDRAILS
+            if (mount === 'Flush') {
+                if (sides === 2) {
+                    if (internalDepth !== postSize) isDisabled = true; // Must exactly match post depth
+                } else {
+                    if (internalDepth > postSize) isDisabled = true; // Must not exceed post depth
+                }
+            }
 
             opt.disabled = isDisabled;
             opt.hidden = isDisabled;
@@ -351,7 +369,30 @@
                     document.getElementById('ui-unit').innerText = fmt(result.retail.unitPrice);
                     document.getElementById('ui-total').innerText = fmt(result.retail.grandTotal);
                 }
+                
                 if (adminCostEnabled && result.cost) renderAdminCostLedger(result.cost, result.metrics);
+
+                // --- GENERATE BOM & JOB SUMMARY ---
+                if (result.cost && result.cost.breakdown) {
+                    const bomItems = result.cost.breakdown.filter(i => i.category && i.category.includes('_MAT'));
+                    let bomStr = bomItems.map(i => `- ${i.label}`).join('\n');
+                    
+                    const postStr = postSplit[2] || 'Aluminum';
+                    const frameStr = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
+                    const faceStr = document.getElementById('faceMat').options[document.getElementById('faceMat').selectedIndex].text;
+                    const graphicStr = document.getElementById('graphicType').options[document.getElementById('graphicType').selectedIndex].text;
+
+                    const summary = `JOB SUMMARY:
+(x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ${inputs.sides}-Sided Post & Panel
+Posts: ${inputs.postSize}" ${postStr} Square Tube (${inputs.thag}" A.G. / ${inputs.belowGrade}" B.G.)
+Frame: ${frameStr} (${inputs.mountStyle} Mount)
+Faces: ${faceStr}
+Graphics: ${graphicStr}
+
+BILL OF MATERIALS:
+${bomStr}`;
+                    document.getElementById('job-summary').value = summary;
+                }
 
             } catch(e) {
                 console.error("Math Engine Error:", e);
