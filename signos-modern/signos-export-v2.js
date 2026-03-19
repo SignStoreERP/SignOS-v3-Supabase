@@ -123,13 +123,23 @@ SignOS_Export_v2.exportADA = function(manifest) {
 // --- MANUFACTURING WORK ORDER GENERATOR ---
 window.SignOS_Export_v2 = window.SignOS_Export_v2 || {};
 
-SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId) {
+SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId) {
     if (!calcResult || !calcResult.build) {
         alert("No calculation data available to print. Please run the calculator first.");
         return;
     }
 
-    // 1. EXTRACT PURE SVG DRAWINGS (Removes dark Tailwind backgrounds and wrappers)
+    // Helper: Format decimal minutes into readable Hours and Minutes
+    const formatTime = (mins) => {
+        if (!mins) return '0 mins';
+        const h = Math.floor(mins / 60);
+        const m = Math.round(mins % 60);
+        if (h > 0 && m > 0) return `${h} hr ${m} mins`;
+        if (h > 0) return `${h} hr`;
+        return `${m} mins`;
+    };
+
+    // 1. EXTRACT PURE SVG DRAWINGS
     const svgContainer = document.getElementById(svgContainerId);
     let svgHtml = '';
     
@@ -140,7 +150,6 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId
             svgs.forEach((svg, index) => {
                 const title = index === 0 ? 'Front Elevation' : 'Side Profile';
                 const clonedSvg = svg.cloneNode(true);
-                // Strip UI classes and force a tight bounding height for printing
                 clonedSvg.removeAttribute('class');
                 clonedSvg.style.maxHeight = '280px';
                 clonedSvg.style.width = 'auto';
@@ -156,10 +165,7 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId
     }
     if (!svgHtml) svgHtml = '<div style="text-align:center; padding:20px; color:#94a3b8;">No drawing available</div>';
 
-    const descEl = document.getElementById(jobDescId);
-    const jobDesc = descEl ? descEl.value : 'No description provided.';
-
-    // 2. EXTRACT LABOR DATA (Read directly from the new physical routing map, ignoring financial audit mode)
+    // 2. EXTRACT LABOR DATA (With Checkboxes & Time Formatting)
     let laborHtml = '';
     let totalShopMins = 0;
 
@@ -171,37 +177,92 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId
             tasks.forEach(t => {
                 deptMins += t.time;
                 totalShopMins += t.time;
-                const timeStr = t.time > 0 ? `<span class="float-right font-mono text-slate-500">${t.time.toFixed(1)} mins</span>` : '';
-                taskListHtml += `<li class="flex justify-between border-b border-slate-100 pb-1"><span><span class="border border-slate-300 w-3 h-3 inline-block mr-2 translate-y-0.5"></span>${t.task}</span> ${timeStr}</li>`;
+                const timeStr = t.time > 0 ? `<span class="float-right font-mono text-slate-500">${formatTime(t.time)}</span>` : '';
+                taskListHtml += `
+                <li class="flex justify-between border-b border-slate-100 pb-1.5 pt-1 items-start">
+                    <span class="flex gap-2 items-start">
+                        <span class="border border-slate-300 w-3 h-3 inline-block mt-0.5 shrink-0 bg-white shadow-sm"></span>
+                        <span>${t.task}</span>
+                    </span>
+                    ${timeStr}
+                </li>`;
             });
             
             laborHtml += `
             <div class="mb-4 avoid-break">
                 <div class="border-b border-slate-800 pb-1 mb-2 flex justify-between items-end">
                     <h4 class="font-bold uppercase text-[11px]">${dept}</h4>
-                    <span class="font-bold text-[10px] bg-slate-100 px-2 py-0.5 rounded">Dept Total: ${(deptMins / 60).toFixed(2)} hrs</span>
+                    <span class="font-bold text-[10px] bg-slate-100 px-2 py-0.5 rounded">Dept Total: ${formatTime(deptMins)}</span>
                 </div>
-                <ul class="text-[10px] space-y-1.5">${taskListHtml}</ul>
+                <ul class="text-[10px] space-y-1">${taskListHtml}</ul>
             </div>`;
         }
+        
+        // Add Total Labor Time at the bottom of the Fabrication Steps
+        laborHtml += `
+        <div class="mt-4 pt-3 border-t-2 border-slate-800 flex justify-between items-center bg-slate-50 p-3 rounded-lg shadow-inner">
+            <span class="font-black uppercase text-[11px] text-slate-700 tracking-widest">Total Labor Time</span>
+            <span class="font-black text-emerald-600 text-base">${formatTime(totalShopMins)}</span>
+        </div>`;
     }
 
-    // 3. EXTRACT BILL OF MATERIALS & CUT LIST 
+    // 3. EXTRACT BILL OF MATERIALS & CUT LIST (With Sub-Columns)
     let bomHtml = '';
     if (calcResult.build.bom) {
         for (const [dept, items] of Object.entries(calcResult.build.bom)) {
             bomHtml += `
-            <div class="mb-3 avoid-break">
-                <h4 class="font-bold uppercase text-[10px] text-slate-500 mb-1 border-b border-slate-200">${dept}</h4>
-                <ul class="text-[10px] space-y-1 pl-1">`;
+            <div class="mb-4 avoid-break">
+                <h4 class="font-bold uppercase text-[11px] text-slate-800 mb-2 border-b border-slate-300 pb-1">${dept}</h4>
+                <div class="text-[10px] space-y-2 pl-1">`;
+            
             items.forEach(item => {
-                bomHtml += `<li class="flex items-start gap-2"><span class="font-bold text-slate-900 shrink-0">→</span> <span>${item}</span></li>`;
+                if (typeof item === 'object') {
+                    // Pull / Cut / Drop Structured Layout
+                    bomHtml += `
+                    <div class="flex items-start gap-2 border-b border-slate-100 pb-2">
+                        <span class="border border-slate-300 w-3 h-3 inline-block mt-0.5 shrink-0 bg-white shadow-sm"></span>
+                        <div class="flex-1">
+                            <div class="font-bold text-slate-900 text-[11px] mb-1.5">${item.name}</div>
+                            <div class="grid grid-cols-3 gap-2 text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-100">
+                                <div><span class="text-slate-400 font-bold uppercase text-[8px] tracking-widest block mb-0.5">Pull</span> <span class="font-mono text-[9px]">${item.pull}</span></div>
+                                <div><span class="text-slate-400 font-bold uppercase text-[8px] tracking-widest block mb-0.5">Cut</span> <span class="font-mono text-[9px]">${item.cut}</span></div>
+                                <div><span class="text-slate-400 font-bold uppercase text-[8px] tracking-widest block mb-0.5">Drop</span> <span class="font-mono text-[9px]">${item.drop}</span></div>
+                            </div>
+                        </div>
+                    </div>`;
+                } else {
+                    // Legacy Fallback for other Edge Functions that haven't been updated yet
+                    bomHtml += `
+                    <div class="flex items-start gap-2 border-b border-slate-100 pb-1.5">
+                        <span class="border border-slate-300 w-3 h-3 inline-block mt-0.5 shrink-0 bg-white shadow-sm"></span>
+                        <span>${item}</span>
+                    </div>`;
+                }
             });
-            bomHtml += `</ul></div>`;
+            bomHtml += `</div></div>`;
         }
     }
 
-    // 4. GENERATE THE PRINT WINDOW HTML (Optimized for 1 Page)
+    // 4. GENERATE NATIVE PRODUCT SPECIFICATIONS
+    let specsHtml = '';
+    if (calcResult.build.specs) {
+        const s = calcResult.build.specs;
+        specsHtml = `
+            <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-[10px] text-slate-700">
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Quantity</span> <span class="font-mono text-blue-700 font-bold">${s.qty} Unit(s)</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Dimensions</span> <span class="font-mono text-blue-700 font-bold">${s.w}" W x ${s.h}" H</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Sides</span> <span class="font-mono font-bold">${s.sides}-Sided</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Mount Style</span> <span class="font-mono font-bold">${s.mountStyle}</span></div>
+                <div class="col-span-2 flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Structural Posts</span> <span class="font-mono font-bold">${s.postSize}" ${s.postMetalName} (${s.thag}" Above Grade / ${s.belowGrade}" Below Grade)</span></div>
+                <div class="col-span-2 flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Internal Frame</span> <span class="font-mono font-bold">${s.frameDepth}" Depth ${s.isAngle ? '(Angle Iron)' : '(Square Tube)'}</span></div>
+                <div class="col-span-2 flex justify-between border-b border-slate-100 pb-1"><span class="font-bold text-slate-900 uppercase tracking-widest text-[9px]">Graphic Finish</span> <span class="font-mono font-bold">${(s.graphicType || '').replace(/_/g, ' ')}</span></div>
+            </div>
+        `;
+    } else {
+        specsHtml = '<div class="text-[10px] text-slate-400 italic">No specifications provided in calculation payload.</div>';
+    }
+
+    // 5. GENERATE THE PRINT WINDOW HTML
     const printWindow = window.open('', '_blank', 'width=900,height=1100');
     if (!printWindow) return;
 
@@ -244,20 +305,19 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId
                  ${svgHtml}
             </div>
 
-            <!-- MIDDLE SECTION: SPECS & TIME -->
-            <div class="grid grid-cols-4 gap-4 avoid-break">
-                <div class="col-span-3 border border-slate-200 rounded-lg overflow-hidden flex flex-col">
-                    <div class="bg-slate-100 px-3 py-1 border-b border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-600">Job Description & Specs</div>
-                    <div class="p-3 text-[10px] font-mono text-slate-700 whitespace-pre-wrap leading-relaxed">${jobDesc}</div>
+            <!-- MIDDLE SECTION: SPECS -->
+            <div class="border border-slate-200 rounded-lg overflow-hidden flex flex-col avoid-break">
+                <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-700">Project Specifications</span>
                 </div>
-                <div class="col-span-1 bg-slate-900 text-white rounded-lg p-3 flex flex-col justify-center items-center shadow-md">
-                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center mb-1">Total Est. Run Time</span>
-                    <span class="text-xl font-mono font-bold text-emerald-400">${(totalShopMins / 60).toFixed(2)} Hrs</span>
+                <div class="p-4 bg-white">
+                    ${specsHtml}
                 </div>
             </div>
 
             <!-- BOTTOM SECTION: BOM & LABOR -->
             <div class="grid grid-cols-2 gap-6 flex-1 mt-2">
+                
                 <!-- Bill of Materials -->
                 <div class="flex flex-col h-full">
                     <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex justify-between items-center shrink-0 border border-b-0 rounded-t-lg">
@@ -277,6 +337,7 @@ SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId
                         ${laborHtml || '<div class="text-[10px] text-slate-400 italic">No labor tasks calculated.</div>'}
                     </div>
                 </div>
+
             </div>
         </div>
 

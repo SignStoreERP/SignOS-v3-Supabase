@@ -25,12 +25,13 @@ Deno.serve(async (req: any) => {
         const ret: any[] = [];
         const cst: any[] = [];
         
-        const bomMap: Record<string, string[]> = {};
+        // UPGRADED BOM MAP: Stores Objects instead of strings
+        const bomMap: Record<string, any[]> = {};
         const routingMap: Record<string, {task: string, time: number}[]> = {};
 
-        const addBOM = (dept: string, amount: string, item: string) => {
+        const addBOM = (dept: string, item: any) => {
             if (!bomMap[dept]) bomMap[dept] = [];
-            bomMap[dept].push(`${amount} | ${item}`);
+            bomMap[dept].push(item);
         };
 
         const addLabor = (dept: string, task: string, timeMins: number) => {
@@ -51,7 +52,15 @@ Deno.serve(async (req: any) => {
         const postStickLength = postMetalName === 'Aluminum' ? 24 : 20;
         const postSticksNeeded = Math.ceil(totalPostLF / postStickLength);
         
-        addBOM('Metal Fabrication', `${totalPostLF} LF (Pull ${postSticksNeeded}x ${postStickLength}' Sticks)`, `Structural Posts (${inputs.postSize}" ${postMetalName})`);
+        const postPullLF = postSticksNeeded * postStickLength;
+        const postDropLF = postPullLF - totalPostLF;
+        
+        addBOM('Metal Fabrication', {
+            name: `Structural Posts (${inputs.postSize}" ${postMetalName})`,
+            pull: `${postSticksNeeded}x ${postStickLength}' Sticks (${postPullLF} LF)`,
+            cut: `${2 * inputs.qty}x @ ${postInchesPer}"`,
+            drop: `${postDropLF.toFixed(1)} LF`
+        });
 
         const postCostLF = parseFloat(config[inputs.postKey]) || 6.00;
         L('METAL_MAT', `Structural Posts (${inputs.postSize}")`, totalPostLF * postCostLF * waste, `${postInchesPer}" (${postLFPer} LF/Ea) * 2 Posts * $${postCostLF.toFixed(2)}/LF [[${inputs.postKey}]] * ${wasteDisplay} Waste`);
@@ -60,29 +69,39 @@ Deno.serve(async (req: any) => {
         if (capCount > 0) {
             const capCost = parseFloat(config.Cost_Post_Cap) || 5.00;
             L('METAL_MAT', `Post Caps (${inputs.postSize}")`, capCount * capCost, `${capCount} Caps * $${capCost.toFixed(2)}/ea`);
-            addBOM('Metal Fabrication', `${capCount} Units`, `Post Caps (${inputs.postSize}")`);
+            addBOM('Metal Fabrication', {
+                name: `Post Caps (${inputs.postSize}")`,
+                pull: `${capCount} Units`, cut: '--', drop: '--'
+            });
         }
 
         const holeRadiusFt = ((inputs.postSize * 3) / 2) / 12;
         const footerHeightFt = (inputs.belowGrade * 0.66) / 12;
         const holeVolumeCuFt = Math.PI * Math.pow(holeRadiusFt, 2) * footerHeightFt;
         const bagsNeeded = Math.ceil((holeVolumeCuFt * 2) / 0.6) * inputs.qty;
-        addBOM('Installation Hardware', `${bagsNeeded} Bags`, `Concrete (80lb)`);
+        addBOM('Installation Hardware', {
+            name: `Concrete (80lb Bag)`,
+            pull: `${bagsNeeded} Bags`, cut: '--', drop: '--'
+        });
 
         // 2. FRAME MATH
         let frameLF = 0;
         let cutCount = 2; 
         let weldPoints = 0;
 
+        let frameCutStr = "";
+
         if (inputs.mountStyle === 'Flush') {
             const hBarInches = inputs.w - (inputs.postSize * 2);
             frameLF = Math.ceil(hBarInches / 12) * 2; 
             cutCount += 2; 
             weldPoints = 8; 
+            frameCutStr = `${2 * inputs.qty}x @ ${hBarInches}"`;
         } else {
             frameLF = (Math.ceil(inputs.w / 12) * 2) + (Math.ceil(inputs.h / 12) * 2);
             cutCount += 4; 
             weldPoints = 16; 
+            frameCutStr = `${2 * inputs.qty}x @ ${inputs.w}" & ${2 * inputs.qty}x @ ${inputs.h}"`;
         }
         
         const totalFrameLF = frameLF * inputs.qty;
@@ -90,7 +109,15 @@ Deno.serve(async (req: any) => {
         const frameStickLength = frameMetalName === 'Aluminum' ? 24 : 20;
         const frameSticksNeeded = Math.ceil(totalFrameLF / frameStickLength);
         
-        addBOM('Metal Fabrication', `${totalFrameLF} LF (Pull ${frameSticksNeeded}x ${frameStickLength}' Sticks)`, `Internal Frame Skeleton`);
+        const framePullLF = frameSticksNeeded * frameStickLength;
+        const frameDropLF = framePullLF - totalFrameLF;
+
+        addBOM('Metal Fabrication', {
+            name: `Internal Frame Skeleton (${inputs.frameKey.split('_')[1] || 'Tube'})`,
+            pull: `${frameSticksNeeded}x ${frameStickLength}' Sticks (${framePullLF} LF)`,
+            cut: frameCutStr,
+            drop: `${frameDropLF.toFixed(1)} LF`
+        });
 
         const frameCostLF = parseFloat(config[inputs.frameKey]) || 1.45;
         L('METAL_MAT', `Internal Frame (${inputs.mountStyle})`, totalFrameLF * frameCostLF * waste, `Calculated LF rounded up per piece (${totalFrameLF} LF total) * $${frameCostLF.toFixed(2)}/LF [[${inputs.frameKey}]] * ${wasteDisplay} Waste`);
@@ -102,15 +129,31 @@ Deno.serve(async (req: any) => {
         const sheetCost = parseFloat(config[inputs.faceKey]) || 98.12; 
         const faceCostSqFt = sheetCost / 32; 
 
+        const sheetsNeeded = Math.ceil(totalSqFt / 32);
+        const dropSqFt = (sheetsNeeded * 32) - totalSqFt;
+        const faceMatName = inputs.faceKey.split('_')[2] || 'Substrate';
+
         L('METAL_MAT', `Sign Faces (${inputs.sides} Sided)`, totalSqFt * faceCostSqFt * waste, `${totalSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/sf [[${inputs.faceKey}]] * ${wasteDisplay} Waste`);
-        addBOM('Metal Fabrication', `${totalSqFt.toFixed(1)} SF`, `Sign Faces (${inputs.sides} Sided)`);
+        addBOM('Metal Fabrication', {
+            name: `Sign Faces (${inputs.sides}-Sided ${faceMatName})`,
+            pull: `${sheetsNeeded}x 4x8 Sheets`,
+            cut: `${inputs.sides * inputs.qty}x @ ${inputs.w}"x${inputs.h}"`,
+            drop: `${dropSqFt.toFixed(1)} SqFt`
+        });
 
         if (inputs.isAngle) {
             const capSqFt = (inputs.w * inputs.frameDepth * 2) / 144; 
             const totalCapSqFt = capSqFt * inputs.qty;
+            const capSheets = Math.ceil(totalCapSqFt / 32);
+            const dropCapSqFt = (capSheets * 32) - totalCapSqFt;
             
             L('METAL_MAT', `Sign Faces (Top/Bottom Caps)`, totalCapSqFt * faceCostSqFt * waste, `${totalCapSqFt.toFixed(1)} SF * $${faceCostSqFt.toFixed(2)}/sf [[${inputs.faceKey}]] * ${wasteDisplay} Waste`);
-            addBOM('Metal Fabrication', `${totalCapSqFt.toFixed(1)} SF`, `Face Material (Top/Bottom Caps)`);
+            addBOM('Metal Fabrication', {
+                name: `Face Material (Top/Bottom Caps)`,
+                pull: `${capSheets}x 4x8 Sheets`,
+                cut: `${2 * inputs.qty}x @ ${inputs.w}"x${inputs.frameDepth}"`,
+                drop: `${dropCapSqFt.toFixed(1)} SqFt`
+            });
             totalSqFt += totalCapSqFt; 
         }
 
@@ -119,7 +162,10 @@ Deno.serve(async (req: any) => {
         const cartridges = Math.ceil(perimeterLF / 10); 
         
         L('METAL_MAT', `Structural Adhesive`, cartridges * (parseFloat(config.Cost_Adhesive_Tube) || 18.71), `${perimeterLF.toFixed(1)} LF (0.25" bead) / 10 LF per tube`);
-        addBOM('Metal Fabrication', `${cartridges} Cartridges`, `Lord's Adhesive (0.25" bead)`);
+        addBOM('Metal Fabrication', {
+            name: `Lord's Adhesive (0.25" bead)`,
+            pull: `${cartridges} Cartridges`, cut: '--', drop: '--'
+        });
 
         // 4. METAL LABOR (With dedicated routing tracker)
         const gatherMins = 10;
@@ -162,7 +208,11 @@ Deno.serve(async (req: any) => {
             const paintCostSqFt = parseFloat(config.Cost_Paint_SqFt) || 2.50;
             L('PAINT_MAT', `Automotive Primer`, (paintArea * (paintCostSqFt * 0.4) * waste) + 1.00, `${paintArea.toFixed(1)} SF * $${(paintCostSqFt * 0.4).toFixed(2)}/SF * ${wasteDisplay} Waste + $1.00 Cup`);
             L('PAINT_MAT', `Automotive Paint (Color)`, (paintArea * (paintCostSqFt * 0.6) * waste) + 1.00, `${paintArea.toFixed(1)} SF * $${(paintCostSqFt * 0.6).toFixed(2)}/SF * ${wasteDisplay} Waste + $1.00 Cup`);
-            addBOM('Paint & Finishes', `${paintArea.toFixed(1)} SF`, `Automotive Paint/Primer Coverage`);
+            
+            addBOM('Paint & Finishes', {
+                name: `Automotive Paint/Primer Coverage`,
+                pull: `${paintArea.toFixed(1)} SF`, cut: '--', drop: '--'
+            });
 
             const paintSetupMins = 4;
             L('PAINT_LAB', `Paint Mix & Setup`, (paintSetupMins / 60) * rateShop, `4 Mins Flat * $${rateShop}/hr`);
@@ -190,12 +240,18 @@ Deno.serve(async (req: any) => {
         const mediaName = isPrint ? '3M IJ180 Cast Wrap' : 'Oracal 751 High Perf';
 
         L('VINYL_MAT', `Cast Vinyl Media (${mediaName})`, totalSqFt * (parseFloat(config.Cost_Vin_Cast)||1.30) * waste, `${totalSqFt.toFixed(1)} SF * $1.30/SF * ${wasteDisplay} Waste`);
-        addBOM('Vinyl & Graphics', `${totalSqFt.toFixed(1)} SF`, `Vinyl Media (${mediaName})`);
+        addBOM('Vinyl & Graphics', {
+            name: `Vinyl Media (${mediaName})`,
+            pull: `${totalSqFt.toFixed(1)} SF`, cut: '--', drop: '--'
+        });
         
         if (isPrint) {
             L('VINYL_MAT', `Latex Ink`, totalSqFt * (parseFloat(config.Cost_Ink_Latex)||0.16) * waste, `${totalSqFt.toFixed(1)} SF * $0.16/SF * ${wasteDisplay} Waste`);
             L('VINYL_MAT', `Overlaminate Media (3M 8518)`, totalSqFt * (parseFloat(config.Cost_Lam_Cast)||0.96) * waste, `${totalSqFt.toFixed(1)} SF * $0.96/SF * ${wasteDisplay} Waste`);
-            addBOM('Vinyl & Graphics', `${totalSqFt.toFixed(1)} SF`, `Overlaminate (3M 8518 Cast)`);
+            addBOM('Vinyl & Graphics', {
+                name: `Overlaminate (3M 8518 Cast)`,
+                pull: `${totalSqFt.toFixed(1)} SF`, cut: '--', drop: '--'
+            });
             
             const printRunMins = (totalSqFt / 150) * 60;
             L('VINYL_LAB', `Print Machine Run`, (printRunMins / 60) * (parseFloat(config.Rate_Machine_Print)||5), `150 SF/Hr Speed * $5/hr`);
@@ -208,7 +264,10 @@ Deno.serve(async (req: any) => {
         
         const maskLF = totalSqFt / 4; 
         L('VINYL_MAT', `Transfer Tape (Masking)`, totalSqFt * (parseFloat(config.Cost_Transfer_Tape)||0.15) * waste, `${totalSqFt.toFixed(1)} SF * $0.15/SF * ${wasteDisplay} Waste`);
-        addBOM('Vinyl & Graphics', `${maskLF.toFixed(1)} LF`, `Transfer Tape Mask (48" W)`);
+        addBOM('Vinyl & Graphics', {
+            name: `Transfer Tape Mask (48" W)`,
+            pull: `${maskLF.toFixed(1)} LF`, cut: '--', drop: '--'
+        });
 
         if (isPrint || inputs.graphicType === 'Paint_Vinyl') {
             const cutRunMins = (totalSqFt / 50) * 60;
@@ -236,10 +295,27 @@ Deno.serve(async (req: any) => {
         const finalCost = rawHardCost * risk;
         const unitRetail = finalCost / (1 - targetMargin);
 
+        // Pass Custom Specs Object natively so the Export Script doesn't have to scrape UI
+        const specs = {
+            qty: inputs.qty,
+            w: inputs.w,
+            h: inputs.h,
+            sides: inputs.sides,
+            thag: inputs.thag,
+            belowGrade: inputs.belowGrade,
+            postSize: inputs.postSize,
+            postMetalName: inputs.postMetalName,
+            mountStyle: inputs.mountStyle,
+            frameDepth: inputs.frameDepth,
+            isAngle: inputs.isAngle,
+            faceKey: inputs.faceKey,
+            graphicType: inputs.graphicType
+        };
+
         const payload = {
             retail: { unitPrice: unitRetail, grandTotal: unitRetail * inputs.qty },
             cost: { total: finalCost, breakdown: cst },
-            build: { bom: bomMap, routing: routingMap },
+            build: { bom: bomMap, routing: routingMap, specs: specs },
             metrics: { margin: targetMargin }
         };
 
