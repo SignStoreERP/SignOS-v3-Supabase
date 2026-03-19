@@ -57,16 +57,16 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sides</label>
-                        <select id="sides" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="updateConstraints()">
-                            <option value="1">Single Sided</option>
-                            <option value="2" selected>Double Sided</option>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Weeding Labor</label>
+                        <select id="weeding" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="runCalc()">
+                            <option value="Simple">Simple Weeding (0.25m/SF)</option>
+                            <option value="Complex">Complex Weeding (0.50m/SF)</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-3">
-                    <div>
+                <div class="grid grid-cols-4 gap-3 pt-2">
+                    <div class="col-span-2">
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Face Material</label>
                         <select id="faceMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="runCalc()">
                             <option value="Cost_Stock_063_4x8">.063 Aluminum</option>
@@ -85,12 +85,19 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+                <div class="grid grid-cols-3 gap-4 pt-2 border-t border-slate-200">
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Mounting Style</label>
                         <select id="mountStyle" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="updateConstraints()">
-                            <option value="Flush">Flush Mount (Face covers posts)</option>
+                            <option value="Flush">Flush Mount</option>
                             <option value="Between">Between Posts</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sides</label>
+                        <select id="sides" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="updateConstraints()">
+                            <option value="1">Single Sided</option>
+                            <option value="2" selected>Double Sided</option>
                         </select>
                     </div>
                     <div>
@@ -98,12 +105,24 @@
                         <select id="frameMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500" onchange="runCalc()">
                             <option value="Cost_Frame_AlumTube_1.5_1/8" data-size="1.5" data-metal="Aluminum">1.5" Aluminum Square Tube</option>
                             <option value="Cost_Frame_AlumTube_2_1/8" data-size="2" data-metal="Aluminum">2" Aluminum Square Tube</option>
+                            <option value="Cost_Frame_AlumTube_3_1/8" data-size="3" data-metal="Aluminum">3" Aluminum Square Tube</option>
+                            <option value="Cost_Frame_AlumTube_4_1/8" data-size="4" data-metal="Aluminum">4" Aluminum Square Tube</option>
+                            <option value="Cost_Frame_AlumTube_6_1/4" data-size="6" data-metal="Aluminum">6" Aluminum Square Tube</option>
                             <option value="Cost_Frame_AlumAngle_1.5_1/8" data-size="1.5" data-metal="Aluminum">1.5" Aluminum Angle</option>
                             <option value="Cost_Frame_AlumAngle_2_1/8" data-size="2" data-metal="Aluminum">2" Aluminum Angle</option>
+                            <option value="Cost_Frame_AlumAngle_3_1/8" data-size="3" data-metal="Aluminum">3" Aluminum Angle</option>
+                            
                             <option value="Cost_Frame_SteelTube_1.5_1/8" data-size="1.5" data-metal="Steel">1.5" Steel Square Tube</option>
                             <option value="Cost_Frame_SteelTube_2_1/8" data-size="2" data-metal="Steel">2" Steel Square Tube</option>
+                            <option value="Cost_Frame_SteelTube_3_1/8" data-size="3" data-metal="Steel">3" Steel Square Tube</option>
+                            <option value="Cost_Frame_SteelTube_4_3/16" data-size="4" data-metal="Steel">4" Steel Square Tube</option>
+                            <option value="Cost_Frame_SteelTube_6_3/16" data-size="6" data-metal="Steel">6" Steel Square Tube</option>
+                            <option value="Cost_Frame_SteelTube_8_1/4" data-size="8" data-metal="Steel">8" Steel Square Tube</option>
+                            <option value="Cost_Frame_SteelTube_10_1/4" data-size="10" data-metal="Steel">10" Steel Square Tube</option>
+                            <option value="Cost_Frame_SteelTube_12_1/4" data-size="12" data-metal="Steel">12" Steel Square Tube</option>
                             <option value="Cost_Frame_SteelAngle_1.5_1/8" data-size="1.5" data-metal="Steel">1.5" Steel Angle Iron</option>
                             <option value="Cost_Frame_SteelAngle_2_1/8" data-size="2" data-metal="Steel">2" Steel Angle Iron</option>
+                            <option value="Cost_Frame_SteelAngle_3_1/4" data-size="3" data-metal="Steel">3" Steel Angle Iron</option>
                         </select>
                     </div>
                 </div>
@@ -119,9 +138,14 @@
                             <option value="Cost_Post_Aluminum_2_1/8|2|Aluminum">2" Aluminum Square Tube</option>
                             <option value="Cost_Post_Aluminum_3_1/8|3|Aluminum">3" Aluminum Square Tube</option>
                             <option value="Cost_Post_Aluminum_4_1/8|4|Aluminum">4" Aluminum Square Tube</option>
+                            <option value="Cost_Post_Aluminum_6_1/4|6|Aluminum">6" Aluminum Square Tube</option>
                             <option value="Cost_Post_Steel_2_1/8|2|Steel">2" Steel Square Tube</option>
                             <option value="Cost_Post_Steel_3_1/8|3|Steel">3" Steel Square Tube</option>
                             <option value="Cost_Post_Steel_4_3/16|4|Steel">4" Steel Square Tube</option>
+                            <option value="Cost_Post_Steel_6_3/16|6|Steel">6" Steel Square Tube</option>
+                            <option value="Cost_Post_Steel_8_1/4|8|Steel">8" Steel Square Tube</option>
+                            <option value="Cost_Post_Steel_10_1/4|10|Steel">10" Steel Square Tube</option>
+                            <option value="Cost_Post_Steel_12_1/4|12|Steel">12" Steel Square Tube</option>
                         </select>
                     </div>
                     <div>
@@ -182,7 +206,7 @@
         <!-- JOB SUMMARY & BOM -->
         <div class="bg-white p-6 border-t border-gray-200 rounded-b-xl">
             <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest mb-2">Job Summary & Bill of Materials</h3>
-            <textarea id="job-summary" class="w-full h-56 bg-slate-50 border border-gray-300 rounded p-3 text-xs font-mono text-gray-700 outline-none shadow-inner resize-none custom-scroll" readonly></textarea>
+            <textarea id="job-summary" class="w-full h-[340px] bg-slate-50 border border-gray-300 rounded p-3 text-xs font-mono text-gray-700 outline-none shadow-inner resize-none custom-scroll" readonly></textarea>
         </div>
 
     </div>
@@ -283,7 +307,8 @@
         'PAINT_MAT': 'Paint & Finishes (Materials)',
         'PAINT_LAB': 'Paint & Finishes (Labor)',
         'VINYL_MAT': 'Vinyl & Graphics (Materials)',
-        'VINYL_LAB': 'Vinyl & Graphics (Labor)'
+        'VINYL_LAB': 'Vinyl & Graphics (Labor)',
+        'INSTALL_HDW': 'Installation Hardware'
     };
 
     function renderAdminCostLedger(costData, metricsData) {
@@ -344,10 +369,12 @@
                     belowGrade: parseFloat(document.getElementById('underground').value) || 20,
                     postKey: postSplit,
                     postSize: parseFloat(postSplit[1]),
+                    postMetalName: postSplit[2],
                     frameKey: document.getElementById('frameMat').value,
                     faceKey: document.getElementById('faceMat').value,
                     mountStyle: document.getElementById('mountStyle').value,
                     graphicType: document.getElementById('graphicType').value,
+                    weedingLevel: document.getElementById('weeding').value,
                     w: parseFloat(document.getElementById('panelW').value) || 36, 
                     h: parseFloat(document.getElementById('panelH').value) || 24, 
                     sides: parseInt(document.getElementById('sides').value) || 2
@@ -372,25 +399,34 @@
                 
                 if (adminCostEnabled && result.cost) renderAdminCostLedger(result.cost, result.metrics);
 
-                // --- GENERATE BOM & JOB SUMMARY ---
-                if (result.cost && result.cost.breakdown) {
-                    const bomItems = result.cost.breakdown.filter(i => i.category && i.category.includes('_MAT'));
-                    let bomStr = bomItems.map(i => `- ${i.label}`).join('\n');
-                    
+                // --- GENERATE SEPARATED BOM & JOB SUMMARY ---
+                if (result.build && result.build.bom) {
                     const postStr = postSplit[2] || 'Aluminum';
                     const frameStr = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
                     const faceStr = document.getElementById('faceMat').options[document.getElementById('faceMat').selectedIndex].text;
                     const graphicStr = document.getElementById('graphicType').options[document.getElementById('graphicType').selectedIndex].text;
 
-                    const summary = `JOB SUMMARY:
+                    let summary = `JOB SUMMARY:
 (x${inputs.qty}) ${inputs.w}" x ${inputs.h}" ${inputs.sides}-Sided Post & Panel
 Posts: ${inputs.postSize}" ${postStr} Square Tube (${inputs.thag}" A.G. / ${inputs.belowGrade}" B.G.)
 Frame: ${frameStr} (${inputs.mountStyle} Mount)
 Faces: ${faceStr}
-Graphics: ${graphicStr}
+Graphics: ${graphicStr}\n\n`;
 
-BILL OF MATERIALS:
-${bomStr}`;
+                    summary += `=== BILL OF MATERIALS ===\n`;
+
+                    // Sort departments visually
+                    const deptOrder = ['Metal Fabrication', 'Paint & Finishes', 'Vinyl & Graphics', 'Installation Hardware'];
+                    
+                    deptOrder.forEach(dept => {
+                        if (result.build.bom[dept] && result.build.bom[dept].length > 0) {
+                            summary += `\n[ ${dept.toUpperCase()} ]\n`;
+                            result.build.bom[dept].forEach(item => {
+                                summary += `- ${item}\n`;
+                            });
+                        }
+                    });
+
                     document.getElementById('job-summary').value = summary;
                 }
 
