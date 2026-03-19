@@ -1,3 +1,5 @@
+window.SignOS_Export_v2 = window.SignOS_Export_v2 || {};
+
 // signos-export-v2.js (v3.1 CorelDraw Pipeline)
 function downloadProductionSVG() {
     const svgEl = document.getElementById('live-production-preview');
@@ -119,7 +121,6 @@ SignOS_Export_v2.exportADA = function(manifest) {
 };
 
 // --- MANUFACTURING WORK ORDER GENERATOR ---
-window.SignOS_Export_v2 = window.SignOS_Export_v2 || {};
 SignOS_Export_v2.printWorkOrder = function(calcResult, svgContainerId, jobDescId) {
     if (!calcResult || !calcResult.cost) {
         alert("No calculation data available to print. Please run the calculator first.");
