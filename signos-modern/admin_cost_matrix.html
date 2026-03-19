@@ -11,6 +11,7 @@
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .highlight-active { box-shadow: 0 0 0 2px #f97316; background-color: #fff7ed !important; transform: scale(1.02); z-index: 10; }
     </style>
 </head>
 <body class="bg-gray-100 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
@@ -29,58 +30,86 @@
     <div class="flex flex-1 overflow-hidden">
 
         <!-- LEFT: PRODUCT SELECTOR -->
-        <div class="w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm z-20 shrink-0">
+        <div class="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-20 shrink-0">
             <div class="p-4 bg-slate-50 border-b border-gray-100 shrink-0">
                 <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">1. Select Product</h2>
-                <select id="product-dropdown" class="w-full border border-gray-300 p-2.5 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white" onchange="loadProductMatrix(this.value)">
+                <select id="product-dropdown" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none focus:border-blue-500 shadow-sm bg-white" onchange="loadProductMatrix(this.value)">
                     <option value="" disabled selected>Fetching Products...</option>
                 </select>
             </div>
-            
             <div class="p-4 bg-white border-b border-gray-100 shrink-0">
                 <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Search Variables</label>
-                <input type="text" id="var-search" placeholder="Search variables..." oninput="renderMatrix()" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
+                <input type="text" id="var-search" placeholder="Search..." oninput="renderMatrix()" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
             </div>
-            
-            <div class="flex-1 overflow-y-auto p-5 bg-gray-50 text-xs text-gray-500 leading-relaxed custom-scroll">
-                <b class="block text-[10px] uppercase text-gray-700 tracking-widest mb-3 border-b border-gray-200 pb-1">Override Rules:</b>
-                <ul class="space-y-4">
-                    <li class="bg-white p-3 rounded border border-gray-200 shadow-sm"><strong class="text-green-600 block mb-1">INHERIT (TRUE):</strong> Uses the global Master Data engine rate. If the master rate updates, this product updates instantly.</li>
-                    <li class="bg-white p-3 rounded border border-gray-200 shadow-sm"><strong class="text-red-600 block mb-1">DEACTIVATE (FALSE):</strong> Zeros out the cost completely for this specific product, removing it from the margin calculation.</li>
-                    <li class="bg-white p-3 rounded border border-gray-200 shadow-sm"><strong class="text-orange-600 block mb-1">CUSTOM:</strong> Injects a hard numerical fallback specific to this product's calculations, overriding the master rate.</li>
+            <div class="flex-1 overflow-y-auto p-4 bg-gray-50 text-[10px] text-gray-500 leading-relaxed custom-scroll">
+                <b class="block uppercase text-gray-700 tracking-widest mb-2 border-b border-gray-200 pb-1">Override Rules:</b>
+                <ul class="space-y-3">
+                    <li class="bg-white p-2 rounded border border-gray-200 shadow-sm"><strong class="text-green-600 block">INHERIT (TRUE):</strong> Inherits Master Data rate.</li>
+                    <li class="bg-white p-2 rounded border border-gray-200 shadow-sm"><strong class="text-red-600 block">DEACTIVATE:</strong> Zeros out the cost.</li>
+                    <li class="bg-white p-2 rounded border border-gray-200 shadow-sm"><strong class="text-orange-600 block">CUSTOM:</strong> Forces hard numerical fallback.</li>
                 </ul>
             </div>
         </div>
 
-        <!-- CENTER: THE OVERRIDE MATRIX -->
-        <div class="flex-1 bg-white flex flex-col relative">
-            <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-10 transition-opacity duration-300">
+        <!-- CENTER: THE GROUPED OVERRIDE MATRIX -->
+        <div class="flex-1 bg-white flex flex-col relative z-10 shadow-[0_0_15px_rgba(0,0,0,0.05)]">
+            <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-20 transition-opacity duration-300">
                 <span class="text-5xl mb-4 text-gray-300">🎛️</span>
                 <h2 class="text-xl font-black text-gray-400 uppercase tracking-widest">Select a Product to Edit</h2>
             </div>
 
             <!-- Header Row -->
-            <div class="grid grid-cols-12 gap-4 p-4 bg-slate-100 border-b border-gray-200 shrink-0 shadow-sm items-center">
+            <div class="grid grid-cols-12 gap-2 p-3 bg-slate-100 border-b border-gray-200 shrink-0 shadow-sm items-center pr-6">
                 <div class="col-span-5 text-[10px] font-black text-gray-500 uppercase tracking-widest">Variable / Component</div>
-                <div class="col-span-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Global Master</div>
-                <div class="col-span-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Product Override Rule</div>
-                <div class="col-span-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right pr-2">Custom Value</div>
+                <div class="col-span-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Master</div>
+                <div class="col-span-3 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Override Rule</div>
+                <div class="col-span-2 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Custom</div>
             </div>
 
             <!-- Scrollable Matrix -->
-            <div id="matrix-container" class="flex-1 overflow-y-auto custom-scroll p-4 space-y-2 bg-gray-50">
-                <!-- Rows Injected via JS -->
+            <div id="matrix-container" class="flex-1 overflow-y-auto custom-scroll p-4 space-y-6 bg-gray-50">
+                <!-- Grouped Rows Injected via JS -->
             </div>
 
             <!-- Action Footer -->
-            <div class="p-5 bg-white border-t border-gray-200 shrink-0 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <div class="p-4 bg-white border-t border-gray-200 shrink-0 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                 <div class="flex flex-col">
                     <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Target Configuration</span>
                     <span id="active-product-label" class="text-sm font-black text-blue-700">None Selected</span>
                 </div>
-                <button id="btn-save" onclick="saveMatrixOverrides()" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-3 rounded shadow-md text-xs uppercase tracking-widest transition flex items-center gap-2">
+                <button id="btn-save" onclick="saveMatrixOverrides()" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-2.5 rounded shadow-md text-xs uppercase tracking-widest transition flex items-center gap-2">
                     Save Overrides
                 </button>
+            </div>
+        </div>
+
+        <!-- RIGHT: INTERACTIVE CALCULATOR PREVIEW -->
+        <div class="w-80 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 relative z-20 shadow-xl overflow-hidden">
+            <div class="p-4 bg-slate-900 border-b border-slate-700 shrink-0">
+                <h2 class="text-xs font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                    <span class="text-lg">📱</span> Live UI Preview
+                </h2>
+                <p class="text-[9px] font-bold text-slate-400 mt-1">Hover over matrix variables to see impacts.</p>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto custom-scroll p-4 relative">
+                <!-- Simulated Phone/Terminal Frame -->
+                <div class="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-300 flex flex-col min-h-[400px] pointer-events-none">
+                    <div class="bg-blue-50 border-b border-blue-100 p-3 text-center shrink-0">
+                        <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest block" id="preview-title">Quoter</span>
+                    </div>
+                    
+                    <div id="preview-controls" class="p-4 space-y-3 bg-white flex-1">
+                        <div class="text-center text-xs text-gray-400 italic py-10">Select a product...</div>
+                    </div>
+
+                    <div class="bg-slate-50 border-t border-slate-200 p-4 shrink-0">
+                        <h3 class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-200 pb-1">Variables In Use</h3>
+                        <div id="preview-ledger" class="space-y-1.5">
+                            <!-- Simulated ledger mapped from UI Schema -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -105,112 +134,197 @@
     // --- 1. FETCH ALL DATA ---
     async function fetchData() {
         try {
-            // Fetch Global Variables (The Master List)
             const gvRes = await fetch(`${SUPABASE_URL}/rest/v1/global_variables?select=id,default_value,override_value,category,notes&limit=1000`, {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
             });
             globalVariables = await gvRes.json();
             globalVariables.sort((a,b) => a.id.localeCompare(b.id));
 
-            // Fetch Product Configurations (The Targets)
-            const prodRes = await fetch(`${SUPABASE_URL}/rest/v1/product_configurations?select=id,display_name,matrix_overrides&limit=100`, {
+            // Fetch Products AND their UI Schemas
+            const prodRes = await fetch(`${SUPABASE_URL}/rest/v1/product_configurations?select=id,display_name,matrix_overrides,ui_schema&limit=100`, {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
             });
             productConfigs = await prodRes.json();
             productConfigs.sort((a,b) => a.display_name.localeCompare(b.display_name));
 
-            // Populate Dropdown
             const dropdown = document.getElementById('product-dropdown');
             dropdown.innerHTML = `<option value="" disabled selected>Select a Product...</option>`;
             productConfigs.forEach(p => {
                 dropdown.innerHTML += `<option value="${p.id}">[${p.id}] ${p.display_name}</option>`;
             });
-
         } catch (e) {
-            console.error("Fetch Error", e);
             alert("Failed to connect to Supabase database.");
         }
     }
 
-    // --- 2. LOAD PRODUCT MATRIX ---
+    // --- 2. LOAD PRODUCT ---
     function loadProductMatrix(productId) {
         activeProduct = productConfigs.find(p => p.id === productId);
         if (!activeProduct) return;
 
-        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('empty-state').classList.add('opacity-0', 'pointer-events-none');
         document.getElementById('active-product-label').innerText = activeProduct.display_name;
+        document.getElementById('preview-title').innerText = activeProduct.display_name;
         
-        // Load the exact JSON override payload from Supabase
         currentOverrides = activeProduct.matrix_overrides || {};
         
+        renderPreviewUI();
         renderMatrix();
     }
 
-    // --- 3. RENDER THE MATRIX ---
+    // --- 3. RENDER THE PREVIEW UI ---
+    function renderPreviewUI() {
+        const schema = activeProduct.ui_schema;
+        const cContainer = document.getElementById('preview-controls');
+        const lContainer = document.getElementById('preview-ledger');
+        
+        if (!schema) {
+            cContainer.innerHTML = '<div class="text-xs text-gray-400 text-center italic py-4">No UI Schema defined for this product.</div>';
+            lContainer.innerHTML = '';
+            return;
+        }
+
+        // Render fake inputs
+        let cHtml = `
+            <div class="grid grid-cols-2 gap-2 mb-2">
+                <div class="border border-gray-200 bg-gray-50 rounded p-1.5 text-center text-[10px] font-bold text-gray-400">Width / Height</div>
+                <div class="border border-gray-200 bg-gray-50 rounded p-1.5 text-center text-[10px] font-bold text-gray-400">Quantity</div>
+            </div>`;
+        
+        if (schema.controls) {
+            schema.controls.forEach(ctrl => {
+                if(ctrl.id === 'w' || ctrl.id === 'h' || ctrl.id === 'qty') return;
+                cHtml += `
+                <div id="prev-ctrl-${ctrl.id.toLowerCase()}" class="border border-gray-300 rounded p-2 transition-all duration-300 relative bg-white">
+                    <label class="block text-[9px] font-black text-blue-800 uppercase tracking-widest mb-1">${ctrl.label}</label>
+                    <div class="h-6 bg-gray-100 rounded border border-gray-200 w-full"></div>
+                </div>`;
+            });
+        }
+        cContainer.innerHTML = cHtml;
+
+        // Render fake ledger to show variable relationships
+        let lHtml = '';
+        const allLedgerItems = [...(schema.costs || []), ...(schema.retails || [])];
+        
+        allLedgerItems.forEach(item => {
+            lHtml += `
+            <div id="prev-var-${item.key.toLowerCase()}" class="flex justify-between items-center bg-white border border-slate-200 p-1.5 rounded transition-all duration-300">
+                <span class="text-[9px] font-bold text-slate-600 truncate flex-1">${item.label}</span>
+                <span class="text-[8px] font-mono text-slate-400 truncate w-16 text-right">${item.key}</span>
+            </div>`;
+        });
+        lContainer.innerHTML = lHtml;
+    }
+
+    // --- 4. RENDER THE MATRIX (GROUPED BY CATEGORY) ---
     function renderMatrix() {
         if (!activeProduct) return;
 
         const search = document.getElementById('var-search').value.toLowerCase();
         const container = document.getElementById('matrix-container');
-        let html = '';
-
+        
+        // Group variables
+        const categories = {};
         globalVariables.forEach(gv => {
             if (search && !gv.id.toLowerCase().includes(search) && !gv.category.toLowerCase().includes(search)) return;
-
-            // Determine Master Value
-            const masterVal = (gv.override_value !== null && gv.override_value !== undefined) ? gv.override_value : gv.default_value;
-            
-            // Determine Current Override State for this specific product
-            let overrideState = 'true'; // Default is inherit
-            let customVal = '';
-            
-            if (currentOverrides.hasOwnProperty(gv.id)) {
-                const val = currentOverrides[gv.id];
-                if (val === true) overrideState = 'true';
-                else if (val === false) overrideState = 'false';
-                else {
-                    overrideState = 'custom';
-                    customVal = val;
-                }
-            }
-
-            const rowClass = overrideState === 'false' ? 'bg-red-50 border-red-200' : (overrideState === 'custom' ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-200');
-
-            html += `
-            <div class="grid grid-cols-12 gap-4 p-3 rounded-lg border shadow-sm items-center transition-colors duration-200 ${rowClass}" id="row-${gv.id}">
-                
-                <!-- Variable Info -->
-                <div class="col-span-5 flex flex-col">
-                    <span class="text-xs font-bold text-gray-800 truncate" title="${gv.id}">${gv.id}</span>
-                    <span class="text-[9px] font-black text-blue-500 uppercase tracking-widest mt-0.5">${gv.category}</span>
-                </div>
-
-                <!-- Global Master -->
-                <div class="col-span-2 text-center">
-                    <span class="text-xs font-mono font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded border border-gray-200 shadow-inner">${masterVal}</span>
-                </div>
-
-                <!-- Override Dropdown -->
-                <div class="col-span-3">
-                    <select id="select-${gv.id}" onchange="handleOverrideChange('${gv.id}')" class="w-full border border-gray-300 p-2 rounded text-xs font-bold outline-none shadow-sm focus:border-blue-500 ${overrideState === 'false' ? 'text-red-700 bg-red-100' : (overrideState === 'custom' ? 'text-orange-700 bg-orange-100' : 'text-green-700 bg-green-50')}">
-                        <option value="true" ${overrideState === 'true' ? 'selected' : ''}>✅ INHERIT MASTER</option>
-                        <option value="false" ${overrideState === 'false' ? 'selected' : ''}>❌ DEACTIVATE</option>
-                        <option value="custom" ${overrideState === 'custom' ? 'selected' : ''}>⚠️ CUSTOM FALLBACK</option>
-                    </select>
-                </div>
-
-                <!-- Custom Input -->
-                <div class="col-span-2">
-                    <input type="number" step="0.01" id="input-${gv.id}" value="${customVal}" onchange="updateCustomValue('${gv.id}')" class="w-full border border-gray-300 p-2 rounded text-xs font-mono font-bold text-right outline-none focus:border-orange-500 shadow-inner disabled:bg-gray-100 disabled:opacity-50" ${overrideState !== 'custom' ? 'disabled' : ''} placeholder="...">
-                </div>
-
-            </div>`;
+            if (!categories[gv.category]) categories[gv.category] = [];
+            categories[gv.category].push(gv);
         });
 
+        let html = '';
+        for (const [catName, vars] of Object.entries(categories)) {
+            html += `
+            <div class="mb-6">
+                <h3 class="text-[11px] font-black text-gray-800 uppercase tracking-widest border-b-2 border-gray-200 pb-1 mb-3 ml-1">${catName} Variables</h3>
+                <div class="space-y-2">`;
+            
+            vars.forEach(gv => {
+                const masterVal = (gv.override_value !== null && gv.override_value !== undefined) ? gv.override_value : gv.default_value;
+                let overrideState = 'true';
+                let customVal = '';
+                
+                if (currentOverrides.hasOwnProperty(gv.id)) {
+                    const val = currentOverrides[gv.id];
+                    if (val === true) overrideState = 'true';
+                    else if (val === false) overrideState = 'false';
+                    else { overrideState = 'custom'; customVal = val; }
+                }
+
+                const rowClass = overrideState === 'false' ? 'bg-red-50 border-red-200' : (overrideState === 'custom' ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-200');
+
+                // HOVER EVENT ADDED HERE
+                html += `
+                <div class="grid grid-cols-12 gap-2 p-2 rounded border shadow-sm items-center transition-colors duration-200 ${rowClass}" 
+                     onmouseenter="highlightPreview('${gv.id}')" onmouseleave="unhighlightPreview('${gv.id}')">
+                    
+                    <div class="col-span-5 flex flex-col px-1 overflow-hidden">
+                        <span class="text-[11px] font-bold text-gray-800 truncate" title="${gv.id}">${gv.id}</span>
+                        <span class="text-[9px] text-gray-500 truncate" title="${gv.notes || ''}">${gv.notes || 'System variable'}</span>
+                    </div>
+
+                    <div class="col-span-2 text-center">
+                        <span class="text-[10px] font-mono font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded shadow-inner block truncate">${masterVal}</span>
+                    </div>
+
+                    <div class="col-span-3">
+                        <select id="select-${gv.id}" onchange="handleOverrideChange('${gv.id}')" class="w-full border border-gray-300 p-1.5 rounded text-[10px] font-bold outline-none focus:border-blue-500 ${overrideState === 'false' ? 'text-red-700 bg-red-100' : (overrideState === 'custom' ? 'text-orange-700 bg-orange-100' : 'text-green-700 bg-green-50')}">
+                            <option value="true" ${overrideState === 'true' ? 'selected' : ''}>✅ INHERIT</option>
+                            <option value="false" ${overrideState === 'false' ? 'selected' : ''}>❌ DEACTIVATE</option>
+                            <option value="custom" ${overrideState === 'custom' ? 'selected' : ''}>⚠️ CUSTOM</option>
+                        </select>
+                    </div>
+
+                    <div class="col-span-2">
+                        <input type="number" step="0.01" id="input-${gv.id}" value="${customVal}" onchange="updateCustomValue('${gv.id}')" class="w-full border border-gray-300 p-1.5 rounded text-[10px] font-mono font-bold text-right outline-none focus:border-orange-500 shadow-inner disabled:bg-gray-100 disabled:opacity-50" ${overrideState !== 'custom' ? 'disabled' : ''} placeholder="...">
+                    </div>
+                </div>`;
+            });
+            html += `</div></div>`;
+        }
         container.innerHTML = html;
     }
 
-    // --- 4. HANDLE UI CHANGES ---
+    // --- 5. PREVIEW HIGHLIGHTING LOGIC ---
+    function highlightPreview(varId) {
+        const lowerVar = varId.toLowerCase();
+        let matched = false;
+
+        // 1. Try to match the exact variable in the Simulated Ledger
+        const ledgerEl = document.getElementById(`prev-var-${lowerVar}`);
+        if (ledgerEl) {
+            ledgerEl.classList.add('highlight-active');
+            matched = true;
+        }
+
+        // 2. Try to fuzzy-match against UI Controls based on naming conventions
+        if (activeProduct && activeProduct.ui_schema && activeProduct.ui_schema.controls) {
+            activeProduct.ui_schema.controls.forEach(ctrl => {
+                const cId = ctrl.id.toLowerCase();
+                // E.g., if the variable is "Time_CNC_Easy", highlight the "Shape" or "Cut Type" dropdown
+                if (
+                    lowerVar.includes(cId) || 
+                    (lowerVar.includes('cnc') && cId.includes('shape')) ||
+                    (lowerVar.includes('lam') && cId.includes('laminate')) ||
+                    (lowerVar.includes('paint') && cId.includes('color')) ||
+                    (lowerVar.includes('stake') && cId.includes('hardware')) ||
+                    (lowerVar.includes('stock') && cId.includes('thickness'))
+                ) {
+                    const uiEl = document.getElementById(`prev-ctrl-${cId}`);
+                    if (uiEl) {
+                        uiEl.classList.add('highlight-active');
+                        matched = true;
+                    }
+                }
+            });
+        }
+    }
+
+    function unhighlightPreview(varId) {
+        document.querySelectorAll('.highlight-active').forEach(el => el.classList.remove('highlight-active'));
+    }
+
+    // --- 6. HANDLE INPUT CHANGES ---
     function handleOverrideChange(varId) {
         const select = document.getElementById(`select-${varId}`);
         const input = document.getElementById(`input-${varId}`);
@@ -218,53 +332,40 @@
 
         if (val === 'true') {
             currentOverrides[varId] = true;
-            input.disabled = true;
-            input.value = '';
+            input.disabled = true; input.value = '';
         } else if (val === 'false') {
             currentOverrides[varId] = false;
-            input.disabled = true;
-            input.value = '';
+            input.disabled = true; input.value = '';
         } else if (val === 'custom') {
             input.disabled = false;
             currentOverrides[varId] = parseFloat(input.value) || 0;
             input.focus();
         }
-        
-        // Re-render to update row colors
         renderMatrix();
     }
 
     function updateCustomValue(varId) {
         const input = document.getElementById(`input-${varId}`);
-        if (!input.disabled) {
-            currentOverrides[varId] = parseFloat(input.value) || 0;
-        }
+        if (!input.disabled) currentOverrides[varId] = parseFloat(input.value) || 0;
     }
 
-    // --- 5. SAVE TO SUPABASE ---
+    // --- 7. SAVE TO SUPABASE ---
     async function saveMatrixOverrides() {
         if (!activeProduct) return;
 
         const btn = document.getElementById('btn-save');
-        btn.innerText = "SAVING...";
-        btn.disabled = true;
+        btn.innerText = "SAVING..."; btn.disabled = true;
 
         try {
             const payload = { matrix_overrides: currentOverrides };
-
             const response = await fetch(`${SUPABASE_URL}/rest/v1/product_configurations?id=eq.${activeProduct.id}`, {
                 method: 'PATCH',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'apikey': SUPABASE_ANON_KEY, 
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}` 
-                },
+                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
                 body: JSON.stringify(payload)
             });
 
             if (!response.ok) throw new Error("Database PATCH failed.");
 
-            // Update local memory so we don't have to fetch again
             activeProduct.matrix_overrides = currentOverrides;
 
             btn.classList.replace('bg-blue-600', 'bg-green-500');
@@ -277,12 +378,9 @@
                 btn.innerText = "Save Overrides";
                 btn.disabled = false;
             }, 2000);
-
         } catch (e) {
-            console.error("Save Error:", e);
-            alert("Failed to save overrides to Supabase.");
-            btn.innerText = "ERROR";
-            btn.disabled = false;
+            alert("Failed to save overrides.");
+            btn.innerText = "ERROR"; btn.disabled = false;
         }
     }
 </script>
