@@ -44,20 +44,20 @@
     <div id="main-card" class="bg-white shadow-xl rounded-b-xl border-x border-b border-gray-200 relative overflow-hidden">
 
         <!-- 2D ARCHITECTURAL VIEWPORT -->
-        <div class="w-full h-[400px] bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden" onwheel="SignOS_UI.Camera3D.handleZoom(event)" onmousedown="SignOS_UI.Camera3D.startPan(event)" onmousemove="SignOS_UI.Camera3D.handlePan(event)" onmouseup="SignOS_UI.Camera3D.endPan()" onmouseleave="SignOS_UI.Camera3D.endPan()">
+        <div class="w-full h-[400px] bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
             <div class="absolute top-3 left-3 flex flex-col z-20 pointer-events-none">
                 <span class="text-[10px] font-black text-blue-400 uppercase tracking-widest">2D Architectural Draft</span>
                 <span class="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Live Structural Physics</span>
             </div>
             
             <div class="absolute top-3 right-3 z-20 flex gap-2">
-                <button onclick="SignOS_UI.Camera3D.reset()" class="bg-slate-800 hover:bg-slate-700 text-white border border-slate-500 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition focus:outline-none">Reset View</button>
+                <button onclick="DraftCamera.resetAll()" class="bg-slate-800 hover:bg-slate-700 text-white border border-slate-500 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition focus:outline-none">Reset View</button>
                 <button id="btn-toggle-dims" onclick="toggleDimensions()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition focus:outline-none">Hide Dimensions</button>
                 <button id="btn-toggle-xray" onclick="toggleXRay()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition focus:outline-none">X-Ray Frame</button>
             </div>
 
             <!-- The Container -->
-            <div id="svg-preview-container" class="w-full h-full flex pt-12 pb-4 cursor-grab active:cursor-grabbing"></div>
+            <div id="svg-preview-container" class="w-full h-full flex pt-12 pb-4"></div>
         </div>
 
         <div class="p-6 space-y-6">
@@ -284,6 +284,60 @@
     let calcTimeout = null;
     let activePreset = 'ground';
 
+    // --- INDEPENDENT 2D PAN/ZOOM ENGINE ---
+    const DraftCamera = {
+        activeTarget: null, isDragging: false, startX: 0, startY: 0,
+        init: function(el) {
+            if (el._panX === undefined) { el._panX = 0; el._panY = 0; el._scaleZ = 1; }
+        },
+        zoom: function(e, container) {
+            e.preventDefault();
+            const target = container.querySelector('.zoom-target');
+            if(!target) return;
+            this.init(target);
+            target._scaleZ += e.deltaY * -0.001;
+            target._scaleZ = Math.min(Math.max(0.4, target._scaleZ), 3);
+            this.update(target);
+        },
+        start: function(e, container) {
+            const target = container.querySelector('.zoom-target');
+            if(!target) return;
+            this.init(target);
+            this.activeTarget = target;
+            this.isDragging = true;
+            this.startX = e.clientX - target._panX;
+            this.startY = e.clientY - target._panY;
+            container.style.cursor = 'grabbing';
+        },
+        move: function(e) {
+            if(!this.isDragging || !this.activeTarget) return;
+            this.activeTarget._panX = e.clientX - this.startX;
+            this.activeTarget._panY = e.clientY - this.startY;
+            this.update(this.activeTarget, true);
+        },
+        end: function() {
+            if(this.activeTarget) {
+                this.update(this.activeTarget, false);
+                this.activeTarget.parentElement.style.cursor = 'grab';
+            }
+            this.isDragging = false;
+            this.activeTarget = null;
+        },
+        update: function(target, isDragging = false) {
+            target.style.transform = `translate(${target._panX}px, ${target._panY}px) scale(${target._scaleZ})`;
+            target.style.transition = isDragging ? 'none' : 'transform 0.2s ease-out';
+        },
+        resetAll: function() {
+            document.querySelectorAll('.zoom-target').forEach(t => {
+                t._panX = 0; t._panY = 0; t._scaleZ = 1;
+                this.update(t);
+            });
+        }
+    };
+    // Global listeners ensure smooth panning even if the mouse leaves the window bounds
+    window.addEventListener('mousemove', (e) => DraftCamera.move(e));
+    window.addEventListener('mouseup', () => DraftCamera.end());
+
     // --- PURE 2D SVG DRAFTING ENGINE (WITH TRUE BOUNDING BOX) ---
     let showDims = true;
     let isXray = false;
@@ -478,13 +532,13 @@
         // INJECT INDEPENDENT WINDOW CONTAINERS (With strict overflow-hidden clipping)
         cont.innerHTML = `
             <div class="grid grid-cols-3 gap-3 w-full h-full p-3 animate-in fade-in duration-300">
-                <div class="col-span-2 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner overflow-hidden">
+                <div class="col-span-2 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner overflow-hidden cursor-grab" onwheel="DraftCamera.zoom(event, this)" onmousedown="DraftCamera.start(event, this)">
                     <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest z-10 pointer-events-none">Front Elevation</span>
-                    <div class="zoom-target w-full h-full flex items-center justify-center mt-6 relative pointer-events-none">${svgFront}</div>
+                    <div class="zoom-target w-full h-full flex items-center justify-center mt-6 relative pointer-events-none origin-center">${svgFront}</div>
                 </div>
-                <div class="col-span-1 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner overflow-hidden">
+                <div class="col-span-1 flex flex-col items-center bg-slate-950/50 rounded-xl border border-slate-700/50 p-4 relative shadow-inner overflow-hidden cursor-grab" onwheel="DraftCamera.zoom(event, this)" onmousedown="DraftCamera.start(event, this)">
                     <span class="absolute top-3 left-3 text-[9px] font-black text-blue-400/70 uppercase tracking-widest z-10 pointer-events-none">Side Profile</span>
-                    <div class="zoom-target w-full h-full flex items-center justify-center mt-6 relative pointer-events-none">${svgSide}</div>
+                    <div class="zoom-target w-full h-full flex items-center justify-center mt-6 relative pointer-events-none origin-center">${svgSide}</div>
                 </div>
             </div>
         `;
@@ -852,19 +906,6 @@ Graphics: ${graphicStr}\n\n`;
 
     window.addEventListener('load', async () => {
         if (typeof injectHeader === 'function') injectHeader("Post & Panel Signs");
-        
-        // Initialize Pan & Zoom logic targeting the SVGs inside the fixed windows
-        if(window.SignOS_UI && SignOS_UI.Camera3D) {
-            // Override the default engine to target our custom internal class
-            SignOS_UI.Camera3D.update = function() {
-                document.querySelectorAll('.zoom-target').forEach(stage => {
-                    stage.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scaleZ})`;
-                    stage.style.transition = this.isDragging ? 'none' : 'transform 0.2s ease-out';
-                });
-            };
-            SignOS_UI.Camera3D.init('svg-preview-container');
-            SignOS_UI.Camera3D.toggle(true); 
-        }
         
         // Ensure Admin View is restricted
         const role = sessionStorage.getItem('signos_role');
