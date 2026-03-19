@@ -26,7 +26,6 @@
                     <h1 class="text-2xl font-black tracking-tight" id="ui-fullname">Loading Profile...</h1>
                     <div class="flex items-center gap-2 mt-1">
                         <span class="px-2 py-0.5 bg-blue-500/20 border border-blue-400/30 rounded text-[10px] font-black text-blue-300 uppercase tracking-widest" id="ui-role-badge">WAIT</span>
-                        <span class="text-xs text-slate-400 font-medium" id="ui-email">...</span>
                     </div>
                 </div>
             </div>
@@ -40,14 +39,33 @@
                         <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Operational Identity (Management Controlled)</h2>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                        <div class="md:col-span-2">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">System Account ID (UUID)</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="inp-uuid" readonly class="w-full border border-gray-200 p-2.5 rounded bg-gray-50 text-xs font-mono text-gray-500 cursor-not-allowed shadow-inner outline-none">
+                                <button onclick="copyUUID()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-4 rounded text-[10px] font-bold uppercase transition focus:outline-none">Copy</button>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Registered Email</label>
+                            <input type="text" id="inp-email" readonly class="w-full border border-gray-200 p-2.5 rounded bg-gray-50 text-sm font-bold text-gray-500 cursor-not-allowed shadow-inner outline-none">
+                        </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Job Title / Competency</label>
                             <input type="text" id="inp-title" readonly class="w-full border border-gray-200 p-2.5 rounded bg-gray-50 text-sm font-bold text-gray-500 cursor-not-allowed shadow-inner outline-none">
                         </div>
                         <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">System Role</label>
+                            <input type="text" id="inp-role" readonly class="w-full border border-gray-200 p-2.5 rounded bg-gray-50 text-sm font-bold text-gray-500 cursor-not-allowed shadow-inner outline-none">
+                        </div>
+                        <div>
                             <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Department Silo</label>
                             <input type="text" id="inp-dept" readonly class="w-full border border-gray-200 p-2.5 rounded bg-gray-50 text-sm font-bold text-gray-500 cursor-not-allowed shadow-inner outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Account Created</label>
+                            <input type="text" id="inp-created" readonly class="w-full border border-gray-200 p-2.5 rounded bg-gray-50 text-sm font-bold text-gray-500 cursor-not-allowed shadow-inner outline-none">
                         </div>
                         <div class="md:col-span-2">
                             <p class="text-[10px] font-bold text-gray-400 italic">Notice: Role and Department changes must be requested through a System Administrator via the Workforce Manager.</p>
@@ -157,20 +175,29 @@ async function fetchProfile() {
     }
 }
 
+function copyUUID() {
+    const uuid = document.getElementById('inp-uuid').value;
+    navigator.clipboard.writeText(uuid);
+    alert("System Account ID copied to clipboard!");
+}
+
 function populateUI() {
     if (!userData) return;
 
     // Header updates
     document.getElementById('ui-fullname').innerText = `${userData.first_name || ''} ${userData.last_name || ''}`;
-    document.getElementById('ui-email').innerText = userData.email || '';
     document.getElementById('ui-role-badge').innerText = userData.role || 'GUEST';
     
     const initials = (userData.first_name ? userData.first_name.charAt(0) : '?') + (userData.last_name ? userData.last_name.charAt(0) : '');
     document.getElementById('ui-avatar').innerText = initials.toUpperCase();
 
     // Read-only operational fields
+    document.getElementById('inp-uuid').value = userData.id || '---';
+    document.getElementById('inp-email').value = userData.email || '---';
     document.getElementById('inp-title').value = userData.title || 'Standard User';
+    document.getElementById('inp-role').value = userData.role || 'GUEST';
     document.getElementById('inp-dept').value = (userData.department_id || 'Unassigned').replace('DEPT_', '');
+    document.getElementById('inp-created').value = userData.created_at ? new Date(userData.created_at).toLocaleDateString() : '---';
 
     // Editable personal fields
     document.getElementById('inp-first').value = userData.first_name || '';

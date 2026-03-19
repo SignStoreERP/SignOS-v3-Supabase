@@ -25,7 +25,7 @@ function goBack() {
     window.location.href = 'menu.html';
 }
 
-// 5. Global Header Injector (Floating Island Style)
+// 5. Global Header Injector (Single-Row Floating Island)
 function injectHeader(title, showMenu = true) {
     const uFirst = sessionStorage.getItem('signos_user') || 'GUEST';
     const uLast = sessionStorage.getItem('signos_user_last') || '';
@@ -47,47 +47,49 @@ function injectHeader(title, showMenu = true) {
     const container = document.body;
 
     const html = `
-    <!-- FLOATING ISLAND HEADER -->
-<div class="w-[calc(100%-2rem)] max-w-5xl mx-auto mt-4 mb-6 rounded-2xl overflow-hidden shadow-md shrink-0 z-50 flex flex-col border border-gray-800 sticky top-4 transition-all">
-        <!-- TOP UTILITY BAR (NEW AVATAR SYSTEM) -->
-        <div class="bg-gray-800 px-4 py-2 flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-700">
-            <div class="flex items-center gap-3">
-                <a href="user_profile.html" class="w-8 h-8 rounded-full ${roleBg} text-white flex items-center justify-center font-black shadow-inner border-2 border-gray-700 hover:scale-105 transition hover:border-white" title="Edit Profile">
-                    ${initials}
-                </a>
-                <div class="flex flex-col leading-none justify-center">
-                    <a href="user_profile.html" class="text-gray-200 font-bold uppercase hover:text-white hover:underline transition mb-1">${fullName}</a>
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-[8px] font-black uppercase tracking-widest ${roleText}">${r}</span>
-                        <span class="text-gray-600 font-black">|</span>
-                        <span class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">${dept}</span>
-                        ${r === 'SUPER' ? '<span class="ml-1 text-[8px] font-black bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 leading-none">OVERWATCH</span>' : ''}
-                    </div>
+    <!-- FLOATING ISLAND HEADER (SINGLE TIER) -->
+    <div class="w-[calc(100%-2rem)] max-w-5xl mx-auto mt-4 mb-6 rounded-xl shadow-md shrink-0 z-50 flex flex-wrap md:flex-nowrap items-center justify-between border border-gray-800 bg-gray-900 sticky top-4 transition-all px-4 py-3 gap-3">
+        
+        <!-- LEFT: Avatar & Info -->
+        <div class="flex items-center gap-4">
+            <a href="user_profile.html" class="w-10 h-10 rounded-full ${roleBg} text-white flex items-center justify-center font-black shadow-inner border-2 border-gray-700 hover:scale-105 transition hover:border-white shrink-0" title="Edit Profile">
+                ${initials}
+            </a>
+            <div class="flex flex-col leading-none justify-center">
+                <a href="user_profile.html" class="text-gray-100 font-bold uppercase text-sm hover:text-white hover:underline transition mb-1">${fullName}</a>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-black uppercase tracking-widest ${roleText}">${r}</span>
+                    <span class="text-gray-600 font-black">|</span>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${dept}</span>
+                    ${r === 'SUPER' ? '<span class="ml-2 text-[9px] font-black bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 leading-none">OVERWATCH</span>' : ''}
                 </div>
             </div>
-            <button onclick="logout()" class="hover:text-white font-bold uppercase tracking-widest transition flex items-center gap-1">
-                Logout
+        </div>
+
+        <!-- CENTER: Navigation & Title -->
+        <div class="hidden md:flex items-center gap-4 border-l border-r border-gray-700 px-6 h-8">
+            ${showMenu ? `
+            <a href="#" onclick="goBack()" class="text-gray-400 hover:text-white text-xs font-bold uppercase flex items-center gap-1 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg> MENU
+            </a>` : ''}
+            <h2 class="text-lg font-black text-white tracking-wide leading-none">${title}</h2>
+            <button onclick="location.reload()" class="text-gray-400 hover:text-white transition" title="Refresh Data">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             </button>
         </div>
 
-        <!-- MAIN NAV BAR -->
-        <div class="bg-gray-900 px-6 py-4 text-white flex justify-between items-center relative">
-            ${showMenu ? `
-            <a href="#" onclick="goBack()" class="text-gray-400 hover:text-white text-xs font-bold uppercase flex items-center gap-1 transition relative z-10">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg> MENU
-            </a>` : '<div class="relative z-10 w-16"></div>'}
-            <div class="text-center absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <h2 class="text-lg font-bold pointer-events-auto">${title}</h2>
-                <div class="flex items-center justify-center gap-2 text-[10px] mt-0.5 pointer-events-auto">
-                    <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                    <span id="status-text" class="font-bold text-gray-400">CONNECTING...</span>
-                    <span id="version-display" class="text-gray-500 font-mono hidden"></span>
-                </div>
-            </div>
-            <button onclick="location.reload()" class="text-gray-400 hover:text-white transition relative z-10" title="Refresh Data">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        <!-- RIGHT: Logout & Status -->
+        <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+            <button onclick="logout()" class="bg-gray-800 hover:bg-red-600 border border-gray-700 hover:border-red-500 text-gray-300 hover:text-white text-xs font-bold px-4 py-2 rounded transition uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                Logout
             </button>
+            <div class="flex items-center justify-center gap-1.5 text-[10px] bg-slate-800 border border-slate-700 px-3 py-2 rounded shadow-inner whitespace-nowrap min-w-[100px]">
+                <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span id="status-text" class="font-bold text-gray-400 tracking-wider">CONNECTING...</span>
+                <span id="version-display" class="text-gray-500 font-mono hidden"></span>
+            </div>
         </div>
+
     </div>`;
 
     container.insertAdjacentHTML('afterbegin', html);
@@ -111,16 +113,21 @@ function injectFooter() {
 
     const footerHtml = `
     <!-- FLOATING ISLAND FOOTER -->
-<div id="signos-universal-footer" class="w-[calc(100%-2rem)] max-w-5xl mx-auto mb-6 mt-auto rounded-2xl overflow-hidden shadow-md shrink-0 z-40 border border-gray-800 flex flex-col">
-        <div class="bg-gray-900 px-6 py-4 flex justify-between items-center w-full">
-            <a href="menu.html" class="text-[10px] font-bold text-gray-400 hover:text-white uppercase tracking-widest transition flex items-center gap-2">
+    <div id="signos-universal-footer" class="w-[calc(100%-2rem)] max-w-5xl mx-auto mb-6 mt-auto rounded-xl overflow-hidden shadow-md shrink-0 z-40 border border-gray-800 flex flex-col bg-gray-900">
+        <div class="px-6 py-4 flex justify-between items-center w-full gap-4">
+            <a href="menu.html" class="text-xs font-bold text-gray-400 hover:text-white uppercase tracking-widest transition flex items-center gap-2 flex-1">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                 System Menu
             </a>
-            <div class="flex items-center gap-4">
-                <span class="text-[9px] text-gray-600 font-mono font-bold tracking-widest uppercase">SignOS v4.0</span>
-                <button onclick="if(typeof openFeedback === 'function') openFeedback(); else alert('Feedback module not loaded.');" class="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest transition border border-red-900/50 bg-red-950/20 px-3 py-1.5 rounded flex items-center gap-1.5">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            
+            <div class="hidden md:block text-xs font-black text-gray-500 uppercase tracking-widest text-center flex-1">
+                The Sign Store
+            </div>
+
+            <div class="flex items-center justify-end gap-4 flex-1">
+                <span class="text-[10px] text-gray-600 font-mono font-bold tracking-widest uppercase">SignOS v4.0</span>
+                <button onclick="if(typeof openFeedback === 'function') openFeedback(); else alert('Feedback module not loaded.');" class="text-[10px] sm:text-xs font-bold text-red-400 hover:text-red-300 uppercase tracking-widest transition border border-red-900/50 bg-red-950/20 px-3 py-1.5 rounded flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                     Report Issue
                 </button>
             </div>
