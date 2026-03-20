@@ -41,7 +41,7 @@ export const Agent_Material_Stock = {
             latestCost = (mat.material_costs_history as any).internal_cost;
         }
 
-        if (!latestCost || latestCost <= 0) {
+        if (latestCost === undefined || latestCost === null || latestCost < 0) {
             throw new Error(`[NO FALLBACK MANDATE] Zero or missing cost history for SKU [${sku}]. Cost drift prevented.`);
         }
 

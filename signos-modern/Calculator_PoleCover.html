@@ -436,14 +436,18 @@
             const dynamicConfig = { ...backendData, Target_Margin_Pct: targetMargin };
 
             try {
-                const response = await fetch(`${EDGE_URL}/functions/v1/calculate-pole-cover`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
-                    body: JSON.stringify({ inputs: inputs, config: dynamicConfig, audit_mode: auditMode })
-                });
+            const response = await fetch(`${EDGE_URL}/functions/v1/calculate-pole-cover`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                body: JSON.stringify({ inputs: inputs, config: dynamicConfig, audit_mode: auditMode })
+            });
 
-                if (!response.ok) throw new Error("Calculation failed");
-                const result = await response.json();
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Server Error");
+            }
+
+            const result = await response.json();
                 window.lastEdgeResult = result;
 
                 const fmt = (n) => "$" + (n || 0).toFixed(2);
