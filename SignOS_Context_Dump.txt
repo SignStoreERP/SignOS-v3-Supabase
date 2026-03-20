@@ -1,5 +1,5 @@
 SIGNOS REPOSITORY STATE
-Generated: 2026-03-19T22:48:51.889Z
+Generated: 2026-03-20T01:11:03.563Z
 
 ├── .cursorrules
 ├── .github
@@ -44,6 +44,7 @@ Generated: 2026-03-19T22:48:51.889Z
 │   ├── admin_audit.html
 │   ├── admin_backup.html
 │   ├── admin_changelog.html
+│   ├── admin_cost_matrix.html
 │   ├── admin_database.html
 │   ├── admin_product_forge.html
 │   ├── admin_roadmap.html
