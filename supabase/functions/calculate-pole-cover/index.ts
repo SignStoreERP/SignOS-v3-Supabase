@@ -73,7 +73,7 @@ Deno.serve(async (req: any) => {
         // 1. FRAME & BRACING MATH
         // =====================================
         const frameLF_per = ((inputs.w * 4) + (inputs.d * 4) + (inputs.h * 4)) / 12;
-        const frameYield = Agent_Material_Stock.calculateLinearYield(frameLF_per * 12, inputs.qty, frameMat, 24);
+        const frameYield = Agent_Material_Stock.calculateLinearYield(frameLF_per, inputs.qty, frameMat, 24);
 
         addBOM('Metal Fabrication', {
             name: `Aluminum Skeleton Frame (${frameMat.description})`,
@@ -87,7 +87,7 @@ Deno.serve(async (req: any) => {
         // 2. BRACKETS MATH (Steel)
         // =====================================
         const bracketLF_per = (inputs.h * 2) / 12; 
-        const bracketYield = Agent_Material_Stock.calculateLinearYield(bracketLF_per * 12, inputs.qty, bracketMat, 20);
+        const bracketYield = Agent_Material_Stock.calculateLinearYield(bracketLF_per, inputs.qty, bracketMat, 20);
 
         addBOM('Metal Fabrication', {
             name: `Welded Steel Brackets (${bracketMat.description})`,

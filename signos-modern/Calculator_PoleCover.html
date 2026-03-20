@@ -462,11 +462,13 @@
                     document.getElementById('ui-sqft-price').innerText = '';
                 }
 
-                const bracketSize = Math.max(1, inputs.poleSize - 1);
-                const bracketStyle = document.getElementById('bracketMat').options[document.getElementById('bracketMat').selectedIndex].text;
-                
-                let summary = `JOB SUMMARY:\n(x${inputs.qty}) ${inputs.w}"W x ${inputs.h}"H x ${inputs.d}"D Pole Cover.\nFaces: ${inputs.faceThk} Aluminum (${inputs.paintOption})\nFrame: ${inputs.frameMat}" Aluminum Angle Frame with Internal 1.5" Bracing Angles.\nHardware: Raw Steel Brackets (${bracketStyle}, cut to ${bracketSize}" lengths, Welded On-Site to ${inputs.poleSize}" OD Pole). Access panel attached via screws.`;
-                document.getElementById('job-summary').value = summary;
+            const bracketSize = Math.max(1, inputs.poleSize - 1);
+            const faceTxt = document.getElementById('faceThk').options[document.getElementById('faceThk').selectedIndex].text;
+            const frameTxt = document.getElementById('frameMat').options[document.getElementById('frameMat').selectedIndex].text;
+            const bracketStyle = document.getElementById('bracketMat').options[document.getElementById('bracketMat').selectedIndex].text;
+            
+            let summary = `JOB SUMMARY:\n(x${inputs.qty}) ${inputs.w}"W x ${inputs.h}"H x ${inputs.d}"D Pole Cover.\nFaces: ${faceTxt} (${inputs.paintOption})\nFrame: ${frameTxt} Frame with Internal Bracing.\nHardware: Raw Steel Brackets (${bracketStyle}, cut to ${bracketSize}" lengths, Welded On-Site to ${inputs.poleSize}" OD Pole). Access panel attached via screws.`;
+            document.getElementById('job-summary').value = summary;
 
                 renderDrawings(inputs);
 
