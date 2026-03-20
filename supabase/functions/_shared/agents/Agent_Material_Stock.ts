@@ -12,7 +12,7 @@ export const Agent_Material_Stock = {
             global: { headers: { Authorization: authHeader } }
         });
 
-        // FIX: Relational Join to pull the live cost from the history ledger
+        // FIX: Removed width_in and length_in to match the actual database schema
         const { data: mat, error } = await supabase
             .from('materials')
             .select(`
@@ -20,8 +20,6 @@ export const Agent_Material_Stock = {
                 description, 
                 uom, 
                 waste_factor, 
-                width_in, 
-                length_in,
                 material_costs_history ( internal_cost, effective_from )
             `)
             .eq('sku', sku)
@@ -35,15 +33,17 @@ export const Agent_Material_Stock = {
         }
 
         // Extract the relational cost
-        const latestCost = mat.material_costs_history && mat.material_costs_history.length > 0 
-            ? mat.material_costs_history.internal_cost 
-            : null;
+        let latestCost = 0;
+        if (Array.isArray(mat.material_costs_history) && mat.material_costs_history.length > 0) {
+            latestCost = mat.material_costs_history.internal_cost;
+        } else if (mat.material_costs_history && !Array.isArray(mat.material_costs_history)) {
+            latestCost = (mat.material_costs_history as any).internal_cost;
+        }
 
         if (!latestCost || latestCost <= 0) {
             throw new Error(`[NO FALLBACK MANDATE] Zero or missing cost history for SKU [${sku}]. Cost drift prevented.`);
         }
 
-        // Map it back to the root object for the math engine
         mat.internal_cost = latestCost;
         return mat;
     },

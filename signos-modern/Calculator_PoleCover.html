@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pole Cover Quoter v3.0</title>
+    <title>Pole Cover Quoter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <script src="signos-export-v2.js"></script>
@@ -16,142 +16,131 @@
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10">
 
-<div class="max-w-md mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full">
-    
-    <!-- MAIN ISLAND CARD -->
-    <div id="main-card" class="bg-white shadow-xl overflow-hidden rounded-xl border border-gray-200 relative">
+<div id="main-card" class="max-w-md mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full bg-white shadow-lg overflow-hidden rounded-xl border border-gray-200">
 
-        <!-- BOLD HEADER -->
-        <div class="flex bg-slate-900 border-b border-gray-800 shrink-0 relative">
-            <div class="flex-1 py-3.5 text-xs font-black uppercase tracking-widest text-center bg-blue-600 text-white">
-                Calculator View
+    <!-- ADMIN COST TOGGLE (V3.0 Standard) -->
+    <div id="admin-toggle-bar" class="hidden bg-gray-100 border-b border-gray-200 px-4 py-2 flex justify-between items-center shadow-inner">
+        <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+            <span class="text-red-500">🛡️</span> Admin Privileges
+        </span>
+        <label class="flex items-center gap-2 cursor-pointer">
+            <span class="text-[10px] font-bold text-gray-600 uppercase">Cost View</span>
+            <div class="relative">
+                <input type="checkbox" id="toggle-cost-view" class="sr-only" onchange="handleAdminToggle()">
+                <div class="block bg-gray-300 w-8 h-5 rounded-full shadow-inner transition-colors" id="toggle-bg"></div>
+                <div class="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform" id="toggle-dot"></div>
             </div>
-        </div>
-
-        <!-- ADMIN COST TOGGLE -->
-        <div id="admin-toggle-container" class="hidden bg-gray-100 border-b border-gray-200 px-4 py-2 flex justify-between items-center shadow-inner">
-            <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                <span class="text-red-500">🛡️</span> Admin Privileges
-            </span>
-            <label class="flex items-center gap-2 cursor-pointer">
-                <span class="text-[10px] font-bold text-gray-600 uppercase">Enable Cost View</span>
-                <div class="relative">
-                    <input type="checkbox" id="toggle-cost-view" class="sr-only" onchange="handleAdminToggle()">
-                    <div class="block bg-gray-300 w-8 h-5 rounded-full shadow-inner transition-colors" id="toggle-bg"></div>
-                    <div class="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform" id="toggle-dot"></div>
-                </div>
-            </label>
-        </div>
-
-        <!-- 2D ARCHITECTURAL VIEWPORT -->
-        <div class="w-full h-[240px] bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
-            <div class="absolute top-2 left-2 flex flex-col z-20 pointer-events-none">
-                <span class="text-[9px] font-black text-blue-400 uppercase tracking-widest">2D Draft</span>
-                <span class="text-[10px] font-bold text-slate-300" id="drafting-scale">Dynamic Fit</span>
-            </div>
-            
-            <div class="absolute top-2 right-2 flex gap-1.5 z-20">
-                <button onclick="toggleDimensions()" id="btn-toggle-dims" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2 py-1 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition focus:outline-none">Hide Dims</button>
-                <button onclick="toggleXRay()" id="btn-toggle-xray" class="bg-blue-600 hover:bg-blue-500 text-white border border-blue-500 px-2 py-1 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition focus:outline-none">X-Ray</button>
-            </div>
-
-            <div id="svg-preview-container" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing">
-                <!-- SVG Rendered Here -->
-            </div>
-        </div>
-
-        <!-- INPUTS -->
-        <div class="p-6 space-y-4">
-            <div class="grid grid-cols-3 gap-3">
-                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
-                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width (in)</label><input type="number" id="w" value="24" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
-                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height (in)</label><input type="number" id="h" value="72" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Depth (in)</label>
-                    <input type="number" id="d" value="12" class="w-full border p-2 rounded font-bold text-gray-800 text-sm text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner h-[42px]" oninput="runCalc()">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Face Material</label>
-                    <select id="faceThk" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="handleFaceChange()">
-                        <option value="ALM_SHT_040" selected>.040 Aluminum</option>
-                        <option value="ALM_SHT_063">.063 Aluminum</option>
-                        <option value="ALM_SHT_080">.080 Aluminum</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 mt-2">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Internal Frame</label>
-                    <select id="frameMat" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
-                        <option value="ALM_ANG_1">1" Alum Angle</option>
-                        <option value="ALM_ANG_1.5" selected>1.5" Alum Angle</option>
-                        <option value="ALM_ANG_2">2" Alum Angle</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Welded Brackets</label>
-                    <select id="bracketMat" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
-                        <option value="STL_ANG_1.5_18" selected>1.5" Steel Angle</option>
-                        <option value="STL_ANG_2_18">2" Steel Angle</option>
-                        <option value="STL_ANG_3_14">3" Steel Angle</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 pt-1">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Finish / Paint</label>
-                    <select id="paintOpt" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
-                        <option value="Factory Pre-Painted">Factory Pre-Painted (White/Black)</option>
-                        <option value="Custom Paint">Custom Automotive Paint Match</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <!-- RESULTS -->
-        <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
-            <div class="flex justify-between items-end mb-2">
-                <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
-                <span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span>
-            </div>
-
-            <div class="border-t border-blue-200/50 my-3"></div>
-
-            <div id="ui-line-items" class="space-y-1.5 text-xs text-blue-900/80 pt-1 pb-2"></div>
-
-            <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
-                <div>
-                    <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
-                </div>
-                <span class="text-3xl font-black text-blue-700 tracking-tight" id="ui-total">---</span>
-            </div>
-            
-            <button onclick="if(typeof SignOS_Export_v2 !== 'undefined' && SignOS_Export_v2.printWorkOrder) { SignOS_Export_v2.printWorkOrder(window.lastEdgeResult, 'svg-preview-container', 'job-desc'); }" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded shadow uppercase tracking-widest text-[10px] transition mt-2 mb-4">Print Work Order</button>
-
-            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
-            <textarea id="job-desc" class="w-full text-[10px] p-2 border border-gray-300 rounded bg-white h-20 text-gray-600 font-mono outline-none shadow-inner resize-none" readonly></textarea>
-        </div>
-
-        <!-- ADMIN HARD COST LEDGER -->
-        <div id="admin-ledger-box" class="hidden bg-slate-50 p-6 border-t border-gray-200 shadow-inner relative">
-            <div class="absolute top-0 right-6 w-16 h-1 bg-red-500 rounded-b-md"></div>
-            <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest mb-4 flex justify-between items-center">
-                Internal Cost Audit
-                <span id="ui-margin" class="text-sm text-green-600 font-mono tracking-tight">--% Margin</span>
-            </h3>
-            <div id="ui-cost-groups" class="space-y-4"></div>
-            <div class="flex justify-between items-center border-t-2 border-gray-300 mt-4 pt-3">
-                <span class="text-[10px] font-black text-gray-600 uppercase tracking-widest">Total Hard Cost</span>
-                <span id="ui-cost-total" class="text-lg font-black text-red-600 font-mono tracking-tight">---</span>
-            </div>
-        </div>
-
+        </label>
     </div>
+
+    <!-- 2D ARCHITECTURAL VIEWPORT -->
+    <div class="w-full h-[240px] bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
+        <div class="absolute top-2 left-2 flex flex-col z-20 pointer-events-none">
+            <span class="text-[9px] font-black text-blue-400 uppercase tracking-widest">2D Draft</span>
+            <span class="text-[10px] font-bold text-slate-300" id="drafting-scale">Dynamic Fit</span>
+        </div>
+        
+        <div class="absolute top-2 right-2 flex gap-1.5 z-20">
+            <button onclick="toggleDimensions()" id="btn-toggle-dims" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2 py-1 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition focus:outline-none">Hide Dims</button>
+            <button onclick="toggleXRay()" id="btn-toggle-xray" class="bg-blue-600 hover:bg-blue-500 text-white border border-blue-500 px-2 py-1 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition focus:outline-none">X-Ray</button>
+        </div>
+
+        <div id="svg-preview-container" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing">
+            <!-- SVG Rendered Here -->
+        </div>
+    </div>
+
+    <!-- INPUTS -->
+    <div class="p-6 space-y-4">
+        <div class="grid grid-cols-3 gap-3">
+            <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+            <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width (in)</label><input type="number" id="w" value="24" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+            <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height (in)</label><input type="number" id="h" value="72" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Depth (in)</label>
+                <input type="number" id="d" value="12" class="w-full border p-2 rounded font-bold text-gray-800 text-sm text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner h-[42px]" oninput="runCalc()">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Face Material</label>
+                <select id="faceThk" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="handleFaceChange()">
+                    <option value="ALM_SHT_040" selected>.040 Aluminum</option>
+                    <option value="ALM_SHT_063">.063 Aluminum</option>
+                    <option value="ALM_SHT_080">.080 Aluminum</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 mt-2">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Internal Frame</label>
+                <select id="frameMat" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
+                    <option value="ALM_ANG_1">1" Alum Angle</option>
+                    <option value="ALM_ANG_1.5" selected>1.5" Alum Angle</option>
+                    <option value="ALM_ANG_2">2" Alum Angle</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Welded Brackets</label>
+                <select id="bracketMat" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
+                    <option value="STL_ANG_1.5_18" selected>1.5" Steel Angle</option>
+                    <option value="STL_ANG_2_18">2" Steel Angle</option>
+                    <option value="STL_ANG_3_14">3" Steel Angle</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 pt-1">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Finish / Paint</label>
+                <select id="paintOpt" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
+                    <option value="Factory Pre-Painted">Factory Pre-Painted (White/Black)</option>
+                    <option value="Custom Paint">Custom Automotive Paint Match</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
+        <div class="flex justify-between items-end mb-2">
+            <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
+            <span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span>
+        </div>
+
+        <div class="border-t border-blue-200/50 my-3"></div>
+
+        <div id="ui-line-items" class="space-y-1.5 text-xs text-blue-900/80 pt-1 pb-2"></div>
+
+        <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
+            <div>
+                <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
+            </div>
+            <span class="text-3xl font-black text-blue-700 tracking-tight" id="ui-total">---</span>
+        </div>
+        
+        <button onclick="if(typeof SignOS_Export_v2 !== 'undefined' && SignOS_Export_v2.printWorkOrder) { SignOS_Export_v2.printWorkOrder(window.lastEdgeResult, 'svg-preview-container', 'job-desc'); }" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded shadow uppercase tracking-widest text-[10px] transition mt-2 mb-4">Print Work Order</button>
+
+        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
+        <textarea id="job-desc" class="w-full text-[10px] p-2 border border-gray-300 rounded bg-white h-20 text-gray-600 font-mono outline-none shadow-inner resize-none" readonly></textarea>
+    </div>
+
+    <!-- ADMIN HARD COST LEDGER -->
+    <div id="admin-ledger-box" class="hidden bg-slate-50 p-6 border-t border-gray-200 shadow-inner relative">
+        <div class="absolute top-0 right-6 w-16 h-1 bg-red-500 rounded-b-md"></div>
+        <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest mb-4 flex justify-between items-center">
+            Internal Cost Audit
+            <span id="ui-margin" class="text-sm text-green-600 font-mono tracking-tight">--% Margin</span>
+        </h3>
+        <div id="ui-cost-groups" class="space-y-4"></div>
+        <div class="flex justify-between items-center border-t-2 border-gray-300 mt-4 pt-3">
+            <span class="text-[10px] font-black text-gray-600 uppercase tracking-widest">Total Hard Cost</span>
+            <span id="ui-cost-total" class="text-lg font-black text-red-600 font-mono tracking-tight">---</span>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -289,7 +278,7 @@ function renderDrawings(inputs) {
     let savedStates = [];
     document.querySelectorAll('.zoom-target').forEach(t => { savedStates.push({ x: t._panX, y: t._panY, z: t._scaleZ }); });
 
-    const cx = 150, cy = 120; // Adjusted for smaller canvas
+    const cx = 150, cy = 120; 
     const maxDim = Math.max(inputs.w, inputs.h);
     const scale = 160 / maxDim;
     
@@ -356,7 +345,6 @@ async function runCalc() {
             document.getElementById('ui-total').classList.add('opacity-50');
             document.getElementById('ui-unit').classList.add('opacity-50');
             
-            // FIXED: Using the properly authenticated Session Token logic 
             const authKey = sessionStorage.getItem('signos_session_token') || SUPABASE_ANON_KEY;
             
             const response = await fetch(`${EDGE_URL}/functions/v1/calculate-pole-cover`, {
@@ -408,13 +396,13 @@ async function runCalc() {
 }
 
 window.addEventListener('load', async () => {
-    // Inject the standard single-column header without an icon
+    // Inject the standard single-column header
     if (typeof injectHeader === 'function') injectHeader("Pole Covers");
     
     const role = sessionStorage.getItem('signos_role');
     if (role === 'ADMIN' || role === 'SUPER') {
-        document.getElementById('admin-toggle-container').classList.remove('hidden');
-        document.getElementById('admin-toggle-container').classList.add('flex');
+        document.getElementById('admin-toggle-bar').classList.remove('hidden');
+        document.getElementById('admin-toggle-bar').classList.add('flex');
     }
 
     try {
@@ -422,10 +410,7 @@ window.addEventListener('load', async () => {
         if(payload.error) throw new Error(payload.error);
         
         backendData = payload.config;
-        
-        // Hide global loading status logic since it's now handled smoothly 
         runCalc();
-
     } catch(e) {
         console.error("Initialization Failed:", e);
     }
