@@ -82,16 +82,17 @@
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Frame Angle</label>
                             <select id="frameMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500 shadow-sm" onchange="runCalc()">
-                                <option value="1">1" Alum Angle</option>
-                                <option value="1.5" selected>1.5" Alum Angle</option>
+                                <option value="ALM_ANG_1">1" Alum Angle</option>
+                                <option value="ALM_ANG_1.5" selected>1.5" Alum Angle</option>
+                                <option value="ALM_ANG_2">2" Alum Angle</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Steel Brackets</label>
                             <select id="bracketMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500 shadow-sm" onchange="runCalc()">
-                                <option value="Cost_Frame_SteelAngle_1.5_1/8" selected>1.5" Steel Angle</option>
-                                <option value="Cost_Frame_SteelAngle_2_1/8">2" Steel Angle</option>
-                                <option value="Cost_Frame_SteelAngle_3_1/4">3" Steel Angle</option>
+                                <option value="STL_ANG_1.5_18" selected>1.5" Steel Angle</option>
+                                <option value="STL_ANG_2_18">2" Steel Angle</option>
+                                <option value="STL_ANG_3_14">3" Steel Angle</option>
                             </select>
                         </div>
                     </div>
@@ -100,9 +101,9 @@
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Face Stock</label>
                             <select id="faceThk" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500 shadow-sm" onchange="handleFaceChange()">
-                                <option value=".040" selected>.040 Aluminum</option>
-                                <option value=".063">.063 Aluminum</option>
-                                <option value=".080">.080 Aluminum</option>
+                                <option value="ALM_SHT_040" selected>.040 Aluminum</option>
+                                <option value="ALM_SHT_063">.063 Aluminum</option>
+                                <option value="ALM_SHT_080">.080 Aluminum</option>
                             </select>
                         </div>
                         <div>
@@ -211,7 +212,7 @@
         const face = document.getElementById('faceThk').value;
         const paintOpt = document.getElementById('paintOpt');
         
-        if (face !== '.040') {
+        if (face !== 'ALM_SHT_040') {
             paintOpt.value = 'Custom Paint';
             Array.from(paintOpt.options).forEach(opt => { if (opt.value !== 'Custom Paint') opt.disabled = true; });
         } else {
