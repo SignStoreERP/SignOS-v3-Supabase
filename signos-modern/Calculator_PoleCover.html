@@ -3,58 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pole Cover | SignOS</title>
+    <title>Pole Cover Quoter v3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
     <script src="signos-export-v2.js"></script>
     <style>
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans flex flex-col pb-10">
 
-<div class="max-w-4xl mx-auto mt-6 w-full px-4 sm:px-0">
+<div class="max-w-md mx-auto mt-6 w-[calc(100%-2rem)] sm:w-full">
     
-    <!-- HEADER -->
-    <div class="bg-gray-900 text-white p-4 rounded-t-xl flex justify-between items-center shadow-lg relative z-20">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-600 p-2 rounded-lg"><span class="text-xl">🔲</span></div>
-            <div>
-                <h1 class="text-sm font-black uppercase tracking-widest text-blue-400">Architectural Drafting</h1>
-                <h2 class="text-lg font-bold leading-none">Custom Pole Covers</h2>
-            </div>
-        </div>
-        <div class="flex items-center gap-4">
-            <label class="flex items-center gap-2 cursor-pointer group hidden" id="admin-toggle-container">
-                <div class="relative">
-                    <input type="checkbox" id="admin-toggle" class="sr-only" onchange="handleAdminToggle()">
-                    <div id="admin-toggle-bg" class="block bg-gray-300 w-8 h-5 rounded-full transition duration-300"></div>
-                    <div id="admin-toggle-dot" class="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition transform duration-300"></div>
-                </div>
-                <span class="text-[10px] font-black uppercase tracking-widest text-red-400 group-hover:text-red-300">Admin Cost View</span>
-            </label>
-            <div class="text-right">
-                <div id="status-text" class="text-xs font-bold text-gray-400 uppercase tracking-widest">Connecting...</div>
-                <div class="flex items-center gap-1 justify-end mt-1">
-                    <div id="status-dot" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></div>
-                    <span class="text-[9px] text-gray-500 font-mono">Twin-Engine Active</span>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- MAIN ISLAND CARD -->
+    <div id="main-card" class="bg-white shadow-xl overflow-hidden rounded-xl border border-gray-200 relative">
 
-    <div id="main-card" class="bg-white shadow-xl rounded-b-xl border-x border-b border-gray-200 relative overflow-hidden">
+        <!-- BOLD HEADER -->
+        <div class="flex bg-slate-900 border-b border-gray-800 shrink-0 relative">
+            <div class="flex-1 py-3.5 text-xs font-black uppercase tracking-widest text-center bg-blue-600 text-white">
+                Calculator View
+            </div>
+        </div>
+
+        <!-- ADMIN COST TOGGLE -->
+        <div id="admin-toggle-container" class="hidden bg-gray-100 border-b border-gray-200 px-4 py-2 flex justify-between items-center shadow-inner">
+            <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                <span class="text-red-500">🛡️</span> Admin Privileges
+            </span>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <span class="text-[10px] font-bold text-gray-600 uppercase">Enable Cost View</span>
+                <div class="relative">
+                    <input type="checkbox" id="toggle-cost-view" class="sr-only" onchange="handleAdminToggle()">
+                    <div class="block bg-gray-300 w-8 h-5 rounded-full shadow-inner transition-colors" id="toggle-bg"></div>
+                    <div class="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform" id="toggle-dot"></div>
+                </div>
+            </label>
+        </div>
 
         <!-- 2D ARCHITECTURAL VIEWPORT -->
-        <div class="w-full h-[400px] bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
-            <div class="absolute top-3 left-3 flex flex-col z-20 pointer-events-none">
-                <span class="text-[10px] font-black text-blue-400 uppercase tracking-widest">2D Architectural Draft</span>
-                <span class="text-xs font-bold text-slate-300" id="drafting-scale">Scale: Dynamic Fit</span>
+        <div class="w-full h-[240px] bg-slate-900 border-b border-gray-200 flex flex-col relative overflow-hidden">
+            <div class="absolute top-2 left-2 flex flex-col z-20 pointer-events-none">
+                <span class="text-[9px] font-black text-blue-400 uppercase tracking-widest">2D Draft</span>
+                <span class="text-[10px] font-bold text-slate-300" id="drafting-scale">Dynamic Fit</span>
             </div>
             
-            <div class="absolute top-3 right-3 flex gap-2 z-20">
-                <button onclick="toggleDimensions()" id="btn-toggle-dims" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition focus:outline-none">Hide Dimensions</button>
-                <button onclick="toggleXRay()" id="btn-toggle-xray" class="bg-blue-600 hover:bg-blue-500 text-white border border-blue-500 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition focus:outline-none">X-Ray Frame</button>
+            <div class="absolute top-2 right-2 flex gap-1.5 z-20">
+                <button onclick="toggleDimensions()" id="btn-toggle-dims" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2 py-1 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition focus:outline-none">Hide Dims</button>
+                <button onclick="toggleXRay()" id="btn-toggle-xray" class="bg-blue-600 hover:bg-blue-500 text-white border border-blue-500 px-2 py-1 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition focus:outline-none">X-Ray</button>
             </div>
 
             <div id="svg-preview-container" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing">
@@ -62,93 +60,97 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2">
-            <!-- LEFT COLUMN: INPUTS -->
-            <div class="p-6 border-r border-gray-200 bg-gray-50">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest border-b-2 border-blue-200 pb-1 inline-block">1. Specifications</h3>
+        <!-- INPUTS -->
+        <div class="p-6 space-y-4">
+            <div class="grid grid-cols-3 gap-3">
+                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Width (in)</label><input type="number" id="w" value="24" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+                <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Height (in)</label><input type="number" id="h" value="72" class="w-full border p-2 rounded font-bold text-gray-800 text-lg text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner" oninput="runCalc()"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Depth (in)</label>
+                    <input type="number" id="d" value="12" class="w-full border p-2 rounded font-bold text-gray-800 text-sm text-center bg-gray-50 focus:border-blue-500 outline-none shadow-inner h-[42px]" oninput="runCalc()">
                 </div>
-
-                <div class="space-y-5">
-                    <div class="grid grid-cols-4 gap-3 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                        <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Qty</label><input type="number" id="qty" value="1" min="1" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
-                        <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Width (in)</label><input type="number" id="w" value="24" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
-                        <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Height (in)</label><input type="number" id="h" value="72" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
-                        <div class="col-span-1"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Depth (in)</label><input type="number" id="d" value="12" class="w-full border p-2 rounded text-sm font-bold text-center outline-none bg-white focus:border-blue-500 shadow-inner" oninput="runCalc()"></div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Internal Frame (Aluminum)</label>
-                            <select id="frameMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500 shadow-sm" onchange="runCalc()">
-                                <option value="ALM_ANG_1">1" Alum Angle</option>
-                                <option value="ALM_ANG_1.5" selected>1.5" Alum Angle</option>
-                                <option value="ALM_ANG_2">2" Alum Angle</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Welded Brackets (Steel)</label>
-                            <select id="bracketMat" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500 shadow-sm" onchange="runCalc()">
-                                <option value="STL_ANG_1.5_18" selected>1.5" Steel Angle</option>
-                                <option value="STL_ANG_2_18">2" Steel Angle</option>
-                                <option value="STL_ANG_3_14">3" Steel Angle</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Face Material</label>
-                            <select id="faceThk" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500 shadow-sm" onchange="handleFaceChange()">
-                                <option value="ALM_SHT_040" selected>.040 Aluminum</option>
-                                <option value="ALM_SHT_063">.063 Aluminum</option>
-                                <option value="ALM_SHT_080">.080 Aluminum</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Finish / Paint</label>
-                            <select id="paintOpt" class="w-full border border-gray-300 p-2 rounded text-xs font-bold text-gray-700 outline-none bg-white focus:border-blue-500 shadow-sm" onchange="runCalc()">
-                                <option value="Factory Pre-Painted">Factory Pre-Painted (White/Black)</option>
-                                <option value="Custom Paint">Custom Automotive Paint Match</option>
-                            </select>
-                        </div>
-                    </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Face Material</label>
+                    <select id="faceThk" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="handleFaceChange()">
+                        <option value="ALM_SHT_040" selected>.040 Aluminum</option>
+                        <option value="ALM_SHT_063">.063 Aluminum</option>
+                        <option value="ALM_SHT_080">.080 Aluminum</option>
+                    </select>
                 </div>
             </div>
 
-            <!-- RIGHT COLUMN: RESULTS & ADMIN LEDGER -->
-            <div class="flex flex-col bg-white">
-                
-                <div id="admin-ledger-box" class="hidden flex-1 overflow-y-auto bg-slate-50 border-b border-gray-200 p-4 relative custom-scroll">
-                    <div class="absolute top-0 right-4 w-12 h-1 bg-red-500 rounded-b-md"></div>
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest flex items-center gap-3">
-                            Physics Audit
-                            <button onclick="if(typeof SignOS_Export_v2 !== 'undefined' && SignOS_Export_v2.printCostLedger) { SignOS_Export_v2.printCostLedger(window.lastEdgeResult, 'svg-preview-container', 'job-summary'); }" class="bg-red-100 hover:bg-red-200 text-red-700 border border-red-200 px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition flex items-center gap-1 shadow-sm">Print Ledger</button>
-                        </h3>
-                        <span class="text-[9px] font-black text-red-600 uppercase tracking-widest bg-red-100 px-2 py-0.5 rounded shadow-sm border border-red-200" id="ui-metrics-margin">0% Margin</span>
-                    </div>
-                    <div id="ui-cost-groups" class="space-y-4">
-                        <!-- Grouped Cost Ledger injected here -->
-                    </div>
+            <div class="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 mt-2">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Internal Frame</label>
+                    <select id="frameMat" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
+                        <option value="ALM_ANG_1">1" Alum Angle</option>
+                        <option value="ALM_ANG_1.5" selected>1.5" Alum Angle</option>
+                        <option value="ALM_ANG_2">2" Alum Angle</option>
+                    </select>
                 </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Welded Brackets</label>
+                    <select id="bracketMat" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
+                        <option value="STL_ANG_1.5_18" selected>1.5" Steel Angle</option>
+                        <option value="STL_ANG_2_18">2" Steel Angle</option>
+                        <option value="STL_ANG_3_14">3" Steel Angle</option>
+                    </select>
+                </div>
+            </div>
 
-                <div class="p-6 bg-blue-50/50 shrink-0">
-                    <div class="flex justify-between items-end border-b border-blue-200 pb-3 mb-4">
-                        <span class="text-xs font-black text-blue-800 uppercase tracking-widest">Total Retail Quote</span>
-                        <div class="text-right">
-                            <span class="text-[10px] font-bold text-blue-500 uppercase tracking-widest block mb-1">Hardware + Labor + Assembly</span>
-                            <span class="text-4xl font-black text-blue-700 tracking-tight leading-none" id="ui-total">---</span>
-                        </div>
-                    </div>
-                    
-                    <button onclick="if(typeof SignOS_Export_v2 !== 'undefined' && SignOS_Export_v2.printWorkOrder) { SignOS_Export_v2.printWorkOrder(window.lastEdgeResult, 'svg-preview-container', 'job-summary'); }" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded shadow uppercase tracking-widest text-xs transition mb-4">Print Work Order</button>
-
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Narrative</label>
-                    <textarea id="job-summary" class="w-full h-24 bg-white border border-gray-300 rounded p-3 text-[10px] font-mono text-gray-700 outline-none shadow-inner resize-none" readonly></textarea>
+            <div class="grid grid-cols-1 gap-4 pt-1">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Finish / Paint</label>
+                    <select id="paintOpt" class="w-full border p-2 rounded bg-white font-bold text-xs h-[42px] focus:border-blue-500 outline-none shadow-sm" onchange="runCalc()">
+                        <option value="Factory Pre-Painted">Factory Pre-Painted (White/Black)</option>
+                        <option value="Custom Paint">Custom Automotive Paint Match</option>
+                    </select>
                 </div>
             </div>
         </div>
+
+        <!-- RESULTS -->
+        <div class="bg-blue-50 p-6 border-t border-blue-100 shadow-inner">
+            <div class="flex justify-between items-end mb-2">
+                <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Unit Price</span>
+                <span id="ui-unit" class="text-2xl font-black text-blue-900 tracking-tight">$0.00</span>
+            </div>
+
+            <div class="border-t border-blue-200/50 my-3"></div>
+
+            <div id="ui-line-items" class="space-y-1.5 text-xs text-blue-900/80 pt-1 pb-2"></div>
+
+            <div class="flex justify-between items-end border-t-2 border-blue-800 my-3 pt-2">
+                <div>
+                    <span class="text-xs font-bold text-blue-800 uppercase block">Total Quote</span>
+                </div>
+                <span class="text-3xl font-black text-blue-700 tracking-tight" id="ui-total">---</span>
+            </div>
+            
+            <button onclick="if(typeof SignOS_Export_v2 !== 'undefined' && SignOS_Export_v2.printWorkOrder) { SignOS_Export_v2.printWorkOrder(window.lastEdgeResult, 'svg-preview-container', 'job-desc'); }" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded shadow uppercase tracking-widest text-[10px] transition mt-2 mb-4">Print Work Order</button>
+
+            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Job Description</label>
+            <textarea id="job-desc" class="w-full text-[10px] p-2 border border-gray-300 rounded bg-white h-20 text-gray-600 font-mono outline-none shadow-inner resize-none" readonly></textarea>
+        </div>
+
+        <!-- ADMIN HARD COST LEDGER -->
+        <div id="admin-ledger-box" class="hidden bg-slate-50 p-6 border-t border-gray-200 shadow-inner relative">
+            <div class="absolute top-0 right-6 w-16 h-1 bg-red-500 rounded-b-md"></div>
+            <h3 class="text-xs font-black text-gray-800 uppercase tracking-widest mb-4 flex justify-between items-center">
+                Internal Cost Audit
+                <span id="ui-margin" class="text-sm text-green-600 font-mono tracking-tight">--% Margin</span>
+            </h3>
+            <div id="ui-cost-groups" class="space-y-4"></div>
+            <div class="flex justify-between items-center border-t-2 border-gray-300 mt-4 pt-3">
+                <span class="text-[10px] font-black text-gray-600 uppercase tracking-widest">Total Hard Cost</span>
+                <span id="ui-cost-total" class="text-lg font-black text-red-600 font-mono tracking-tight">---</span>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -198,16 +200,11 @@ const DraftCamera = {
 window.addEventListener('mousemove', (e) => DraftCamera.move(e));
 window.addEventListener('mouseup', () => DraftCamera.end());
 
-function toggleDimensions() {
-    showDims = !showDims;
-    document.getElementById('btn-toggle-dims').innerText = showDims ? 'Hide Dimensions' : 'Show Dimensions';
-    runCalc();
-}
-
-function toggleXRay() {
-    showXRay = !showXRay;
-    document.getElementById('btn-toggle-xray').className = showXRay ? "bg-blue-600 hover:bg-blue-500 text-white border border-blue-500 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition focus:outline-none" : "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-3 py-1.5 rounded shadow-sm text-[9px] font-black uppercase tracking-widest transition focus:outline-none";
-    runCalc();
+function toggleDimensions() { showDims = !showDims; document.getElementById('btn-toggle-dims').innerText = showDims ? 'Hide Dims' : 'Show Dims'; runCalc(); }
+function toggleXRay() { 
+    showXRay = !showXRay; 
+    document.getElementById('btn-toggle-xray').className = showXRay ? "bg-blue-600 hover:bg-blue-500 text-white border border-blue-500 px-2 py-1 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition focus:outline-none" : "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2 py-1 rounded shadow-sm text-[8px] font-black uppercase tracking-widest transition focus:outline-none"; 
+    runCalc(); 
 }
 
 function handleFaceChange() {
@@ -223,26 +220,27 @@ function handleFaceChange() {
 }
 
 function handleAdminToggle() {
-    adminCostEnabled = document.getElementById('admin-toggle').checked;
-    const bg = document.getElementById('admin-toggle-bg');
-    const dot = document.getElementById('admin-toggle-dot');
-    const ledger = document.getElementById('admin-ledger-box');
-
+    const cb = document.getElementById('toggle-cost-view');
+    const bg = document.getElementById('toggle-bg');
+    const dot = document.getElementById('toggle-dot');
+    adminCostEnabled = cb.checked;
+    
     if (adminCostEnabled) {
         bg.classList.replace('bg-gray-300', 'bg-red-500');
         dot.style.transform = 'translateX(12px)';
-        ledger.classList.remove('hidden');
+        document.getElementById('admin-ledger-box').classList.remove('hidden');
     } else {
         bg.classList.replace('bg-red-500', 'bg-gray-300');
         dot.style.transform = 'translateX(0)';
-        ledger.classList.add('hidden');
+        document.getElementById('admin-ledger-box').classList.add('hidden');
     }
     runCalc();
 }
 
 function renderAdminCostLedger(costData, metricsData) {
     const fmt = (n) => "$" + (n || 0).toFixed(2);
-    document.getElementById('ui-metrics-margin').innerText = `${(metricsData.margin * 100).toFixed(1)}% Margin`;
+    document.getElementById('ui-margin').innerText = `${(metricsData.margin * 100).toFixed(1)}% Margin`;
+    document.getElementById('ui-cost-total').innerText = fmt(costData.total);
 
     const DEPT_TITLES = {
         'METAL_MAT': 'Metal Fabrication (Materials)',
@@ -253,33 +251,29 @@ function renderAdminCostLedger(costData, metricsData) {
     };
 
     const grouped = {};
-    let grandTime = 0;
     costData.breakdown.forEach(i => {
         const cat = i.category || 'GENERAL';
         if (!grouped[cat]) grouped[cat] = [];
         grouped[cat].push(i);
-        if (i.meta?.time) grandTime += i.meta.time;
     });
 
     let html = '';
     for (const [cat, items] of Object.entries(grouped)) {
         const catTotal = items.reduce((s, i) => s + i.total, 0);
         html += `
-        <div class="mb-4 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-            <div class="bg-gray-100 px-3 py-2 border-b border-gray-200 flex justify-between items-center">
-                <span class="text-[10px] font-black text-gray-700 uppercase tracking-widest">${DEPT_TITLES[cat] || cat}</span>
-                <span class="text-[10px] font-mono font-bold text-gray-500">${fmt(catTotal)}</span>
+        <div class="mb-3 bg-white border border-gray-200 rounded shadow-sm overflow-hidden">
+            <div class="bg-gray-100 px-3 py-1.5 border-b border-gray-200 flex justify-between items-center">
+                <span class="text-[9px] font-black text-gray-700 uppercase tracking-widest">${DEPT_TITLES[cat] || cat}</span>
+                <span class="text-[9px] font-mono font-bold text-gray-500">${fmt(catTotal)}</span>
             </div>
-            <div class="p-3 space-y-2">`;
+            <div class="p-2 space-y-2">`;
         
         items.forEach(i => {
             const cleanFormula = i.formula.replace(/<[^>]*>?/gm, '');
-            const timeTag = i.meta?.time ? `<span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ml-2">${(i.meta.time/60).toFixed(1)} Hrs</span>` : '';
-            
             html += `
-            <div class="border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+            <div class="border-b border-gray-50 pb-1.5 last:border-0 last:pb-0">
                 <div class="flex justify-between items-start">
-                    <span class="text-[10px] font-bold text-gray-800">${i.label}${timeTag}</span>
+                    <span class="text-[10px] font-bold text-gray-800">${i.label}</span>
                     <span class="text-[10px] font-mono font-bold text-gray-600">${fmt(i.total)}</span>
                 </div>
                 <div class="text-[8px] text-gray-500 font-mono italic leading-snug break-words mt-0.5">↳ ${cleanFormula}</div>
@@ -292,16 +286,12 @@ function renderAdminCostLedger(costData, metricsData) {
 
 function renderDrawings(inputs) {
     const cont = document.getElementById('svg-preview-container');
-    
-    // Save camera states if they exist
     let savedStates = [];
-    document.querySelectorAll('.zoom-target').forEach(t => {
-        savedStates.push({ x: t._panX, y: t._panY, z: t._scaleZ });
-    });
+    document.querySelectorAll('.zoom-target').forEach(t => { savedStates.push({ x: t._panX, y: t._panY, z: t._scaleZ }); });
 
-    const cx = 200, cy = 200;
+    const cx = 150, cy = 120; // Adjusted for smaller canvas
     const maxDim = Math.max(inputs.w, inputs.h);
-    const scale = 250 / maxDim;
+    const scale = 160 / maxDim;
     
     const sw = inputs.w * scale;
     const sh = inputs.h * scale;
@@ -310,34 +300,30 @@ function renderDrawings(inputs) {
     const fillSkin = showXRay ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.9)';
     const strokeSkin = '#1d4ed8';
 
-    const drawHDim = (x1, x2, y, txt) => showDims ? `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#64748b" stroke-width="1"/><line x1="${x1}" y1="${y-4}" x2="${x1}" y2="${y+4}" stroke="#64748b" stroke-width="1"/><line x1="${x2}" y1="${y-4}" x2="${x2}" y2="${y+4}" stroke="#64748b" stroke-width="1"/><text x="${x1 + (x2-x1)/2}" y="${y-6}" fill="#64748b" font-size="10" font-family="monospace" text-anchor="middle">${txt}</text>` : '';
-    const drawVDim = (x, y1, y2, txt) => showDims ? `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#64748b" stroke-width="1"/><line x1="${x-4}" y1="${y1}" x2="${x+4}" y2="${y1}" stroke="#64748b" stroke-width="1"/><line x1="${x-4}" y1="${y2}" x2="${x+4}" y2="${y2}" stroke="#64748b" stroke-width="1"/><text x="${x-6}" y="${y1 + (y2-y1)/2}" fill="#64748b" font-size="10" font-family="monospace" text-anchor="end" dominant-baseline="middle">${txt}</text>` : '';
+    const drawHDim = (x1, x2, y, txt) => showDims ? `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#64748b" stroke-width="1"/><line x1="${x1}" y1="${y-3}" x2="${x1}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><line x1="${x2}" y1="${y-3}" x2="${x2}" y2="${y+3}" stroke="#64748b" stroke-width="1"/><text x="${x1 + (x2-x1)/2}" y="${y-5}" fill="#64748b" font-size="8" font-family="monospace" text-anchor="middle">${txt}</text>` : '';
+    const drawVDim = (x, y1, y2, txt) => showDims ? `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y1}" x2="${x+3}" y2="${y1}" stroke="#64748b" stroke-width="1"/><line x1="${x-3}" y1="${y2}" x2="${x+3}" y2="${y2}" stroke="#64748b" stroke-width="1"/><text x="${x-5}" y="${y1 + (y2-y1)/2}" fill="#64748b" font-size="8" font-family="monospace" text-anchor="end" dominant-baseline="middle">${txt}</text>` : '';
 
     let svgFront = `<rect x="${cx - sw/2}" y="${cy - sh/2}" width="${sw}" height="${sh}" fill="${fillSkin}" stroke="${strokeSkin}" stroke-width="1.5" />`;
     let svgSide = `<rect x="${cx - sd/2}" y="${cy - sh/2}" width="${sd}" height="${sh}" fill="${fillSkin}" stroke="${strokeSkin}" stroke-width="1.5" />`;
 
     if (showXRay) {
-        // Front Internal Frame
-        svgFront += `<rect x="${cx - sw/2 + 4}" y="${cy - sh/2 + 4}" width="${sw - 8}" height="${sh - 8}" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4,4" />`;
-        // Side Brackets
-        svgSide += `<rect x="${cx - sd/2 + 2}" y="${cy - sh/2 + 10}" width="${sd - 4}" height="${sh - 20}" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="4,4" />`;
+        svgFront += `<rect x="${cx - sw/2 + 3}" y="${cy - sh/2 + 3}" width="${sw - 6}" height="${sh - 6}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,3" />`;
+        svgSide += `<rect x="${cx - sd/2 + 2}" y="${cy - sh/2 + 8}" width="${sd - 4}" height="${sh - 16}" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="3,3" />`;
     }
 
-    svgFront += drawHDim(cx - sw/2, cx + sw/2, cy + sh/2 + 15, `${inputs.w}" W`);
-    svgFront += drawVDim(cx - sw/2 - 15, cy - sh/2, cy + sh/2, `${inputs.h}" H`);
+    svgFront += drawHDim(cx - sw/2, cx + sw/2, cy + sh/2 + 12, `${inputs.w}" W`);
+    svgFront += drawVDim(cx - sw/2 - 12, cy - sh/2, cy + sh/2, `${inputs.h}" H`);
     
-    svgSide += drawHDim(cx - sd/2, cx + sd/2, cy + sh/2 + 15, `${inputs.d}" D`);
-    svgSide += drawVDim(cx - sd/2 - 15, cy - sh/2, cy + sh/2, `${inputs.h}" H`);
+    svgSide += drawHDim(cx - sd/2, cx + sd/2, cy + sh/2 + 12, `${inputs.d}" D`);
+    svgSide += drawVDim(cx - sd/2 - 12, cy - sh/2, cy + sh/2, `${inputs.h}" H`);
 
     cont.innerHTML = `
         <div class="flex w-full h-full divide-x divide-slate-800">
-            <div class="flex-1 relative overflow-hidden bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px]">
-                <span class="absolute top-2 right-2 text-[9px] font-black text-slate-500 uppercase tracking-widest">Front Elevation</span>
-                <svg class="w-full h-full zoom-target" data-width-in="${inputs.w}" data-height-in="${inputs.h}" viewBox="0 0 400 400"><g>${svgFront}</g></svg>
+            <div class="w-2/3 relative overflow-hidden bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]">
+                <svg class="w-full h-full zoom-target" viewBox="0 0 300 240"><g>${svgFront}</g></svg>
             </div>
-            <div class="w-1/3 relative overflow-hidden bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px]">
-                <span class="absolute top-2 right-2 text-[9px] font-black text-slate-500 uppercase tracking-widest">Side Profile</span>
-                <svg class="w-full h-full zoom-target" viewBox="0 0 400 400"><g>${svgSide}</g></svg>
+            <div class="w-1/3 relative overflow-hidden bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]">
+                <svg class="w-full h-full zoom-target" viewBox="0 0 300 240"><g>${svgSide}</g></svg>
             </div>
         </div>
     `;
@@ -368,10 +354,18 @@ async function runCalc() {
 
         try {
             document.getElementById('ui-total').classList.add('opacity-50');
+            document.getElementById('ui-unit').classList.add('opacity-50');
+            
+            // FIXED: Using the properly authenticated Session Token logic 
+            const authKey = sessionStorage.getItem('signos_session_token') || SUPABASE_ANON_KEY;
             
             const response = await fetch(`${EDGE_URL}/functions/v1/calculate-pole-cover`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'apikey': EDGE_KEY, 'Authorization': `Bearer ${EDGE_KEY}` },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'apikey': SUPABASE_ANON_KEY, 
+                    'Authorization': `Bearer ${authKey}` 
+                },
                 body: JSON.stringify({ inputs: inputs, config: backendData, audit_mode: auditMode })
             });
 
@@ -382,13 +376,18 @@ async function runCalc() {
 
             if (!result || !result.retail) return;
 
-            document.getElementById('ui-total').innerText = "$" + (result.retail.grandTotal || 0).toFixed(2);
+            const fmt = (n) => "$" + (n || 0).toFixed(2);
+            document.getElementById('ui-unit').innerText = fmt(result.retail.unitPrice);
+            document.getElementById('ui-total').innerText = fmt(result.retail.grandTotal);
             
+            let lineItemsHtml = `<div class="flex justify-between"><span>${inputs.qty}x Custom Pole Covers</span><span class="font-bold">${fmt(result.retail.grandTotal)}</span></div>`;
+            document.getElementById('ui-line-items').innerHTML = lineItemsHtml;
+
             const faceSelect = document.getElementById('faceThk');
             const faceTxt = faceSelect.options[faceSelect.selectedIndex].text;
             
-            let summary = `(x${inputs.qty}) Aluminum Pole Covers.\nDimensions: ${inputs.w}" W x ${inputs.h}" H x ${inputs.d}" D.\nSkin: ${faceTxt} (${inputs.paintOption}).\nStructure: Internal Welded Aluminum Ribs with Steel Mounting Brackets.\nAssembly: Countersunk Fasteners + Adhesion.`;
-            document.getElementById('job-summary').value = summary;
+            let summary = `(x${inputs.qty}) Custom Pole Covers.\nDims: ${inputs.w}"W x ${inputs.h}"H x ${inputs.d}"D.\nSkin: ${faceTxt} (${inputs.paintOption}).\nStructure: Welded Aluminum Ribs & Steel Mounts.`;
+            document.getElementById('job-desc').value = summary;
 
             renderDrawings(inputs);
 
@@ -398,49 +397,37 @@ async function runCalc() {
 
         } catch(e) {
             console.error("Calculation Error:", e);
-            document.getElementById('job-summary').value = `🚨 CALCULATION HALTED:\n${e.message}`;
+            document.getElementById('job-desc').value = `🚨 CALCULATION HALTED:\n${e.message}`;
             document.getElementById('ui-total').innerText = "ERR";
+            document.getElementById('ui-unit').innerText = "ERR";
         } finally {
             document.getElementById('ui-total').classList.remove('opacity-50');
+            document.getElementById('ui-unit').classList.remove('opacity-50');
         }
     }, 300);
 }
 
 window.addEventListener('load', async () => {
+    // Inject the standard single-column header without an icon
     if (typeof injectHeader === 'function') injectHeader("Pole Covers");
     
     const role = sessionStorage.getItem('signos_role');
     if (role === 'ADMIN' || role === 'SUPER') {
-        const adminBar = document.getElementById('admin-toggle-container');
-        if (adminBar) adminBar.classList.remove('hidden');
+        document.getElementById('admin-toggle-container').classList.remove('hidden');
+        document.getElementById('admin-toggle-container').classList.add('flex');
     }
 
-    const statusText = document.getElementById("status-text");
-    const statusDot = document.getElementById("status-dot");
-
     try {
-        const payload = await SignOS.fetchProductData('PROD_Post_Panel'); // Using Post Panel schema placeholder
+        const payload = await SignOS.fetchProductData('PROD_Post_Panel'); // Schema placeholder
         if(payload.error) throw new Error(payload.error);
         
         backendData = payload.config;
-
-        if(statusText) {
-            statusText.innerText = "ONLINE";
-            statusText.className = "text-xs font-bold text-green-400 uppercase tracking-widest";
-        }
-        if(statusDot) {
-            statusDot.className = "w-2 h-2 rounded-full bg-green-500";
-            statusDot.classList.remove("animate-pulse");
-        }
         
+        // Hide global loading status logic since it's now handled smoothly 
         runCalc();
 
     } catch(e) {
         console.error("Initialization Failed:", e);
-        if(statusText) {
-            statusText.innerText = "OFFLINE";
-            statusText.className = "text-xs font-bold text-red-500 uppercase tracking-widest";
-        }
     }
 });
 </script>

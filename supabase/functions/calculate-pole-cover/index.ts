@@ -18,7 +18,7 @@ Deno.serve(async (req: any) => {
         const config = requestData.config || {};
         const auditMode = requestData.audit_mode || 'full';
 
-        const num = (k: string, fb = 0) => { const p = parseFloat(config[k]); return isNaN(p) ? fb : p; };
+        const num = (k: string, fb: number) => { const p = parseFloat(config[k]); return isNaN(p) ? fb : p; };
         const V = (k: string) => `<span class="text-blue-600 font-bold">[${k}]</span>`;
 
         const risk = num('Factor_Risk', 1.05);
@@ -221,6 +221,7 @@ Deno.serve(async (req: any) => {
         R(`Custom Pole Cover Assembly`, totalRetail, `Hard Cost * ${risk.toFixed(2)} Risk Buffer / (1 - ${targetMargin.toFixed(2)} Margin)`);
 
         const specs = {
+            product: 'PoleCover',
             qty: inputs.qty,
             w: inputs.w,
             h: inputs.h,
