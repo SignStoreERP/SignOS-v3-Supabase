@@ -35,7 +35,8 @@ export const Agent_Material_Stock = {
         // Extract the relational cost
         let latestCost = 0;
         if (Array.isArray(mat.material_costs_history) && mat.material_costs_history.length > 0) {
-            latestCost = mat.material_costs_history.internal_cost;
+            // Using .at(0) to safely target the first array item without brackets
+            latestCost = mat.material_costs_history.at(0).internal_cost;
         } else if (mat.material_costs_history && !Array.isArray(mat.material_costs_history)) {
             latestCost = (mat.material_costs_history as any).internal_cost;
         }

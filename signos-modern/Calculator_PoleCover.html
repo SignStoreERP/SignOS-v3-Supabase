@@ -419,17 +419,17 @@
         clearTimeout(calcTimeout);
         
         calcTimeout = setTimeout(async () => {
-            const inputs = {
-                qty: parseFloat(document.getElementById('qty').value) || 1,
-                w: parseFloat(document.getElementById('w').value) || 36,
-                h: parseFloat(document.getElementById('h').value) || 72,
-                d: parseFloat(document.getElementById('d').value) || 12,
-                poleSize: parseFloat(document.getElementById('poleSize').value) || 4,
-                faceThk: document.getElementById('faceThk').value,
-                frameMat: document.getElementById('frameMat').value,
-                bracketMat: document.getElementById('bracketMat').value,
-                paintOption: document.getElementById('paintOpt').value
-            };
+        const inputs = {
+            qty: parseFloat(document.getElementById('qty').value) || 1,
+            w: parseFloat(document.getElementById('w').value) || 36,
+            h: parseFloat(document.getElementById('h').value) || 72,
+            d: parseFloat(document.getElementById('d').value) || 12,
+            poleSize: parseFloat(document.getElementById('poleSize').value) || 4,
+            faceSku: document.getElementById('faceThk').value,
+            frameSku: document.getElementById('frameMat').value,
+            bracketSku: document.getElementById('bracketMat').value,
+            paintOption: document.getElementById('paintOpt').value
+        };
 
             const auditMode = adminCostEnabled ? 'full' : 'retail_only';
             const targetMargin = backendData.Target_Margin_Pct !== undefined ? parseFloat(backendData.Target_Margin_Pct) : 0.60;
