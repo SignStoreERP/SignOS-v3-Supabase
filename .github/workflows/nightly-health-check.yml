@@ -39,4 +39,4 @@ jobs:
         run: curl -f https://studio.zublinsystems.com/ || exit 1
 
       - name: Ping VPS Physics Engine (Python FastAPI)
-        run: curl -f http://72.60.164.13:8000/docs || exit 1
+        run: curl -f https://physics.zublinsystems.com/docs || exit 1
