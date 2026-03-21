@@ -277,7 +277,7 @@ window.onload = async function() {
     const r = sessionStorage.getItem('signos_role');
     const dept = (sessionStorage.getItem('signos_dept') || 'UNASSIGNED').replace('DEPT_', '');
 
-    if (!uFirst) { window.location.href = 'index.html'; return; }
+    if (!uFirst) { window.location.href = 'Workspace_3D_Studio.html'; return; }
 
     const initials = (uFirst.charAt(0) + (uLast ? uLast.charAt(0) : '')).toUpperCase();
     const fullName = `${uFirst} ${uLast}`.trim().toUpperCase();

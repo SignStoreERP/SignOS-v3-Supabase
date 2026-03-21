@@ -1,86 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Design Studio | SignOS</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="signos-core.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Spatial Studio | SignOS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="signos-core.js"></script>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans flex flex-col pb-10">
-
-    <!-- The SignOS Floating Island Header will be injected here -->
-    
-    <div class="max-w-7xl mx-auto w-full px-4 sm:px-0 mt-6 flex-1 flex flex-col">
-        <div class="bg-white shadow-xl rounded-2xl border border-gray-200 overflow-hidden flex flex-col flex-1 relative min-h-[800px]">
-            
-            <!-- Tool Header -->
-            <div class="bg-slate-900 px-6 py-4 flex justify-between items-center shrink-0 border-b border-slate-800">
-                <div>
-                    <h2 class="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                        <span>🧊</span> 3D Spatial Studio
-                    </h2>
-                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Distributed VPS Module</p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span id="vps-status" class="bg-orange-500/20 border border-orange-500/50 text-orange-400 text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></span> Connecting to VPS...
-                    </span>
-                </div>
-            </div>
-
-            <!-- The React 19 / Three.js App Injection Point -->
-            <div class="flex-1 w-full relative bg-gray-900">
-                <!-- Replace the src with the URL where your React app is hosted (e.g., your VPS IP or a Vercel deployment) -->
-<iframe 
-    id="react-3d-frame" 
-    src="http://localhost:3000" 
-    class="absolute inset-0 w-full h-full border-none"
-    allow="webgl; pointer-lock; fullscreen"
-></iframe>
-            </div>
-
-        </div>
+<body class="bg-slate-900 text-slate-300 font-sans flex flex-col h-screen overflow-hidden">
+  
+  <!-- Top Navbar -->
+  <header class="bg-slate-950 border-b border-slate-800 px-6 py-4 flex items-center justify-between z-30 shrink-0 shadow-lg">
+    <div class="flex items-center gap-4">
+      <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center font-black text-white shadow-[0_0_15px_rgba(37,99,235,0.5)]">SF</div>
+      <div>
+        <h1 class="text-lg font-black tracking-widest text-white flex items-center gap-3">
+          SIGNFABRICATOR <span class="text-cyan-400 text-xs">OS</span>
+        </h1>
+        <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest">v4.0 Architectural Studio</p>
+      </div>
     </div>
+    <a href="menu.html" class="text-xs font-bold text-slate-400 hover:text-white border border-slate-700 hover:bg-slate-800 transition px-4 py-2 rounded uppercase tracking-widest">Exit Studio</a>
+  </header>
 
-<script>
-    window.onload = async function() {
-        // 1. Inject the Standard SignOS Header
-        if (typeof injectHeader === 'function') injectHeader("Channel Letter Studio");
+  <!-- Main Layout -->
+  <div class="flex flex-1 overflow-hidden">
+    
+    <!-- LEFT SIDEBAR: THE VERCEL UI -->
+    <aside class="w-full lg:w-96 bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 z-20 shadow-2xl">
+      <div class="p-4 border-b border-slate-800 bg-slate-900">
+        <h2 class="text-xs font-black uppercase tracking-widest text-blue-400">Object Properties</h2>
+      </div>
+      
+      <div class="p-5 space-y-6 overflow-y-auto flex-1">
+        
+        <!-- 1. TYPOGRAPHY CONTROLS -->
+        <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
+          <h3 class="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-900/50 pb-1 mb-3">1. Typography & Size</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Text String</label>
+              <input type="text" id="inp-text" value="SIGNOS" oninput="updateStudio()" class="w-full p-2 rounded text-sm font-black uppercase outline-none border border-slate-700 focus:border-blue-500 bg-slate-950 text-white shadow-inner">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Height (Inches)</label>
+                <input type="number" id="inp-height" value="18" oninput="updateStudio()" class="w-full p-2 rounded text-xs font-bold outline-none border border-slate-700 bg-slate-900 text-white">
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Font Style</label>
+                <select id="inp-font" onchange="updateStudio()" class="w-full p-2 rounded text-xs font-bold outline-none border border-slate-700 bg-slate-900 text-white">
+                  <option value="Arimo-Bold.ttf">Arimo Bold</option>
+                  <option value="Arimo-Regular.ttf">Arimo Regular</option>
+                </select>
+              </div>
+            </div>
+            <div class="pt-2 border-t border-slate-800">
+              <label class="block text-[10px] font-bold uppercase mb-1 opacity-70 flex justify-between">Kerning <span id="lbl-kerning" class="text-blue-500 font-mono">0</span></label>
+              <input type="range" id="inp-kerning" min="-1" max="5" step="0.1" value="0" oninput="updateStudio()" class="w-full accent-blue-500">
+            </div>
+          </div>
+        </div>
 
-        // 2. Extract the Secure JWT Token from the SignOS session
-        const secureToken = sessionStorage.getItem('supabase.auth.token');
-        const iframe = document.getElementById('react-3d-frame');
-        const vpsStatus = document.getElementById('vps-status');
+        <!-- 2. MATERIAL DNA -->
+        <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
+          <h3 class="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-900/50 pb-1 mb-3">2. Material DNA</h3>
+          <div class="space-y-4">
+             <div>
+               <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Face Acrylic (Hex Code)</label>
+               <div class="flex items-center gap-3">
+                 <input type="color" id="inp-face" value="#f8fafc" onchange="updateStudio()" class="w-10 h-10 rounded cursor-pointer border border-slate-700 bg-slate-950 p-1">
+                 <span id="lbl-face" class="text-xs font-mono font-bold text-slate-400 uppercase">#F8FAFC</span>
+               </div>
+             </div>
+          </div>
+        </div>
 
-        if (!secureToken) {
-            alert("Security Violation: Missing Auth Token.");
-            window.location.href = 'index.html';
+      </div>
+    </aside>
+
+    <!-- CENTER STAGE: THE SECURE IFRAME -->
+    <main class="flex-1 flex flex-col bg-slate-900 relative overflow-hidden">
+      <div class="h-12 border-b border-slate-800 flex items-center justify-between px-6 z-20 shrink-0 bg-slate-950">
+        <span class="text-[10px] font-black uppercase tracking-widest pb-1 border-b-2 border-cyan-400 text-cyan-400">3D Virtual Studio</span>
+      </div>
+      
+      <div class="flex-1 relative overflow-hidden bg-slate-900">
+        <!-- The SSO token will automatically pass through via the launch function in menu.html -->
+        <iframe 
+          id="studio-iframe" 
+          src="about:blank" 
+          class="w-full h-full border-none outline-none" 
+          title="VPS 3D Studio">
+        </iframe>
+      </div>
+    </main>
+
+  </div>
+
+  <script>
+    // --- 1. SSO HANDSHAKE ON LOAD ---
+    window.onload = function() {
+        const token = sessionStorage.getItem("supabase.auth.token");
+        if (!token) {
+            alert("Security Error: Active session required.");
+            window.location.href = "menu.html";
             return;
         }
-
-        // 3. The Cross-Origin Handshake
-        // We wait for the React iframe to load, then use postMessage to securely hand it the token.
-        iframe.onload = function() {
-            vpsStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span> SECURE BRIDGE ACTIVE`;
-            vpsStatus.className = "bg-green-500/20 border border-green-500/50 text-green-400 text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest flex items-center gap-1.5";
-            
-            // Send the token to the React app
-            iframe.contentWindow.postMessage({
-                type: 'SIGNOS_AUTH_HANDSHAKE',
-                token: secureToken
-            }, '*'); // NOTE: In production, change '*' to your exact VPS/React Domain for strict security.
-        };
+        
+        // Initialize the iframe securely through Cloudflare with the active JWT
+        const baseUrl = `https://studio.zublinsystems.com/?access=${token}&refresh=sso_relay`;
+        
+        // Grab default values
+        const text = encodeURIComponent(document.getElementById('inp-text').value);
+        const font = encodeURIComponent(document.getElementById('inp-font').value);
+        const h = document.getElementById('inp-height').value;
+        const k = document.getElementById('inp-kerning').value;
+        const face = encodeURIComponent(document.getElementById('inp-face').value);
+        
+        // Launch the engine
+        document.getElementById('studio-iframe').src = `${baseUrl}&text=${text}&font=${font}&h=${h}&k=${k}&face=${face}`;
     };
 
-    // 4. Listen for payloads coming back from the React App
-    window.addEventListener('message', async (event) => {
-        // Listen for the "SAVE_QUOTE" event from your React app
-        if (event.data && event.data.type === 'SAVE_QUOTE_SUCCESS') {
-            alert("Quote successfully saved to the SignOS Vault (Supabase)!");
-            // You can trigger further SignOS UI updates here based on the VPS response
-        }
-    });
-</script>
+    // --- 2. MICRO-PAYLOAD STATE UPDATES ---
+    function updateStudio() {
+        const text = encodeURIComponent(document.getElementById('inp-text').value.toUpperCase() || 'SIGNOS');
+        const font = encodeURIComponent(document.getElementById('inp-font').value);
+        const h = document.getElementById('inp-height').value;
+        const k = document.getElementById('inp-kerning').value;
+        
+        const faceInput = document.getElementById('inp-face').value;
+        const face = encodeURIComponent(faceInput);
+        
+        // Update UI Labels
+        document.getElementById('lbl-kerning').innerText = k;
+        document.getElementById('lbl-face').innerText = faceInput.toUpperCase();
+        
+        // Silently push the updated parameters to the VPS container without breaking authentication
+        const url = `https://studio.zublinsystems.com/?text=${text}&font=${font}&h=${h}&k=${k}&face=${face}`;
+        document.getElementById('studio-iframe').src = url;
+    }
+  </script>
 </body>
 </html>
