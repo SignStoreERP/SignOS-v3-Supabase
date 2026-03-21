@@ -368,25 +368,24 @@ window.onload = async function() {
         document.getElementById('menu-container').innerHTML = `<div class="p-8 text-center text-red-500 font-bold text-xs uppercase tracking-widest">Error Loading Menu: ${e.message}</div>`;
     }
 
-        // --- 3D STUDIO UPLINK PING ---
+    // --- 3D STUDIO UPLINK PING ---
     async function pingStudio() {
         const btn = document.getElementById('btn-studio-alpha');
         const dot = document.getElementById('studio-status-dot');
         const txt = document.getElementById('studio-status-text');
 
         try {
-            // Give the VPS 3 seconds to respond before aborting
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000);
             
-            await fetch('https://studio.zublinsystems.com/', { mode: 'no-cors', signal: controller.signal });
+            // Ping the Vercel proxy endpoint instead of the Cloudflare tunnel
+            await fetch('/studio', { mode: 'no-cors', signal: controller.signal });
             clearTimeout(timeoutId);
 
             dot.className = "absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900 shadow-[0_0_8px_rgba(16,185,129,0.8)]";
             txt.className = "text-[9px] font-black text-emerald-500 uppercase tracking-widest ml-2";
             txt.innerText = "ONLINE";
         } catch (error) {
-            // Disarm the button if the VPS or Cloudflare Tunnel is down
             btn.removeAttribute('onclick');
             btn.classList.add('opacity-50', 'cursor-not-allowed');
             btn.classList.replace('hover:bg-slate-800', 'bg-slate-900');

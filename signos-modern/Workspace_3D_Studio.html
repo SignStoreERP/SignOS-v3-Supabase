@@ -120,8 +120,8 @@
             return;
         }
         
-        // Initialize the iframe securely through Cloudflare with the active JWT
-        const baseUrl = `https://studio.zublinsystems.com/?access=${token}&refresh=sso_relay`;
+        // Initialize the iframe securely through the Vercel Proxy
+        const baseUrl = `/studio?access=${token}&refresh=sso_relay`;
         
         // Grab default values
         const text = encodeURIComponent(document.getElementById('inp-text').value);
@@ -133,8 +133,8 @@
         // Launch the engine
         document.getElementById('studio-iframe').src = `${baseUrl}&text=${text}&font=${font}&h=${h}&k=${k}&face=${face}`;
 
-                // Ping to confirm Uplink connection
-        fetch('https://studio.zublinsystems.com/', { mode: 'no-cors' })
+        // Ping to confirm Vercel Proxy Uplink connection
+        fetch('/studio', { mode: 'no-cors' })
             .then(() => {
                 document.getElementById('vps-status-dot').className = "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]";
                 document.getElementById('vps-status-text').className = "text-[10px] font-black text-emerald-500 uppercase tracking-widest";
@@ -149,18 +149,17 @@
 
     // --- 2. MICRO-PAYLOAD STATE UPDATES (postMessage) ---
     function updateStudio() {
-        // Gather the UI state
         const text = document.getElementById('inp-text').value.toUpperCase() || 'SIGNOS';
         const font = document.getElementById('inp-font').value;
         const h = document.getElementById('inp-height').value;
         const k = document.getElementById('inp-kerning').value;
         const faceInput = document.getElementById('inp-face').value;
         
-        // Update local Vercel UI Labels
+        // Update UI Labels
         document.getElementById('lbl-kerning').innerText = k;
         document.getElementById('lbl-face').innerText = faceInput.toUpperCase();
         
-        // Silently beam the payload straight into the VPS RAM
+        // Silently beam the payload straight into the VPS RAM via the same-origin proxy
         const iframe = document.getElementById('studio-iframe');
         if (iframe && iframe.contentWindow) {
             iframe.contentWindow.postMessage({
@@ -170,7 +169,7 @@
                 h: h,
                 k: k,
                 face: faceInput
-            }, 'https://studio.zublinsystems.com');
+            }, window.location.origin);
         }
     }
   </script>
