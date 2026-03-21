@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/studio/:match*",
+      "destination": "http://72.60.164.13:5173/:match*"
+    }
+  ]
+}
