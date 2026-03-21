@@ -1,173 +1,301 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Spatial Studio | SignOS</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="signos-core.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Spatial Studio | SignOS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="signos-core.js"></script>
+    <script src="signos-ui.js"></script>
+    <style>
+        .custom-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f8fafc; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
 </head>
 <body class="bg-slate-900 text-slate-300 font-sans flex flex-col h-screen overflow-hidden">
-  
-  <!-- Top Navbar -->
-  <header class="bg-slate-950 border-b border-slate-800 px-6 py-4 flex items-center justify-between z-30 shrink-0 shadow-lg">
-    <div class="flex items-center gap-4">
-      <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center font-black text-white shadow-[0_0_15px_rgba(37,99,235,0.5)]">SF</div>
-      <div>
-        <h1 class="text-lg font-black tracking-widest text-white flex items-center gap-3">
-          SIGNFABRICATOR <span class="text-cyan-400 text-xs">OS</span>
-        </h1>
-        <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest">v4.0 Architectural Studio</p>
-      </div>
-    </div>
-    
-    <div class="flex items-center gap-6">
-      <!-- NEW VPS TELEMETRY -->
-      <div class="flex flex-col items-end">
-        <div class="flex items-center gap-2">
-          <span id="vps-status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse shadow-[0_0_8px_rgba(234,179,8,0.8)]"></span>
-          <span id="vps-status-text" class="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Uplink Pending...</span>
-        </div>
-        <span class="text-[8px] text-slate-500 font-mono tracking-widest uppercase">Hostinger VPS Container</span>
-      </div>
 
-      <a href="menu.html" class="text-xs font-bold text-slate-400 hover:text-white border border-slate-700 hover:bg-slate-800 transition px-4 py-2 rounded uppercase tracking-widest">Exit Studio</a>
-    </div>
-  </header>
-
-  <!-- Main Layout -->
-  <div class="flex flex-1 overflow-hidden">
-    
-    <!-- LEFT SIDEBAR: THE VERCEL UI -->
-    <aside class="w-full lg:w-96 bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 z-20 shadow-2xl">
-      <div class="p-4 border-b border-slate-800 bg-slate-900">
-        <h2 class="text-xs font-black uppercase tracking-widest text-blue-400">Object Properties</h2>
-      </div>
-      
-      <div class="p-5 space-y-6 overflow-y-auto flex-1">
-        
-        <!-- 1. TYPOGRAPHY CONTROLS -->
-        <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
-          <h3 class="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-900/50 pb-1 mb-3">1. Typography & Size</h3>
-          <div class="space-y-4">
+    <!-- GLOBAL HEADER -->
+    <header class="bg-slate-950 border-b border-slate-800 px-6 py-4 flex items-center justify-between z-30 shrink-0 shadow-lg">
+        <div class="flex items-center gap-4">
+            <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center font-black text-white shadow-[0_0_15px_rgba(37,99,235,0.5)]">SF</div>
             <div>
-              <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Text String</label>
-              <input type="text" id="inp-text" value="SIGNOS" oninput="updateStudio()" class="w-full p-2 rounded text-sm font-black uppercase outline-none border border-slate-700 focus:border-blue-500 bg-slate-950 text-white shadow-inner">
+                <h1 class="text-lg font-black tracking-widest text-white flex items-center gap-3">
+                    SIGNFABRICATOR <span class="text-cyan-400 text-xs">OS</span>
+                </h1>
+                <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest">v4.0 Architectural Studio</p>
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Height (Inches)</label>
-                <input type="number" id="inp-height" value="18" oninput="updateStudio()" class="w-full p-2 rounded text-xs font-bold outline-none border border-slate-700 bg-slate-900 text-white">
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Font Style</label>
-                <select id="inp-font" onchange="updateStudio()" class="w-full p-2 rounded text-xs font-bold outline-none border border-slate-700 bg-slate-900 text-white">
-                  <option value="Arimo-Bold.ttf">Arimo Bold</option>
-                  <option value="Arimo-Regular.ttf">Arimo Regular</option>
-                </select>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-slate-800">
-              <label class="block text-[10px] font-bold uppercase mb-1 opacity-70 flex justify-between">Kerning <span id="lbl-kerning" class="text-blue-500 font-mono">0</span></label>
-              <input type="range" id="inp-kerning" min="-1" max="5" step="0.1" value="0" oninput="updateStudio()" class="w-full accent-blue-500">
-            </div>
-          </div>
         </div>
-
-        <!-- 2. MATERIAL DNA -->
-        <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
-          <h3 class="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-900/50 pb-1 mb-3">2. Material DNA</h3>
-          <div class="space-y-4">
-             <div>
-               <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Face Acrylic (Hex Code)</label>
-               <div class="flex items-center gap-3">
-                 <input type="color" id="inp-face" value="#f8fafc" onchange="updateStudio()" class="w-10 h-10 rounded cursor-pointer border border-slate-700 bg-slate-950 p-1">
-                 <span id="lbl-face" class="text-xs font-mono font-bold text-slate-400 uppercase">#F8FAFC</span>
-               </div>
-             </div>
-          </div>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <span id="vps-status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                <span id="vps-status-text" class="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Connecting...</span>
+            </div>
+            <a href="menu.html" class="text-xs font-bold text-slate-400 hover:text-white border border-slate-700 hover:bg-slate-800 transition px-4 py-2 rounded uppercase tracking-widest">Exit Studio</a>
         </div>
+    </header>
 
-      </div>
-    </aside>
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- LEFT SIDEBAR: THE VERCEL UI CONTROLLER -->
+        <aside class="w-full lg:w-96 bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 z-20 shadow-2xl">
+            <div class="p-4 border-b border-slate-800 bg-slate-900">
+                <h2 class="text-xs font-black uppercase tracking-widest text-blue-400">Object Properties</h2>
+            </div>
+            
+            <div class="p-5 space-y-6 overflow-y-auto custom-scroll flex-1">
+                
+                <!-- PREBUILT STARTERS -->
+                <div>
+                    <label class="block text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-2">Prebuilt Starters</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="applyPreset('FrontLit')" class="p-2 border border-slate-700 rounded shadow-sm bg-slate-900 hover:bg-slate-800 transition focus:outline-none">
+                            <span class="block text-[10px] font-black text-white uppercase">Front Lit</span>
+                        </button>
+                        <button onclick="applyPreset('Halo')" class="p-2 border border-slate-700 rounded shadow-sm bg-slate-900 hover:bg-slate-800 transition focus:outline-none">
+                            <span class="block text-[10px] font-black text-white uppercase">Halo Lit</span>
+                        </button>
+                    </div>
+                </div>
 
-    <!-- CENTER STAGE: THE SECURE IFRAME -->
-    <main class="flex-1 flex flex-col bg-slate-900 relative overflow-hidden">
-      <div class="h-12 border-b border-slate-800 flex items-center justify-between px-6 z-20 shrink-0 bg-slate-950">
-        <span class="text-[10px] font-black uppercase tracking-widest pb-1 border-b-2 border-cyan-400 text-cyan-400">3D Virtual Studio</span>
-      </div>
-      
-      <div class="flex-1 relative overflow-hidden bg-slate-900">
-        <!-- The SSO token will automatically pass through via the launch function in menu.html -->
-        <iframe 
-          id="studio-iframe" 
-          src="about:blank" 
-          class="w-full h-full border-none outline-none" 
-          title="VPS 3D Studio">
-        </iframe>
-      </div>
-    </main>
+                <!-- 1. TYPOGRAPHY -->
+                <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
+                    <h3 class="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-900/50 pb-1 mb-3">1. Typography & Size</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Text String</label>
+                            <input type="text" id="inp-text" value="SIGNOS" oninput="updateStudio()" class="w-full p-2 rounded text-sm font-black uppercase outline-none border border-slate-700 focus:border-blue-500 bg-slate-950 text-white shadow-inner">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Height (Inches)</label>
+                                <input type="number" id="inp-height" value="18" oninput="updateStudio()" class="w-full p-2 rounded text-xs font-bold outline-none border border-slate-700 bg-slate-900 text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Font Style</label>
+                                <select id="inp-font" onchange="updateStudio()" class="w-full p-2 rounded text-xs font-bold outline-none border border-slate-700 bg-slate-900 text-white">
+                                    <option value="Arimo-Bold.ttf">Arimo Bold</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-  </div>
+                <!-- 2. MATERIAL DNA (SignOS UI Modal Integration) -->
+                <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
+                    <h3 class="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-900/50 pb-1 mb-3">2. Material DNA</h3>
+                    <div class="space-y-3">
+                        
+                        <!-- Base Acrylic -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Face Substrate</label>
+                            <select id="inp-acrylic" onchange="updateStudio()" class="w-full border border-slate-700 bg-slate-950 p-2 rounded text-xs font-bold text-white outline-none focus:border-blue-500 shadow-sm">
+                                <option value="#ffffff">Standard White Acrylic (1/8")</option>
+                                <option value="#e5e7eb">Clear Acrylic (1/8")</option>
+                            </select>
+                        </div>
 
-<script>
-    // --- 1. SSO HANDSHAKE ON LOAD ---
-    window.onload = function() {
-        const token = sessionStorage.getItem("supabase.auth.token");
-        if (!token) {
-            alert("Security Error: Active session required.");
-            window.location.href = "menu.html";
-            return;
+                        <!-- Translucent Vinyl Overlay -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Translucent Vinyl Overlay</label>
+                            <div class="cursor-pointer flex items-center justify-between bg-slate-950 border border-slate-700 p-2 rounded shadow-sm hover:border-blue-500 transition h-[42px]" onclick="openModal('vinyl')">
+                                <div class="flex items-center gap-3 truncate">
+                                    <div class="w-6 h-6 rounded-full border border-slate-500 shrink-0" id="swatch-vinyl" style="background-color: transparent"></div>
+                                    <span class="text-xs font-bold text-white truncate" id="name-vinyl">No Vinyl Overlay</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Trim Cap -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Trim Cap</label>
+                            <div class="cursor-pointer flex items-center justify-between bg-slate-950 border border-slate-700 p-2 rounded shadow-sm hover:border-blue-500 transition h-[42px]" onclick="openModal('trim')">
+                                <div class="flex items-center gap-3 truncate">
+                                    <div class="w-6 h-6 rounded-full border border-slate-500 shrink-0" id="swatch-trim" style="background-color: #000000"></div>
+                                    <span class="text-xs font-bold text-white truncate" id="name-trim">1" Black</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Return Coil -->
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Return Coil</label>
+                            <div class="cursor-pointer flex items-center justify-between bg-slate-950 border border-slate-700 p-2 rounded shadow-sm hover:border-blue-500 transition h-[42px]" onclick="openModal('coil')">
+                                <div class="flex items-center gap-3 truncate">
+                                    <div class="w-6 h-6 rounded-full border border-slate-500 shrink-0" id="swatch-coil" style="background-color: #000000"></div>
+                                    <span class="text-xs font-bold text-white truncate" id="name-coil">Gloss Black</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 3. ILLUMINATION -->
+                <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white">
+                        <input type="checkbox" id="inp-leds" onchange="updateStudio()" checked class="w-4 h-4 text-blue-600 rounded bg-slate-950 border-slate-700">
+                        Internal Illumination (LEDs)
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER STAGE: THE SECURE IFRAME -->
+        <main class="flex-1 flex flex-col bg-slate-900 relative overflow-hidden">
+            <div class="flex-1 relative overflow-hidden bg-slate-900">
+                <iframe id="studio-iframe" src="about:blank" class="w-full h-full border-none outline-none" title="VPS 3D Studio"></iframe>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- UNIVERSAL COLOR MODAL -->
+    <div id="color-modal" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity cursor-pointer" onclick="closeModal()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] border border-gray-200 cursor-auto" onclick="event.stopPropagation()">
+            <div class="p-4 bg-slate-50 border-b border-gray-200 flex justify-between items-center shrink-0">
+                <h3 class="font-black text-gray-800 uppercase tracking-widest text-xs" id="modal-title">Select Material</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 font-bold transition focus:outline-none text-lg">✕</button>
+            </div>
+            <div class="p-3 shrink-0 border-b border-gray-100 flex flex-col gap-2 bg-white">
+                <input type="text" id="color-search" placeholder="Search colors..." oninput="SignOS_UI.filterGrid('modal-grid', 'color-search')" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
+            </div>
+            <div id="modal-grid" class="p-4 overflow-y-auto custom-scroll flex flex-wrap gap-2 content-start bg-gray-50 flex-1"></div>
+        </div>
+    </div>
+
+    <script>
+        let dbData = { vinyl: [], trim: [], coil: [] };
+        let activeModalType = null;
+        let selections = {
+            vinyl: { hex: 'transparent', name: 'No Vinyl Overlay' },
+            trim: { hex: '#000000', name: '1" Black' },
+            coil: { hex: '#000000', name: 'Gloss Black' }
+        };
+
+        window.onload = async function() {
+            const token = sessionStorage.getItem("supabase.auth.token");
+            if (!token) {
+                alert("Security Error: Active session required.");
+                window.location.href = "menu.html";
+                return;
+            }
+
+            // Launch the tunnel uplink
+            const baseUrl = `https://studio.zublinsystems.com/?access=${token}&refresh=sso_relay`;
+            document.getElementById('studio-iframe').src = `${baseUrl}&text=SIGNOS&h=18&k=0`;
+
+            // Verify Uplink
+            fetch('https://studio.zublinsystems.com/', { mode: 'no-cors' })
+                .then(() => {
+                    document.getElementById('vps-status-dot').className = "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]";
+                    document.getElementById('vps-status-text').className = "text-[10px] font-black text-emerald-500 uppercase tracking-widest";
+                    document.getElementById('vps-status-text').innerText = "Uplink Established";
+                })
+                .catch(() => {
+                    document.getElementById('vps-status-dot').className = "w-2 h-2 rounded-full bg-red-500";
+                    document.getElementById('vps-status-text').className = "text-[10px] font-black text-red-500 uppercase tracking-widest";
+                    document.getElementById('vps-status-text').innerText = "Uplink Failed";
+                });
+
+            // FETCH MATERIALS FROM SUPABASE
+            const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+            
+            try {
+                const [resVin, resTrim, resCoil] = await Promise.all([
+                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=1000`, { headers }),
+                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, { headers, headers: { ...headers, 'Accept-Profile': 'dev' } }), // Target dev schema
+                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, { headers, headers: { ...headers, 'Accept-Profile': 'dev' } })    // Target dev schema
+                ]);
+
+                const rawVinyl = await resVin.json();
+                const rawTrim = resTrim.ok ? await resTrim.json() : [];
+                const rawCoil = resCoil.ok ? await resCoil.json() : [];
+
+                dbData.vinyl = [{ Code: 'NONE', Name: 'No Vinyl Overlay', Hex_Code: 'transparent' }, 
+                                ...rawVinyl.filter(v => v.Series && v.Series.includes('8500')).map(v => ({
+                                    Code: v.Hex_Code || v.HEX_Code, Name: v.Color_Name || v.Name, Hex_Code: v.Hex_Code || v.HEX_Code
+                                }))];
+                
+                dbData.trim = rawTrim.map(t => ({ Code: t.hex_code, Name: t.color_name, Hex_Code: t.hex_code }));
+                dbData.coil = rawCoil.map(c => ({ Code: c.hex_code, Name: c.color_name, Hex_Code: c.hex_code }));
+
+            } catch(e) {
+                console.error("Failed to load components:", e);
+            }
+        };
+
+        // --- PRESETS ---
+        function applyPreset(type) {
+            if (type === 'FrontLit') {
+                document.getElementById('inp-acrylic').value = "#ffffff";
+                selections.vinyl = { hex: 'transparent', name: 'No Vinyl Overlay' };
+            } else if (type === 'Halo') {
+                document.getElementById('inp-acrylic').value = "#e5e7eb"; // Clear
+                selections.vinyl = { hex: 'transparent', name: 'No Vinyl Overlay' };
+            }
+            updateSwatchUI();
+            updateStudio();
         }
-        
-        // Target the Cloudflare Tunnel directly
-        const baseUrl = `https://studio.zublinsystems.com/?access=${token}&refresh=sso_relay`;
-        
-        const text = encodeURIComponent(document.getElementById('inp-text').value);
-        const font = encodeURIComponent(document.getElementById('inp-font').value);
-        const h = document.getElementById('inp-height').value;
-        const k = document.getElementById('inp-kerning').value;
-        const face = encodeURIComponent(document.getElementById('inp-face').value);
-        
-        document.getElementById('studio-iframe').src = `${baseUrl}&text=${text}&font=${font}&h=${h}&k=${k}&face=${face}`;
 
-        // Ping to confirm Cloudflare Tunnel Uplink
-        fetch('https://studio.zublinsystems.com/', { mode: 'no-cors' })
-            .then(() => {
-                document.getElementById('vps-status-dot').className = "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]";
-                document.getElementById('vps-status-text').className = "text-[10px] font-black text-emerald-500 uppercase tracking-widest";
-                document.getElementById('vps-status-text').innerText = "Uplink Established";
-            })
-            .catch(() => {
-                document.getElementById('vps-status-dot').className = "w-2 h-2 rounded-full bg-red-500";
-                document.getElementById('vps-status-text').className = "text-[10px] font-black text-red-500 uppercase tracking-widest";
-                document.getElementById('vps-status-text').innerText = "Uplink Failed";
+        // --- MODAL LOGIC ---
+        function openModal(type) {
+            activeModalType = type;
+            document.getElementById('color-modal').classList.remove('hidden');
+            document.getElementById('modal-title').innerText = `Select ${type.toUpperCase()}`;
+            document.getElementById('color-search').value = '';
+            
+            const data = dbData[type] || [];
+            SignOS_UI.buildColorGrid({
+                containerId: 'modal-grid',
+                data: data,
+                type: 'paint',
+                onSelect: (item) => {
+                    selections[activeModalType] = { hex: item.Hex_Code, name: item.Name };
+                    updateSwatchUI();
+                    closeModal();
+                    updateStudio();
+                }
             });
-    };
-
-    // --- 2. MICRO-PAYLOAD STATE UPDATES (postMessage) ---
-    function updateStudio() {
-        const text = document.getElementById('inp-text').value.toUpperCase() || 'SIGNOS';
-        const font = document.getElementById('inp-font').value;
-        const h = document.getElementById('inp-height').value;
-        const k = document.getElementById('inp-kerning').value;
-        const faceInput = document.getElementById('inp-face').value;
-        
-        document.getElementById('lbl-kerning').innerText = k;
-        document.getElementById('lbl-face').innerText = faceInput.toUpperCase();
-        
-        const iframe = document.getElementById('studio-iframe');
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage({
-                type: 'STUDIO_UPDATE',
-                text: text,
-                font: font,
-                h: h,
-                k: k,
-                face: faceInput
-            }, 'https://studio.zublinsystems.com');
         }
-    }
-  </script>
+
+        function closeModal() {
+            document.getElementById('color-modal').classList.add('hidden');
+        }
+
+        function updateSwatchUI() {
+            ['vinyl', 'trim', 'coil'].forEach(type => {
+                document.getElementById(`swatch-${type}`).style.backgroundColor = selections[type].hex;
+                document.getElementById(`name-${type}`).innerText = selections[type].name;
+            });
+        }
+
+        // --- POSTMESSAGE PAYLOAD ---
+        function updateStudio() {
+            const text = document.getElementById('inp-text').value.toUpperCase() || 'SIGNOS';
+            const font = document.getElementById('inp-font').value;
+            const h = document.getElementById('inp-height').value;
+            const leds = document.getElementById('inp-leds').checked;
+            
+            const acrylicBase = document.getElementById('inp-acrylic').value;
+            const activeFaceColor = selections.vinyl.hex !== 'transparent' ? selections.vinyl.hex : acrylicBase;
+
+            const iframe = document.getElementById('studio-iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    type: 'STUDIO_UPDATE',
+                    text: text,
+                    font: font,
+                    h: h,
+                    k: 0,
+                    face: activeFaceColor,
+                    trim: selections.trim.hex,
+                    return: selections.coil.hex,
+                    leds: leds
+                }, 'https://studio.zublinsystems.com');
+            }
+        }
+    </script>
 </body>
 </html>
