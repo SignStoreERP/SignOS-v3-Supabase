@@ -232,12 +232,12 @@
                 return;
             }
 
-            // Launch the tunnel uplink using Vercel's Reverse Proxy (Strict matching, no trailing slash!)
-            const baseUrl = `/studio?access=${token}&refresh=sso_relay`;
+            // Launch the tunnel uplink using the Cloudflare Zero Trust Tunnel (Supports WebSockets!)
+            const baseUrl = `https://studio.zublinsystems.com/?access=${token}&refresh=sso_relay`;
             document.getElementById('studio-iframe').src = `${baseUrl}&text=SIGNOS&h=18&k=0`;
 
-            // Verify Uplink via the Proxy
-            fetch('/studio', { mode: 'no-cors' })
+            // Verify Uplink via Cloudflare
+            fetch('https://studio.zublinsystems.com/', { mode: 'no-cors' })
                 .then(() => {
                     document.getElementById('vps-status-dot').className = "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]";
                     document.getElementById('vps-status-text').className = "text-[10px] font-black text-emerald-500 uppercase tracking-widest";
