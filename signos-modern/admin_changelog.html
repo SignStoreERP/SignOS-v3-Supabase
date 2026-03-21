@@ -167,7 +167,7 @@ function renderGraph() {
     for(let i=29; i>=0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        // Extract YYYY-MM-DD locally to avoid UTC timezone drift
+        // FIX 1: Added  to extract just the "YYYY-MM-DD" string
         const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T');
         days.push(localDate);
     }
@@ -190,6 +190,7 @@ function renderGraph() {
         if(!ts) return;
         try {
             const dateObj = new Date(ts);
+            // FIX 2: Added  here as well
             const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T');
 
             if (days.includes(localDate)) {
@@ -247,6 +248,7 @@ function renderGraph() {
     graphContainer.innerHTML = html;
 
     // 7. X-Axis Labels (Date bounds)
+    // FIX 3: Grab days instead of the entire array to prevent Invalid Date
     labelContainer.innerHTML = `
         <span>${new Date(days + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
         <span class="text-blue-500 tracking-widest text-[10px]">30-DAY ACTIVITY MATRIX</span>
