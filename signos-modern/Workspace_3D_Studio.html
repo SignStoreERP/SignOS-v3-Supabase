@@ -82,7 +82,7 @@
                     </div>
                 </div>
 
-                <!-- 2. MATERIAL DNA (SignOS UI Modal Integration) -->
+                <!-- 2. MATERIAL DNA -->
                 <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
                     <h3 class="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-900/50 pb-1 mb-3">2. Material DNA</h3>
                     <div class="space-y-3">
@@ -91,14 +91,15 @@
                         <div>
                             <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Face Substrate</label>
                             <select id="inp-acrylic" onchange="updateStudio()" class="w-full border border-slate-700 bg-slate-950 p-2 rounded text-xs font-bold text-white outline-none focus:border-blue-500 shadow-sm">
-                                <option value="#ffffff">Standard White Acrylic (1/8")</option>
-                                <option value="#e5e7eb">Clear Acrylic (1/8")</option>
+                                <option value="#ffffff">Standard White Acrylic</option>
+                                <option value="#e5e7eb">Clear Acrylic</option>
+                                <option value="#121514">Black Acrylic</option>
                             </select>
                         </div>
 
                         <!-- Translucent Vinyl Overlay -->
                         <div>
-                            <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Translucent Vinyl Overlay</label>
+                            <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Translucent Vinyl</label>
                             <div class="cursor-pointer flex items-center justify-between bg-slate-950 border border-slate-700 p-2 rounded shadow-sm hover:border-blue-500 transition h-[42px]" onclick="openModal('vinyl')">
                                 <div class="flex items-center gap-3 truncate">
                                     <div class="w-6 h-6 rounded-full border border-slate-500 shrink-0" id="swatch-vinyl" style="background-color: transparent"></div>
@@ -158,6 +159,14 @@
                 <h3 class="font-black text-gray-800 uppercase tracking-widest text-xs" id="modal-title">Select Material</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 font-bold transition focus:outline-none text-lg">✕</button>
             </div>
+            
+            <!-- SYSTEM TABS (SW vs PMS vs MFG) -->
+            <div id="color-tabs" class="hidden flex bg-blue-950 p-1 rounded-lg mx-3 mt-3 shadow-inner">
+                <button id="btn-mfg" onclick="setColorSystem('MFG')" class="flex-1 py-1.5 text-[10px] font-black rounded bg-blue-700 shadow-sm text-white transition uppercase tracking-widest border border-blue-600 focus:outline-none">Manufacturer</button>
+                <button id="btn-sw" onclick="setColorSystem('SW')" class="flex-1 py-1.5 text-[10px] font-black rounded text-blue-300 hover:text-white hover:bg-blue-800/50 transition border border-transparent uppercase tracking-widest focus:outline-none">Sherwin Williams</button>
+                <button id="btn-pms" onclick="setColorSystem('PMS')" class="flex-1 py-1.5 text-[10px] font-black rounded text-blue-300 hover:text-white hover:bg-blue-800/50 transition border border-transparent uppercase tracking-widest focus:outline-none">PMS Match</button>
+            </div>
+
             <div class="p-3 shrink-0 border-b border-gray-100 flex flex-col gap-2 bg-white">
                 <input type="text" id="color-search" placeholder="Search colors..." oninput="SignOS_UI.filterGrid('modal-grid', 'color-search')" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
             </div>
@@ -166,8 +175,10 @@
     </div>
 
     <script>
-        let dbData = { vinyl: [], trim: [], coil: [] };
+        let dbData = { vinyl: [], trim_mfg: [], coil_mfg: [], sw: [], pms: [] };
         let activeModalType = null;
+        let activeColorSystem = 'MFG';
+        
         let selections = {
             vinyl: { hex: 'transparent', name: 'No Vinyl Overlay' },
             trim: { hex: '#000000', name: '1" Black' },
@@ -199,27 +210,35 @@
                     document.getElementById('vps-status-text').innerText = "Uplink Failed";
                 });
 
-            // FETCH MATERIALS FROM SUPABASE
+            // MASS DATABASE FETCH (Vinyl + SW + PMS + MFG Coils + MFG Trim)
             const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+            const devHeaders = { ...headers, 'Accept-Profile': 'dev' };
             
             try {
-                const [resVin, resTrim, resCoil] = await Promise.all([
-                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=1000`, { headers }),
-                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, { headers, headers: { ...headers, 'Accept-Profile': 'dev' } }), // Target dev schema
-                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, { headers, headers: { ...headers, 'Accept-Profile': 'dev' } })    // Target dev schema
+                const [resVin, resTrim, resCoil, resSW, resPMS] = await Promise.all([
+                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=2000`, { headers }),
+                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, { headers: devHeaders }),
+                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, { headers: devHeaders }),
+                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_paint?select=*&limit=3000`, { headers }),
+                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_pms?select=*&limit=3000`, { headers })
                 ]);
 
                 const rawVinyl = await resVin.json();
                 const rawTrim = resTrim.ok ? await resTrim.json() : [];
                 const rawCoil = resCoil.ok ? await resCoil.json() : [];
+                const rawSW = await resSW.json();
+                const rawPMS = await resPMS.json();
 
+                // Build strict arrays required by SignOS_UI.buildColorGrid -> { Code, Name, Hex_Code }
                 dbData.vinyl = [{ Code: 'NONE', Name: 'No Vinyl Overlay', Hex_Code: 'transparent' }, 
-                                ...rawVinyl.filter(v => v.Series && v.Series.includes('8500')).map(v => ({
-                                    Code: v.Hex_Code || v.HEX_Code, Name: v.Color_Name || v.Name, Hex_Code: v.Hex_Code || v.HEX_Code
-                                }))];
+                    ...rawVinyl.filter(v => v.Series && (v.Series.includes('8500') || v.Series.includes('8800'))).map(v => ({
+                        Code: v.Color_Code || v.Item_Code || v.Hex_Code, Name: v.Color_Name || v.Name, Hex_Code: v.Hex_Code || v.HEX_Code
+                    }))];
                 
-                dbData.trim = rawTrim.map(t => ({ Code: t.hex_code, Name: t.color_name, Hex_Code: t.hex_code }));
-                dbData.coil = rawCoil.map(c => ({ Code: c.hex_code, Name: c.color_name, Hex_Code: c.hex_code }));
+                dbData.trim_mfg = rawTrim.map(t => ({ Code: t.hex_code, Name: t.color_name, Hex_Code: t.hex_code }));
+                dbData.coil_mfg = rawCoil.map(c => ({ Code: c.hex_code, Name: c.color_name, Hex_Code: c.hex_code }));
+                dbData.sw = rawSW.map(p => ({ Code: p['Color Code'] || p.Code, Name: p['Color Name'] || p.Name, Hex_Code: p['HEX Code'] || p.Hex_Code }));
+                dbData.pms = rawPMS.map(p => ({ Code: p['PMS Name / Code'] || p.Code, Name: p['PMS Name / Code'] || p.Name, Hex_Code: p['HEX Code'] || p.Hex_Code }));
 
             } catch(e) {
                 console.error("Failed to load components:", e);
@@ -232,25 +251,57 @@
                 document.getElementById('inp-acrylic').value = "#ffffff";
                 selections.vinyl = { hex: 'transparent', name: 'No Vinyl Overlay' };
             } else if (type === 'Halo') {
-                document.getElementById('inp-acrylic').value = "#e5e7eb"; // Clear
+                document.getElementById('inp-acrylic').value = "#e5e7eb";
                 selections.vinyl = { hex: 'transparent', name: 'No Vinyl Overlay' };
             }
             updateSwatchUI();
             updateStudio();
         }
 
-        // --- MODAL LOGIC ---
+        // --- TAB & MODAL LOGIC ---
         function openModal(type) {
             activeModalType = type;
             document.getElementById('color-modal').classList.remove('hidden');
             document.getElementById('modal-title').innerText = `Select ${type.toUpperCase()}`;
             document.getElementById('color-search').value = '';
             
-            const data = dbData[type] || [];
+            const tabs = document.getElementById('color-tabs');
+            if (type === 'vinyl') {
+                tabs.classList.add('hidden');
+                tabs.classList.remove('flex');
+                renderGrid(dbData.vinyl);
+            } else {
+                tabs.classList.remove('hidden');
+                tabs.classList.add('flex');
+                setColorSystem('MFG'); // Reset to default tab for Paints
+            }
+        }
+
+        function setColorSystem(sys) {
+            activeColorSystem = sys;
+            const activeClass = "flex-1 py-1.5 text-[10px] font-black rounded bg-blue-700 shadow-sm text-white transition uppercase tracking-widest border border-blue-600 focus:outline-none";
+            const inactiveClass = "flex-1 py-1.5 text-[10px] font-black rounded text-blue-300 hover:text-white hover:bg-blue-800/50 transition border border-transparent uppercase tracking-widest focus:outline-none";
+            
+            document.getElementById('btn-mfg').className = sys === 'MFG' ? activeClass : inactiveClass;
+            document.getElementById('btn-sw').className = sys === 'SW' ? activeClass : inactiveClass;
+            document.getElementById('btn-pms').className = sys === 'PMS' ? activeClass : inactiveClass;
+            
+            document.getElementById('color-search').placeholder = `Search ${sys} Colors...`;
+            document.getElementById('color-search').value = '';
+
+            let dataToRender = [];
+            if (sys === 'MFG') dataToRender = activeModalType === 'trim' ? dbData.trim_mfg : dbData.coil_mfg;
+            else if (sys === 'SW') dataToRender = dbData.sw;
+            else if (sys === 'PMS') dataToRender = dbData.pms;
+
+            renderGrid(dataToRender);
+        }
+
+        function renderGrid(data) {
             SignOS_UI.buildColorGrid({
                 containerId: 'modal-grid',
                 data: data,
-                type: 'paint',
+                type: 'paint', // Instructs the builder to use the square PBR swatches
                 onSelect: (item) => {
                     selections[activeModalType] = { hex: item.Hex_Code, name: item.Name };
                     updateSwatchUI();
