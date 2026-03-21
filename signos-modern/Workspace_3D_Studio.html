@@ -140,6 +140,18 @@
                         Internal Illumination (LEDs)
                     </label>
                 </div>
+
+                                <!-- 3. ILLUMINATION & ENVIRONMENT -->
+                <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white">
+                        <input type="checkbox" id="inp-leds" onchange="updateStudio()" checked class="w-4 h-4 text-blue-600 rounded bg-slate-950 border-slate-700">
+                        Internal Illumination (LEDs)
+                    </label>
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white mt-3">
+                        <input type="checkbox" id="inp-night" onchange="updateStudio()" class="w-4 h-4 text-indigo-600 rounded bg-slate-950 border-slate-700">
+                        Night Environment (Preview Glow)
+                    </label>
+                </div>
             </div>
         </aside>
 
@@ -376,6 +388,7 @@
             const font = document.getElementById('inp-font').value;
             const h = parseFloat(document.getElementById('inp-height').value) || 18;
             const leds = document.getElementById('inp-leds').checked;
+            const night = document.getElementById('inp-night').checked; // <-- NEW
             
             const acrylicBase = document.getElementById('inp-acrylic').value;
             const activeFaceColor = selections.vinyl.hex !== 'transparent' ? selections.vinyl.hex : acrylicBase;
@@ -398,6 +411,7 @@
                     trim: selections.trim.hex,
                     return: selections.coil.hex,
                     leds: leds,
+                    night: night, // <-- NEW (Beamed to React State)
                     svg_path: exactSvgPath
                 }, 'https://studio.zublinsystems.com');
             }
