@@ -239,10 +239,18 @@
                 'apikey': SUPABASE_ANON_KEY, 
                 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` 
             };
+
+            // Restore the dev schema routing for the new Manufacturer tables
+            const devHeaders = {
+                ...authHeaders,
+                'Accept-Profile': 'dev'
+            };
             
             const rawVinyl = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=2000`, authHeaders) || [];
-            const rawTrim = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, authHeaders) || null;
-            const rawCoil = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, authHeaders) || null;
+            
+            // Apply devHeaders specifically to Trim Cap and Coil so Supabase knows where to look!
+            const rawTrim = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, devHeaders) || null;
+            const rawCoil = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, devHeaders) || null;
 
             // 1. Map Vinyl (Appending Brand & Series correctly)
             dbData.vinyl = [{ Code: 'NONE', Name: 'No Vinyl Overlay', Hex_Code: 'transparent' }];
