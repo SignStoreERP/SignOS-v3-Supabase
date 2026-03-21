@@ -168,7 +168,7 @@ function renderGraph() {
         const d = new Date();
         d.setDate(d.getDate() - i);
         // FIX 1: Added  to extract just the "YYYY-MM-DD" string
-        const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T');
+        const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         days.push(localDate);
     }
 
@@ -191,7 +191,7 @@ function renderGraph() {
         try {
             const dateObj = new Date(ts);
             // FIX 2: Added  here as well
-            const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T');
+            const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
             if (days.includes(localDate)) {
                 const hour = dateObj.getHours(); // 0-23
@@ -250,7 +250,7 @@ function renderGraph() {
     // 7. X-Axis Labels (Date bounds)
     // FIX 3: Add  to target the first item in the days array to prevent Invalid Date
     labelContainer.innerHTML = `
-        <span>${new Date(days + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+        <span>${new Date(days[0] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
         <span class="text-blue-500 tracking-widest text-[10px]">30-DAY ACTIVITY MATRIX</span>
         <span>Today</span>
     `;

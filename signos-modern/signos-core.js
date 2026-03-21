@@ -8,6 +8,15 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const EDGE_URL = IS_DEV_ENV ? "http://127.0.0.1:54321" : SUPABASE_URL;
 const EDGE_KEY = SUPABASE_ANON_KEY; 
 
+// --- VERCEL WEB ANALYTICS INJECTION ---
+// Only inject the tracking script if we are on the live production domain
+if (!IS_DEV_ENV) {
+    const vercelAnalytics = document.createElement('script');
+    vercelAnalytics.defer = true;
+    vercelAnalytics.src = "/_vercel/insights/script.js";
+    document.head.appendChild(vercelAnalytics);
+}
+
 // 2. Session Security
 if (!window.location.pathname.includes('index.html')) {
     const user = sessionStorage.getItem('signos_user');
