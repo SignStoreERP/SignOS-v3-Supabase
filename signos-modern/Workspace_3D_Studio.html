@@ -231,28 +231,37 @@
                     document.getElementById('vps-status-text').innerText = "Uplink Failed";
                 });
 
-            // ISOLATED DATABASE FETCH (Prevents single-point failure)
-            const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
-            const devHeaders = { ...headers, 'Accept-Profile': 'dev' };
+            // ISOLATED DATABASE FETCH
+            // FIXED: Using the active user 'token' instead of the generic ANON_KEY to bypass the 401 Unauthorized lock on the dev schema!
+            const authHeaders = { 
+                'apikey': SUPABASE_ANON_KEY, 
+                'Authorization': `Bearer ${token}` 
+            };
+            const devHeaders = { ...authHeaders, 'Accept-Profile': 'dev' };
             
-            const rawVinyl = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=2000`, headers);
+            const rawVinyl = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=2000`, authHeaders);
             const rawTrim = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, devHeaders);
             const rawCoil = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, devHeaders);
-            const rawSW = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_paint?select=*&limit=3000`, headers);
-            const rawPMS = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_pms?select=*&limit=3000`, headers);
+            const rawSW = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_paint?select=*&limit=3000`, authHeaders);
+            const rawPMS = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_pms?select=*&limit=3000`, authHeaders);
 
-            // Robust Mapping Engine (Checks every possible column variation)
+            // Robust Mapping Engine
             dbData.vinyl = [{ Code: 'NONE', Name: 'No Vinyl Overlay', Hex_Code: 'transparent' }, 
                 ...rawVinyl.filter(v => {
                     const s = String(v.Series_ID || v.series_id || v.Series || v.series || '').toLowerCase();
                     return s.includes('8500') || s.includes('8800');
-                }).map(v => ({
-                    Code: v.Color_Code || v.color_code || v.Item_Code || v.Hex_Code, 
-                    Name: v.Display_Name || v.display_name || v.Color_Name || v.color_name || v.Name || 'Unknown', 
-                    Hex_Code: v.HEX_Code || v.Hex_Code || v.hex_code || v.HEX || '#ffffff'
-                }))];
+                }).map(v => {
+                    // FIXED: Dynamically prepending Brand & Series ID to the color name
+                    const seriesLabel = String(v.Series_ID || v.series_id || v.Series || v.series || '');
+                    const colorName = v.Display_Name || v.display_name || v.Color_Name || v.color_name || v.Name || 'Unknown';
+                    
+                    return {
+                        Code: v.Color_Code || v.color_code || v.Item_Code || v.Hex_Code, 
+                        Name: `Oracal ${seriesLabel} - ${colorName}`, 
+                        Hex_Code: v.HEX_Code || v.Hex_Code || v.hex_code || v.HEX || '#ffffff'
+                    };
+                })];
             
-            // Fallbacks inserted just in case the `dev` schema was blocked
             dbData.trim_mfg = rawTrim.length > 0 ? rawTrim.map(t => ({ Code: t.hex_code, Name: t.color_name, Hex_Code: t.hex_code })) : [{Code: '#000000', Name: 'Standard Black', Hex_Code: '#000000'}];
             dbData.coil_mfg = rawCoil.length > 0 ? rawCoil.map(c => ({ Code: c.hex_code, Name: c.color_name, Hex_Code: c.hex_code })) : [{Code: '#000000', Name: 'Gloss Black', Hex_Code: '#000000'}, {Code: '#94a3b8', Name: 'Mill Finish', Hex_Code: '#94a3b8'}];
             
