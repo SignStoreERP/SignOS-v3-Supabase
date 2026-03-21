@@ -92,8 +92,7 @@
                             <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Face Substrate</label>
                             <select id="inp-acrylic" onchange="updateStudio()" class="w-full border border-slate-700 bg-slate-950 p-2 rounded text-xs font-bold text-white outline-none focus:border-blue-500 shadow-sm">
                                 <option value="#ffffff">Standard White Acrylic</option>
-                                <option value="#e5e7eb">Clear Acrylic</option>
-                                <option value="#121514">Black Acrylic</option>
+                                <option value="#ff0000">Red Acrylic</option>
                             </select>
                         </div>
 
@@ -141,13 +140,18 @@
                     </label>
                 </div>
 
-                                <!-- 3. ILLUMINATION & ENVIRONMENT -->
+                <!-- 3. ILLUMINATION & ENVIRONMENT -->
                 <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
-                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white">
-                        <input type="checkbox" id="inp-leds" onchange="updateStudio()" checked class="w-4 h-4 text-blue-600 rounded bg-slate-950 border-slate-700">
-                        Internal Illumination (LEDs)
-                    </label>
-                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white mt-3">
+                    <h3 class="text-[10px] font-black text-amber-400 uppercase tracking-widest border-b border-amber-900/50 pb-1 mb-3">3. Illumination</h3>
+                    
+                    <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Illumination Type</label>
+                    <select id="inp-illumination" onchange="updateStudio()" class="w-full border border-slate-700 bg-slate-950 p-2 rounded text-xs font-bold text-white outline-none focus:border-blue-500 shadow-sm mb-4">
+                        <option value="front" selected>Front Lit Only</option>
+                        <option value="halo">Halo Lit Only</option>
+                        <option value="both">Front & Halo Lit</option>
+                    </select>
+
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white border-t border-slate-800 pt-3">
                         <input type="checkbox" id="inp-night" onchange="updateStudio()" class="w-4 h-4 text-indigo-600 rounded bg-slate-950 border-slate-700">
                         Night Environment (Preview Glow)
                     </label>
@@ -312,9 +316,11 @@
         function applyPreset(type) {
             if (type === 'FrontLit') {
                 document.getElementById('inp-acrylic').value = "#ffffff";
+                document.getElementById('inp-illumination').value = "front";
                 selections.vinyl = { hex: 'transparent', name: 'No Vinyl Overlay' };
             } else if (type === 'Halo') {
-                document.getElementById('inp-acrylic').value = "#e5e7eb";
+                document.getElementById('inp-acrylic').value = "#ffffff";
+                document.getElementById('inp-illumination').value = "halo";
                 selections.vinyl = { hex: 'transparent', name: 'No Vinyl Overlay' };
             }
             updateSwatchUI();
@@ -388,8 +394,9 @@
             const text = document.getElementById('inp-text').value.toUpperCase() || 'SIGNOS';
             const font = document.getElementById('inp-font').value;
             const h = parseFloat(document.getElementById('inp-height').value) || 18;
-            const leds = document.getElementById('inp-leds').checked;
-            const night = document.getElementById('inp-night').checked; // <-- NEW
+            
+            const illum = document.getElementById('inp-illumination').value;
+            const night = document.getElementById('inp-night').checked;
             
             const acrylicBase = document.getElementById('inp-acrylic').value;
             const activeFaceColor = selections.vinyl.hex !== 'transparent' ? selections.vinyl.hex : acrylicBase;
@@ -411,8 +418,8 @@
                     face: activeFaceColor,
                     trim: selections.trim.hex,
                     return: selections.coil.hex,
-                    leds: leds,
-                    night: night, // <-- NEW (Beamed to React State)
+                    illum: illum,
+                    night: night,
                     svg_path: exactSvgPath
                 }, 'https://studio.zublinsystems.com');
             }
