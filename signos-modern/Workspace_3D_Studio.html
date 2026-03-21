@@ -234,18 +234,13 @@
                     document.getElementById('vps-status-text').innerText = "Uplink Failed";
                 });
 
-            // FIXED: Using ANON_KEY directly to prevent 401 Unauthorized errors on public lookup tables
+            // FIXED: Using ANON_KEY directly to pull from public schema
             const authHeaders = { 
                 'apikey': SUPABASE_ANON_KEY, 
                 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` 
             };
-
-            // Restore the dev schema routing for the new Manufacturer tables
-            const devHeaders = {
-                ...authHeaders,
-                'Accept-Profile': 'dev'
-            };
             
+            // All materials now securely fetch from the public schema
             const rawVinyl = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=2000`, authHeaders) || [];
             const rawTrim = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, authHeaders) || null;
             const rawCoil = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, authHeaders) || null;
