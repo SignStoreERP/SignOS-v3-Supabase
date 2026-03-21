@@ -20,7 +20,19 @@
         <p class="text-[9px] font-mono text-slate-500 uppercase tracking-widest">v4.0 Architectural Studio</p>
       </div>
     </div>
-    <a href="menu.html" class="text-xs font-bold text-slate-400 hover:text-white border border-slate-700 hover:bg-slate-800 transition px-4 py-2 rounded uppercase tracking-widest">Exit Studio</a>
+    
+    <div class="flex items-center gap-6">
+      <!-- NEW VPS TELEMETRY -->
+      <div class="flex flex-col items-end">
+        <div class="flex items-center gap-2">
+          <span id="vps-status-dot" class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse shadow-[0_0_8px_rgba(234,179,8,0.8)]"></span>
+          <span id="vps-status-text" class="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Uplink Pending...</span>
+        </div>
+        <span class="text-[8px] text-slate-500 font-mono tracking-widest uppercase">Hostinger VPS Container</span>
+      </div>
+
+      <a href="menu.html" class="text-xs font-bold text-slate-400 hover:text-white border border-slate-700 hover:bg-slate-800 transition px-4 py-2 rounded uppercase tracking-widest">Exit Studio</a>
+    </div>
   </header>
 
   <!-- Main Layout -->
@@ -120,6 +132,19 @@
         
         // Launch the engine
         document.getElementById('studio-iframe').src = `${baseUrl}&text=${text}&font=${font}&h=${h}&k=${k}&face=${face}`;
+
+                // Ping to confirm Uplink connection
+        fetch('https://studio.zublinsystems.com/', { mode: 'no-cors' })
+            .then(() => {
+                document.getElementById('vps-status-dot').className = "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]";
+                document.getElementById('vps-status-text').className = "text-[10px] font-black text-emerald-500 uppercase tracking-widest";
+                document.getElementById('vps-status-text').innerText = "Uplink Established";
+            })
+            .catch(() => {
+                document.getElementById('vps-status-dot').className = "w-2 h-2 rounded-full bg-red-500";
+                document.getElementById('vps-status-text').className = "text-[10px] font-black text-red-500 uppercase tracking-widest";
+                document.getElementById('vps-status-text').innerText = "Uplink Failed";
+            });
     };
 
     // --- 2. MICRO-PAYLOAD STATE UPDATES (postMessage) ---

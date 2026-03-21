@@ -10,28 +10,33 @@ on:
 jobs:
   run-health-check:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Ping SignOS Health Check Edge Function
-      env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      run: |
-        echo "Initiating Nightly Zero-Variance Math & Systems Check..."
-        
-        # Call the dedicated health check Edge Function
-        HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" -X POST "$SUPABASE_URL/functions/v1/system-health-check" \
-          -H "Authorization: Bearer $SUPABASE_KEY" \
-          -H "Content-Type: application/json" \
-          -d '{"mode": "full_simulation"}')
-        
-        cat response.json
-        
-        # Evaluate the response
-        if [ "$HTTP_STATUS" -eq 200 ]; then
-          echo "✅ All Systems GREEN. Math and routing verified."
-        else
-          echo "❌ SYSTEM FAILURE DETECTED. Status: $HTTP_STATUS"
-          # (Optional) Add a curl command here to trigger a Slack/Discord webhook alert
-          exit 1
-        fi
+      - name: Ping SignOS Health Check Edge Function
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "Initiating Nightly Zero-Variance Math & Systems Check..."
+          
+          # Call the dedicated health check Edge Function
+          HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" -X POST "$SUPABASE_URL/functions/v1/system-health-check" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"mode": "full_simulation"}')
+          
+          cat response.json
+          
+          # Evaluate the response
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ All Systems GREEN. Math and routing verified."
+          else
+            echo "❌ SYSTEM FAILURE DETECTED. Status: $HTTP_STATUS"
+            # (Optional) Add a curl command here to trigger a Slack/Discord webhook alert
+            exit 1
+          fi
+
+      - name: Ping VPS 3D Studio Container (Cloudflare Zero Trust)
+        run: curl -f https://studio.zublinsystems.com/ || exit 1
+
+      - name: Ping VPS Physics Engine (Python FastAPI)
+        run: curl -f http://72.60.164.13:8000/docs || exit 1

@@ -70,15 +70,17 @@
 
 <!-- +++++++++ 3D STUDIO ALPHA BUTTON +++++++++ -->
 <div class="w-full max-w-4xl mx-auto px-4 mt-12 mb-2 opacity-100">
-  <a onclick="launchSecureStudio()" class="cursor-pointer bg-slate-900/80 hover:bg-slate-800 p-4 rounded-xl border-2 border-orange-500/50 hover:border-orange-400 transition group block shadow-lg">
+  <a id="btn-studio-alpha" onclick="launchSecureStudio()" class="cursor-pointer bg-slate-900/80 hover:bg-slate-800 p-4 rounded-xl border-2 border-orange-500/50 hover:border-orange-400 transition group block shadow-lg">
     <div class="flex items-center gap-4">
-      <div class="w-8 h-8 rounded-lg flex items-center justify-center shadow-inner border border-orange-500/50 bg-orange-500/20 text-orange-400 group-hover:bg-orange-500/40 transition">
+      <div class="relative w-8 h-8 rounded-lg flex items-center justify-center shadow-inner border border-orange-500/50 bg-orange-500/20 text-orange-400 group-hover:bg-orange-500/40 transition">
         <span class="text-lg">🧊</span>
+        <span id="studio-status-dot" class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-yellow-500 animate-pulse border-2 border-slate-900"></span>
       </div>
       <div class="flex flex-col flex-1">
         <div class="flex items-center gap-2">
           <span class="font-black text-white text-sm tracking-tight">3D Spatial Studio</span>
-          <span class="text-[8px] font-black bg-orange-600 text-white px-2 py-0.5 rounded uppercase tracking-widest animate-pulse">Alpha</span>
+          <span class="text-[8px] font-black bg-orange-600 text-white px-2 py-0.5 rounded uppercase tracking-widest">Alpha</span>
+          <span id="studio-status-text" class="text-[9px] font-black text-yellow-500 uppercase tracking-widest ml-2">Pinging Server...</span>
         </div>
         <div class="flex items-center gap-2 mt-1">
           <span class="text-[9px] font-black text-orange-400 uppercase tracking-widest">
@@ -364,6 +366,36 @@ window.onload = async function() {
         renderMenu(data, r);
     } catch (e) {
         document.getElementById('menu-container').innerHTML = `<div class="p-8 text-center text-red-500 font-bold text-xs uppercase tracking-widest">Error Loading Menu: ${e.message}</div>`;
+    }
+
+        // --- 3D STUDIO UPLINK PING ---
+    async function pingStudio() {
+        const btn = document.getElementById('btn-studio-alpha');
+        const dot = document.getElementById('studio-status-dot');
+        const txt = document.getElementById('studio-status-text');
+
+        try {
+            // Give the VPS 3 seconds to respond before aborting
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            
+            await fetch('https://studio.zublinsystems.com/', { mode: 'no-cors', signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            dot.className = "absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900 shadow-[0_0_8px_rgba(16,185,129,0.8)]";
+            txt.className = "text-[9px] font-black text-emerald-500 uppercase tracking-widest ml-2";
+            txt.innerText = "ONLINE";
+        } catch (error) {
+            // Disarm the button if the VPS or Cloudflare Tunnel is down
+            btn.removeAttribute('onclick');
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.classList.replace('hover:bg-slate-800', 'bg-slate-900');
+            btn.classList.replace('hover:border-orange-400', 'border-red-900');
+
+            dot.className = "absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 border-2 border-slate-900";
+            txt.className = "text-[9px] font-black text-red-500 uppercase tracking-widest ml-2";
+            txt.innerText = "VPS OFFLINE";
+        }
     }
 };
 </script>
