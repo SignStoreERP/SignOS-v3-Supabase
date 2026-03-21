@@ -152,71 +152,111 @@
             renderTimeline();
         }
 
-        // --- GRAPH RENDERER ---
-        function renderGraph() {
-            const graphContainer = document.getElementById('activity-graph');
-            const labelContainer = document.getElementById('graph-labels');
-            graphContainer.innerHTML = "";
-            labelContainer.innerHTML = "";
+// --- GRAPH RENDERER (UPGRADED TO 30-DAY HEATMAP) ---
+function renderGraph() {
+    const graphContainer = document.getElementById('activity-graph');
+    const labelContainer = document.getElementById('graph-labels');
+    graphContainer.innerHTML = "";
+    labelContainer.innerHTML = "";
 
-            // 1. Generate Last 7 Days Keys
-            const days = [];
-            for(let i=6; i>=0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                try {
-                    days.push(d.toISOString().split('T'));
-                } catch(e) { continue; }
+    // 1. Convert container to a horizontal flex matrix
+    graphContainer.className = "flex gap-1.5 w-full overflow-x-auto no-scrollbar pt-2 pb-2";
+
+    // 2. Generate Last 30 Days Array (Using local time bounds)
+    const days = [];
+    for(let i=29; i>=0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        // Extract YYYY-MM-DD locally to avoid UTC timezone drift
+        const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T');
+        days.push(localDate);
+    }
+
+    // 3. Define 6 Time Blocks (4-hour intervals for the Y-Axis)
+    const timeBlocks = ['12am-4am', '4am-8am', '8am-12pm', '12pm-4pm', '4pm-8pm', '8pm-12am'];
+    const matrix = { 0: {}, 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
+
+    // Initialize all cells to 0
+    days.forEach(d => {
+        for(let b=0; b<6; b++) matrix[b][d] = 0;
+    });
+
+    // 4. Populate Matrix Data from Database
+    let maxCount = 0;
+    let total30Days = 0;
+
+    allData.forEach(row => {
+        const ts = val(row, 'Timestamp');
+        if(!ts) return;
+        try {
+            const dateObj = new Date(ts);
+            const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T');
+
+            if (days.includes(localDate)) {
+                const hour = dateObj.getHours(); // 0-23
+                const block = Math.floor(hour / 4); // Maps hour to 0-5 index
+
+                matrix[block][localDate]++;
+                total30Days++;
+                if (matrix[block][localDate] > maxCount) maxCount = matrix[block][localDate];
+            }
+        } catch(e) {}
+    });
+
+    // 5. Build Y-Axis (Time Labels)
+    let html = `<div class="flex flex-col gap-1.5 pr-3 justify-between py-0.5 border-r border-gray-200 shrink-0">`;
+    timeBlocks.forEach(l => {
+        html += `<div class="text-[7px] font-black text-gray-400 uppercase tracking-widest leading-none h-3 flex items-center whitespace-nowrap">${l}</div>`;
+    });
+    html += `</div>`;
+
+    // 6. Build Grid Columns (30 Days)
+    html += `<div class="flex gap-1 flex-1 shrink-0 ml-2">`;
+    days.forEach(day => {
+        html += `<div class="flex flex-col gap-1.5 flex-1 group relative">`;
+        for(let b=0; b<6; b++) {
+            const count = matrix[b][day];
+
+            // GitHub-style Intensity Colors based on volume
+            let bg = "bg-gray-100";
+            let ring = "hover:ring-gray-300";
+            if (count > 0) {
+                const intensity = count / maxCount;
+                if (intensity > 0.75) { bg = "bg-green-600"; ring = "hover:ring-green-800"; }
+                else if (intensity > 0.5) { bg = "bg-green-500"; ring = "hover:ring-green-700"; }
+                else if (intensity > 0.25) { bg = "bg-green-400"; ring = "hover:ring-green-600"; }
+                else { bg = "bg-green-300"; ring = "hover:ring-green-500"; }
             }
 
-            // 2. Count Commits per Day
-            const counts = {};
-            days.forEach(d => counts[d] = 0);
-            
-            allData.forEach(row => {
-                try {
-                    const dStr = new Date(val(row, 'Timestamp')).toISOString().split('T');
-                    if (counts[dStr] !== undefined) counts[dStr]++;
-                } catch(e) {}
-            });
+            // Formatting date for tooltips safely
+            const dayName = new Date(day + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
 
-            // 3. Find Max for scaling
-            const maxVal = Math.max(...Object.values(counts), 1);
-
-            // 4. Draw Bars
-            days.forEach(day => {
-                const count = counts[day];
-                const heightPct = (count / maxVal) * 100;
-                
-                const isToday = day === days[4];
-                const barColor = isToday ? "bg-blue-600" : (count > 0 ? "bg-blue-300" : "bg-gray-100");
-                
-                const col = document.createElement('div');
-                col.className = "flex-1 flex flex-col justify-end items-center relative group h-full";
-                
-                const bar = document.createElement('div');
-                bar.className = `w-full max-w-[24px] rounded-t-sm graph-bar cursor-pointer ${barColor}`;
-                bar.style.height = `${Math.max(heightPct, 2)}%`;
-                
-                bar.innerHTML = `<div class="tooltip absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg z-20 whitespace-nowrap">
-                                    ${count} Commits
-                                    <div class="absolute bottom-[-4px] left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
-                                 </div>`;
-                
-                col.appendChild(bar);
-                graphContainer.appendChild(col);
-
-                const dayName = new Date(day).toLocaleDateString('en-US', { weekday: 'short' });
-                const lbl = document.createElement('div');
-                lbl.className = `w-full text-center ${isToday ? "text-blue-600" : ""}`;
-                lbl.innerText = dayName;
-                labelContainer.appendChild(lbl);
-            });
-
-            // Update Stat Count
-            const todayKey = new Date().toISOString().split('T');
-            document.getElementById('stat-count').innerText = counts[todayKey] || 0;
+            // Render the matrix block with a hover tooltip
+            html += `
+            <div class="w-full h-3 ${bg} rounded-sm cursor-pointer hover:ring-1 ${ring} transition relative">
+                <div class="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1.5 bg-gray-800 text-white text-[9px] font-bold px-2.5 py-1.5 rounded shadow-xl z-50 whitespace-nowrap pointer-events-none">
+                    <span class="text-green-400">${count} system updates</span><br>
+                    <span class="text-gray-300 font-normal">${dayName} • ${timeBlocks[b]}</span>
+                </div>
+            </div>`;
         }
+        html += `</div>`;
+    });
+    html += `</div>`;
+
+    graphContainer.innerHTML = html;
+
+    // 7. X-Axis Labels (Date bounds)
+    labelContainer.innerHTML = `
+        <span>${new Date(days + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+        <span class="text-blue-500 tracking-widest text-[10px]">30-DAY ACTIVITY MATRIX</span>
+        <span>Today</span>
+    `;
+
+    // 8. Update Global Stat Count
+    document.getElementById('stat-count').innerText = total30Days;
+    document.getElementById('stat-count').previousElementSibling.innerText = "30-Day Volume";
+}
 
         // --- TIMELINE RENDERER ---
         function renderTimeline() {

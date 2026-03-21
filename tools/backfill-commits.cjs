@@ -24,15 +24,15 @@ async function backfillCommits() {
             const [hash, date, author, ...msgParts] = line.split('|');
             const message = msgParts.join('|').replace(/"/g, '\\"'); // Clean quotes for JSON
 
-            const payload = {
-                author: author,
-                commit_hash: hash,
-                message: message,
-                files_changed: "1", // Simplified for backfill
-                github_link: `https://github.com/SignStoreERP/signos-app/commit/${hash}`,
-                environment: "DEV",
-                timestamp: date
-            };
+      const payload = {
+        author: author,
+        commit_hash: hash,
+        message: message,
+        files_changed: "1", 
+        github_link: `https://github.com/SignStoreERP/SignOS-v3-Supabase/commit/${hash}`,
+        environment: "LIVE",
+        timestamp: date
+      };
 
             const response = await fetch(`${SUPABASE_URL}/rest/v1/sys_changelog`, {
                 method: 'POST',
