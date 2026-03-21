@@ -1,12 +1,12 @@
 {
-  "rewrites": [
-    {
-      "source": "/studio",
-      "destination": "http://72.60.164.13:5173/"
-    },
-    {
-      "source": "/studio/:match*",
-      "destination": "http://72.60.164.13:5173/:match*"
-    }
-  ]
+    "rewrites": [
+        {
+            "source": "/studio",
+            "destination": "http://72.60.164.13:5173/studio/"
+        },
+        {
+            "source": "/studio/:match*",
+            "destination": "http://72.60.164.13:5173/studio/:match*"
+        }
+    ]
 }
