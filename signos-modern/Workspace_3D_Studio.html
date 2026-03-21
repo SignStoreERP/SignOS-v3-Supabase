@@ -46,22 +46,20 @@
             
             <div class="p-5 space-y-6 overflow-y-auto custom-scroll flex-1">
                 
-                <!-- PREBUILT STARTERS -->
+                <!-- 1. ILLUMINATION STYLE -->
                 <div>
-                    <label class="block text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-2">Prebuilt Starters</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="applyPreset('FrontLit')" class="p-2 border border-slate-700 rounded shadow-sm bg-slate-900 hover:bg-slate-800 transition focus:outline-none">
-                            <span class="block text-[10px] font-black text-white uppercase">Front Lit</span>
-                        </button>
-                        <button onclick="applyPreset('Halo')" class="p-2 border border-slate-700 rounded shadow-sm bg-slate-900 hover:bg-slate-800 transition focus:outline-none">
-                            <span class="block text-[10px] font-black text-white uppercase">Halo Lit</span>
-                        </button>
+                    <label class="block text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-2">1. Illumination Style</label>
+                    <div class="flex bg-slate-900 rounded-lg p-1 border border-slate-700 shadow-sm">
+                        <button id="btn-illum-front" onclick="setIllum('front')" class="flex-1 py-2 text-[10px] font-black rounded bg-blue-600 text-white shadow uppercase tracking-widest transition focus:outline-none">Front Lit</button>
+                        <button id="btn-illum-halo" onclick="setIllum('halo')" class="flex-1 py-2 text-[10px] font-black rounded text-slate-400 hover:text-white hover:bg-slate-800 transition uppercase tracking-widest focus:outline-none">Halo Lit</button>
+                        <button id="btn-illum-both" onclick="setIllum('both')" class="flex-1 py-2 text-[10px] font-black rounded text-slate-400 hover:text-white hover:bg-slate-800 transition uppercase tracking-widest focus:outline-none">Dual Lit</button>
                     </div>
+                    <input type="hidden" id="inp-illumination" value="front">
                 </div>
 
-                <!-- 1. TYPOGRAPHY -->
+                <!-- 2. TYPOGRAPHY -->
                 <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
-                    <h3 class="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-900/50 pb-1 mb-3">1. Typography & Size</h3>
+                    <h3 class="text-[10px] font-black text-blue-400 uppercase tracking-widest border-b border-blue-900/50 pb-1 mb-3">2. Typography & Size</h3>
                     <div class="space-y-4">
                         <div>
                             <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Text String</label>
@@ -82,9 +80,9 @@
                     </div>
                 </div>
 
-                <!-- 2. MATERIAL DNA -->
+                <!-- 3. MATERIAL DNA -->
                 <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
-                    <h3 class="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-900/50 pb-1 mb-3">2. Material DNA</h3>
+                    <h3 class="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-900/50 pb-1 mb-3">3. Material DNA</h3>
                     <div class="space-y-3">
                         
                         <!-- Base Acrylic -->
@@ -132,30 +130,35 @@
                     </div>
                 </div>
 
-                <!-- 3. ILLUMINATION -->
+                <!-- 4. MOUNTING & RACEWAY -->
                 <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
-                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white">
-                        <input type="checkbox" id="inp-leds" onchange="updateStudio()" checked class="w-4 h-4 text-blue-600 rounded bg-slate-950 border-slate-700">
-                        Internal Illumination (LEDs)
+                    <h3 class="text-[10px] font-black text-emerald-400 uppercase tracking-widest border-b border-emerald-900/50 pb-1 mb-3">4. Mounting & Hardware</h3>
+                    
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white mb-3">
+                        <input type="checkbox" id="inp-raceway" onchange="toggleRaceway()" class="w-4 h-4 text-emerald-600 rounded bg-slate-950 border-slate-700">
+                        Include Raceway Mount
                     </label>
+
+                    <!-- Hidden until toggled -->
+                    <div id="raceway-color-block" class="hidden opacity-50 pointer-events-none transition-all duration-300">
+                        <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Raceway Paint</label>
+                        <div class="cursor-pointer flex items-center justify-between bg-slate-950 border border-slate-700 p-2 rounded shadow-sm hover:border-emerald-500 transition h-[42px]" onclick="openModal('raceway')">
+                            <div class="flex items-center gap-3 truncate">
+                                <div class="w-6 h-6 rounded-full border border-slate-500 shrink-0" id="swatch-raceway" style="background-color: #cbccc9"></div>
+                                <span class="text-xs font-bold text-white truncate" id="name-raceway">SW7064 Passive</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- 3. ILLUMINATION & ENVIRONMENT -->
+                <!-- 5. ENVIRONMENT PREVIEW -->
                 <div class="p-4 rounded-lg border border-slate-800 bg-slate-900/50 shadow-sm">
-                    <h3 class="text-[10px] font-black text-amber-400 uppercase tracking-widest border-b border-amber-900/50 pb-1 mb-3">3. Illumination</h3>
-                    
-                    <label class="block text-[10px] font-bold uppercase mb-1 opacity-70">Illumination Type</label>
-                    <select id="inp-illumination" onchange="updateStudio()" class="w-full border border-slate-700 bg-slate-950 p-2 rounded text-xs font-bold text-white outline-none focus:border-blue-500 shadow-sm mb-4">
-                        <option value="front" selected>Front Lit Only</option>
-                        <option value="halo">Halo Lit Only</option>
-                        <option value="both">Front & Halo Lit</option>
-                    </select>
-
-                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white border-t border-slate-800 pt-3">
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer transition hover:text-white">
                         <input type="checkbox" id="inp-night" onchange="updateStudio()" class="w-4 h-4 text-indigo-600 rounded bg-slate-950 border-slate-700">
                         Night Environment (Preview Glow)
                     </label>
                 </div>
+
             </div>
         </aside>
 
@@ -175,6 +178,12 @@
                 <h3 class="font-black text-gray-800 uppercase tracking-widest text-xs" id="modal-title">Select Material</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 font-bold transition focus:outline-none text-lg">✕</button>
             </div>
+
+            <!-- SYSTEM TABS (Only visible for Paint/Raceway) -->
+            <div id="color-tabs" class="hidden flex bg-slate-900 p-1 rounded-lg mx-3 mt-3 shadow-inner">
+                <button id="btn-sw" onclick="setColorSystem('SW')" class="flex-1 py-1.5 text-[10px] font-black rounded bg-blue-600 shadow-sm text-white transition uppercase tracking-widest border border-blue-500 focus:outline-none">Sherwin Williams</button>
+                <button id="btn-pms" onclick="setColorSystem('PMS')" class="flex-1 py-1.5 text-[10px] font-black rounded text-slate-400 hover:text-white hover:bg-slate-800 transition border border-transparent uppercase tracking-widest focus:outline-none">PMS Match</button>
+            </div>
             
             <div class="p-3 shrink-0 border-b border-gray-100 flex flex-col gap-2 bg-white">
                 <input type="text" id="color-search" placeholder="Search colors..." oninput="renderGrid()" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
@@ -184,13 +193,15 @@
     </div>
 
     <script>
-        let dbData = { vinyl: [], trim: [], coil: [] };
+        let dbData = { vinyl: [], trim: [], coil: [], sw: [], pms: [] };
         let activeModalType = null;
+        let activeColorSystem = 'MFG';
         
         let selections = {
             vinyl: { hex: 'transparent', name: 'No Vinyl Overlay' },
             trim: { hex: '#000000', name: '1" Black' },
-            coil: { hex: '#000000', name: 'Gloss Black' }
+            coil: { hex: '#000000', name: 'Gloss Black' },
+            raceway: { hex: '#cbccc9', name: 'SW7064 Passive' }
         };
 
         // --- TRUE VECTOR EXTRACTOR ---
@@ -202,7 +213,7 @@
             }
         });
 
-        // Fail-Safe Fetcher (Returns null if RLS/401 blocks it so we can fallback)
+        // Fail-Safe Fetcher
         async function fetchSafe(url, headers) {
             try {
                 const res = await fetch(url, { headers });
@@ -238,18 +249,18 @@
                     document.getElementById('vps-status-text').innerText = "Uplink Failed";
                 });
 
-            // FIXED: Using ANON_KEY directly to pull from public schema
             const authHeaders = { 
                 'apikey': SUPABASE_ANON_KEY, 
                 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` 
             };
             
-            // All materials now securely fetch from the public schema
             const rawVinyl = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=2000`, authHeaders) || [];
             const rawTrim = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, authHeaders) || null;
             const rawCoil = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, authHeaders) || null;
+            const rawSW = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_paint?select=*&limit=3000`, authHeaders) || [];
+            const rawPMS = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_pms?select=*&limit=3000`, authHeaders) || [];
 
-            // 1. Map Vinyl (Appending Brand & Series correctly)
+            // Map Vinyl
             dbData.vinyl = [{ Code: 'NONE', Name: 'No Vinyl Overlay', Hex_Code: 'transparent' }];
             rawVinyl.filter(v => {
                 const s = String(v.Series_ID || v.series_id || v.Series || v.series || '').toLowerCase();
@@ -266,74 +277,92 @@
                 });
             });
             
-            // 2. Map Trim Cap (With Bulletproof Fallback Array)
+            // Map Trim Cap (With Fallbacks)
             if (rawTrim && rawTrim.length > 0) {
                 dbData.trim = rawTrim.map(t => ({ Code: t.hex_code, Name: t.color_name, Hex_Code: t.hex_code }));
             } else {
-                // If the DB blocks it with 401, this fallback array perfectly mimics the CSV you provided!
                 dbData.trim = [
                     {Code: '#000000', Name: '1" Black', Hex_Code: '#000000'},
                     {Code: '#FFFFFF', Name: '1" White', Hex_Code: '#FFFFFF'},
-                    {Code: '#59402f', Name: '1" Bronze 313', Hex_Code: '#59402f'},
-                    {Code: '#0000FF', Name: '1" Intense Blue', Hex_Code: '#0000FF'},
-                    {Code: '#FF0000', Name: '1" True Red', Hex_Code: '#FF0000'},
-                    {Code: '#355E3B', Name: '1" Hunter Green', Hex_Code: '#355E3B'},
-                    {Code: '#d1d5db', Name: '1" Brushed Chrome', Hex_Code: '#d1d5db'},
-                    {Code: '#e5e7eb', Name: '1" Polished Chrome', Hex_Code: '#e5e7eb'},
-                    {Code: '#FFD700', Name: '1" Gold', Hex_Code: '#FFD700'}
+                    {Code: '#59402f', Name: '1" Bronze 313', Hex_Code: '#59402f'}
                 ];
             }
 
-            // 3. Map Return Coil (With Bulletproof Fallback Array)
+            // Map Return Coil (With Fallbacks)
             if (rawCoil && rawCoil.length > 0) {
                 dbData.coil = rawCoil.map(c => ({ Code: c.hex_code, Name: c.color_name, Hex_Code: c.hex_code }));
             } else {
                 dbData.coil = [
                     {Code: '#FFFFFF', Name: 'Gloss White', Hex_Code: '#FFFFFF'},
-                    {Code: '#F0F0F0', Name: 'Ultra-White', Hex_Code: '#F0F0F0'},
-                    {Code: '#EEEEEE', Name: 'Truck Trailer White', Hex_Code: '#EEEEEE'},
-                    {Code: '#000000', Name: 'Gloss Black', Hex_Code: '#000000'},
-                    {Code: '#1A1A1A', Name: 'Matte Black', Hex_Code: '#1A1A1A'},
-                    {Code: '#B0C4DE', Name: 'Mill Finish', Hex_Code: '#B0C4DE'},
-                    {Code: '#DCDCDC', Name: 'Clear Anodized', Hex_Code: '#DCDCDC'},
-                    {Code: '#E0E0E0', Name: 'Bright Brush Clear', Hex_Code: '#E0E0E0'},
-                    {Code: '#4B3621', Name: 'Dark Bronze', Hex_Code: '#4B3621'},
-                    {Code: '#CD7F32', Name: 'Medium Bronze', Hex_Code: '#CD7F32'},
-                    {Code: '#2C1B18', Name: 'Extra Dark Bronze', Hex_Code: '#2C1B18'},
-                    {Code: '#CC0000', Name: 'Exxon Red', Hex_Code: '#CC0000'},
-                    {Code: '#8A1C1C', Name: 'Hunter Red', Hex_Code: '#8A1C1C'},
-                    {Code: '#004B93', Name: 'Pepsi Blue', Hex_Code: '#004B93'},
-                    {Code: '#005696', Name: 'Chevron Blue', Hex_Code: '#005696'},
-                    {Code: '#FFEA00', Name: 'Caution Yellow', Hex_Code: '#FFEA00'},
-                    {Code: '#FFA500', Name: 'Bright Orange', Hex_Code: '#FFA500'},
-                    {Code: '#009B77', Name: 'Ivy Green', Hex_Code: '#009B77'},
-                    {Code: '#FFD700', Name: 'Bright Gold Anodized', Hex_Code: '#FFD700'}
+                    {Code: '#000000', Name: 'Gloss Black', Hex_Code: '#000000'}
                 ];
             }
+
+            // Map Paints
+            dbData.sw = rawSW.length > 0 ? rawSW.map(p => ({ Code: p['Color Code'] || p.Code || p.color_code, Name: p['Color Name'] || p.Name || p.color_name, Hex_Code: p['HEX Code'] || p.Hex_Code || p.hex_code })) : [{Code: 'SW7064', Name: 'Passive', Hex_Code: '#cbccc9'}];
+            dbData.pms = rawPMS.length > 0 ? rawPMS.map(p => ({ Code: p['PMS Name / Code'] || p.Code || p.pms_code, Name: p['PMS Name / Code'] || p.Name || p.pms_name, Hex_Code: p['HEX Code'] || p.Hex_Code || p.hex_code })) : [{Code: 'PMS 200 C', Name: 'Red', Hex_Code: '#ba0c2f'}];
         };
 
-        // --- PRESETS ---
-        function applyPreset(type) {
-            if (type === 'FrontLit') {
-                document.getElementById('inp-acrylic').value = "#ffffff";
-                document.getElementById('inp-illumination').value = "front";
-                selections.vinyl = { hex: 'transparent', name: 'No Vinyl Overlay' };
-            } else if (type === 'Halo') {
-                document.getElementById('inp-acrylic').value = "#ffffff";
-                document.getElementById('inp-illumination').value = "halo";
-                selections.vinyl = { hex: 'transparent', name: 'No Vinyl Overlay' };
-            }
-            updateSwatchUI();
+        // --- BUTTON UI CONTROLLERS ---
+        function setIllum(type) {
+            document.getElementById('inp-illumination').value = type;
+            
+            const activeClass = "flex-1 py-2 text-[10px] font-black rounded bg-blue-600 text-white shadow uppercase tracking-widest transition focus:outline-none";
+            const inactiveClass = "flex-1 py-2 text-[10px] font-black rounded text-slate-400 hover:text-white hover:bg-slate-800 transition uppercase tracking-widest focus:outline-none";
+            
+            document.getElementById('btn-illum-front').className = type === 'front' ? activeClass : inactiveClass;
+            document.getElementById('btn-illum-halo').className = type === 'halo' ? activeClass : inactiveClass;
+            document.getElementById('btn-illum-both').className = type === 'both' ? activeClass : inactiveClass;
+
             updateStudio();
         }
 
-        // --- MODAL LOGIC (SignOS standard UI render) ---
+        function toggleRaceway() {
+            const isChecked = document.getElementById('inp-raceway').checked;
+            const block = document.getElementById('raceway-color-block');
+            
+            if(isChecked) {
+                block.classList.remove('hidden');
+                // Small delay to allow CSS transitions to pop smoothly
+                setTimeout(() => block.classList.remove('opacity-50', 'pointer-events-none'), 10);
+            } else {
+                block.classList.add('opacity-50', 'pointer-events-none');
+                setTimeout(() => block.classList.add('hidden'), 300);
+            }
+            updateStudio();
+        }
+
+        // --- MODAL LOGIC ---
         function openModal(type) {
             activeModalType = type;
             document.getElementById('color-modal').classList.remove('hidden');
             document.getElementById('modal-title').innerText = `Select ${type.toUpperCase()}`;
             document.getElementById('color-search').value = '';
-            document.getElementById('color-search').placeholder = `Search ${type} options...`;
+            
+            const tabs = document.getElementById('color-tabs');
+            if (type === 'raceway') {
+                tabs.classList.remove('hidden');
+                tabs.classList.add('flex');
+                setColorSystem('SW');
+            } else {
+                tabs.classList.add('hidden');
+                tabs.classList.remove('flex');
+                activeColorSystem = 'MFG';
+                document.getElementById('color-search').placeholder = `Search ${type} options...`;
+                renderGrid();
+            }
+        }
+
+        function setColorSystem(sys) {
+            activeColorSystem = sys;
+            const activeClass = "flex-1 py-1.5 text-[10px] font-black rounded bg-blue-600 shadow-sm text-white transition uppercase tracking-widest border border-blue-500 focus:outline-none";
+            const inactiveClass = "flex-1 py-1.5 text-[10px] font-black rounded text-slate-400 hover:text-white hover:bg-slate-800 transition border border-transparent uppercase tracking-widest focus:outline-none";
+            
+            document.getElementById('btn-sw').className = sys === 'SW' ? activeClass : inactiveClass;
+            document.getElementById('btn-pms').className = sys === 'PMS' ? activeClass : inactiveClass;
+            
+            document.getElementById('color-search').placeholder = `Search ${sys} Colors...`;
+            document.getElementById('color-search').value = '';
             renderGrid();
         }
 
@@ -341,7 +370,13 @@
             const grid = document.getElementById('modal-grid');
             const search = document.getElementById('color-search').value.toLowerCase();
             let html = '';
-            let data = dbData[activeModalType] || [];
+            
+            let data = [];
+            if (activeModalType === 'raceway') {
+                data = activeColorSystem === 'SW' ? dbData.sw : dbData.pms;
+            } else {
+                data = dbData[activeModalType] || [];
+            }
 
             data.forEach(c => {
                 if (search && !c.Name.toLowerCase().includes(search) && !(c.Code && c.Code.toLowerCase().includes(search))) return;
@@ -351,8 +386,11 @@
                     bgStyle = `background-image: repeating-linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), repeating-linear-gradient(45deg, #ccc 25%, #fff 25%, #fff 75%, #ccc 75%, #ccc); background-position: 0 0, 4px 4px; background-size: 8px 8px;`;
                 }
 
+                // Safely escaping BOTH single quotes (Apostrophes) and double quotes (Inches)
+                const safeName = c.Name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
                 html += `
-                <button onclick="selectColor('${c.Hex_Code}', '${c.Name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" class="flex flex-col items-center justify-start gap-1 p-2 rounded hover:bg-gray-200 transition w-[80px] h-[90px] focus:outline-none border border-transparent hover:border-gray-300">
+                <button onclick="selectColor('${c.Hex_Code}', '${safeName}')" class="flex flex-col items-center justify-start gap-1 p-2 rounded hover:bg-gray-200 transition w-[80px] h-[90px] focus:outline-none border border-transparent hover:border-gray-300">
                     <div class="w-10 h-10 rounded-full border border-gray-400 shadow-sm shrink-0" style="${bgStyle}"></div>
                     <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words line-clamp-3">${c.Name}</span>
                 </button>`;
@@ -374,7 +412,7 @@
         }
 
         function updateSwatchUI() {
-            ['vinyl', 'trim', 'coil'].forEach(type => {
+            ['vinyl', 'trim', 'coil', 'raceway'].forEach(type => {
                 const swatch = document.getElementById(`swatch-${type}`);
                 if (selections[type].hex === 'transparent') {
                     swatch.style.backgroundImage = `repeating-linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), repeating-linear-gradient(45deg, #ccc 25%, #fff 25%, #fff 75%, #ccc 75%, #ccc)`;
@@ -385,7 +423,8 @@
                     swatch.style.backgroundImage = 'none';
                     swatch.style.backgroundColor = selections[type].hex;
                 }
-                document.getElementById(`name-${type}`).innerText = selections[type].name;
+                // Unescape for display rendering
+                document.getElementById(`name-${type}`).innerText = selections[type].name.replace(/&quot;/g, '"');
             });
         }
 
@@ -397,6 +436,7 @@
             
             const illum = document.getElementById('inp-illumination').value;
             const night = document.getElementById('inp-night').checked;
+            const racewayChecked = document.getElementById('inp-raceway').checked;
             
             const acrylicBase = document.getElementById('inp-acrylic').value;
             const activeFaceColor = selections.vinyl.hex !== 'transparent' ? selections.vinyl.hex : acrylicBase;
@@ -420,6 +460,8 @@
                     return: selections.coil.hex,
                     illum: illum,
                     night: night,
+                    raceway: racewayChecked,
+                    raceway_color: selections.raceway.hex,
                     svg_path: exactSvgPath
                 }, 'https://studio.zublinsystems.com');
             }
