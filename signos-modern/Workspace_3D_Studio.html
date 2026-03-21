@@ -122,23 +122,31 @@
         document.getElementById('studio-iframe').src = `${baseUrl}&text=${text}&font=${font}&h=${h}&k=${k}&face=${face}`;
     };
 
-    // --- 2. MICRO-PAYLOAD STATE UPDATES ---
+    // --- 2. MICRO-PAYLOAD STATE UPDATES (postMessage) ---
     function updateStudio() {
-        const text = encodeURIComponent(document.getElementById('inp-text').value.toUpperCase() || 'SIGNOS');
-        const font = encodeURIComponent(document.getElementById('inp-font').value);
+        // Gather the UI state
+        const text = document.getElementById('inp-text').value.toUpperCase() || 'SIGNOS';
+        const font = document.getElementById('inp-font').value;
         const h = document.getElementById('inp-height').value;
         const k = document.getElementById('inp-kerning').value;
-        
         const faceInput = document.getElementById('inp-face').value;
-        const face = encodeURIComponent(faceInput);
         
-        // Update UI Labels
+        // Update local Vercel UI Labels
         document.getElementById('lbl-kerning').innerText = k;
         document.getElementById('lbl-face').innerText = faceInput.toUpperCase();
         
-        // Silently push the updated parameters to the VPS container without breaking authentication
-        const url = `https://studio.zublinsystems.com/?text=${text}&font=${font}&h=${h}&k=${k}&face=${face}`;
-        document.getElementById('studio-iframe').src = url;
+        // Silently beam the payload straight into the VPS RAM
+        const iframe = document.getElementById('studio-iframe');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({
+                type: 'STUDIO_UPDATE',
+                text: text,
+                font: font,
+                h: h,
+                k: k,
+                face: faceInput
+            }, 'https://studio.zublinsystems.com');
+        }
     }
   </script>
 </body>
