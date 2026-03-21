@@ -152,7 +152,7 @@
             renderTimeline();
         }
 
-// --- GRAPH RENDERER (UPGRADED TO 30-DAY HEATMAP) ---
+// --- GRAPH RENDERER (UPGRADED TO DAILY VOLUME TALLIES) ---
 function renderGraph() {
     const graphContainer = document.getElementById('activity-graph');
     const labelContainer = document.getElementById('graph-labels');
@@ -167,8 +167,8 @@ function renderGraph() {
     for(let i=29; i>=0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        // FIX 1: Added  to extract just the "YYYY-MM-DD" string
-        const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        // Safely extract YYYY-MM-DD using .shift() to avoid bracket parsing bugs
+        const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T').shift();
         days.push(localDate);
     }
 
@@ -190,8 +190,7 @@ function renderGraph() {
         if(!ts) return;
         try {
             const dateObj = new Date(ts);
-            // FIX 2: Added  here as well
-            const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T').shift();
 
             if (days.includes(localDate)) {
                 const hour = dateObj.getHours(); // 0-23
@@ -209,14 +208,18 @@ function renderGraph() {
     timeBlocks.forEach(l => {
         html += `<div class="text-[7px] font-black text-gray-400 uppercase tracking-widest leading-none h-3 flex items-center whitespace-nowrap">${l}</div>`;
     });
-    html += `</div>`;
+    // Added a specific label for the new totals row at the bottom
+    html += `<div class="text-[7px] font-black text-gray-400 uppercase tracking-widest leading-none h-3 flex items-center whitespace-nowrap pt-1 mt-auto">TOTAL</div></div>`;
 
     // 6. Build Grid Columns (30 Days)
     html += `<div class="flex gap-1 flex-1 shrink-0 ml-2">`;
     days.forEach(day => {
-        html += `<div class="flex flex-col gap-1.5 flex-1 group relative">`;
+        let dayTotal = 0; // NEW: Track the total volume for this specific day
+        html += `<div class="flex flex-col gap-1.5 flex-1 group">`;
+        
         for(let b=0; b<6; b++) {
             const count = matrix[b][day];
+            dayTotal += count; // Tally up the day
 
             // GitHub-style Intensity Colors based on volume
             let bg = "bg-gray-100";
@@ -229,28 +232,30 @@ function renderGraph() {
                 else { bg = "bg-green-300"; ring = "hover:ring-green-500"; }
             }
 
-            // Formatting date for tooltips safely
-            const dayName = new Date(day + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
-
-            // Render the matrix block with a hover tooltip
-            html += `
-            <div class="w-full h-3 ${bg} rounded-sm cursor-pointer hover:ring-1 ${ring} transition relative">
-                <div class="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1.5 bg-gray-800 text-white text-[9px] font-bold px-2.5 py-1.5 rounded shadow-xl z-50 whitespace-nowrap pointer-events-none">
-                    <span class="text-green-400">${count} system updates</span><br>
-                    <span class="text-gray-300 font-normal">${dayName} • ${timeBlocks[b]}</span>
-                </div>
-            </div>`;
+            // Render the matrix block WITHOUT the bulky hover tooltip
+            html += `<div class="w-full h-3 ${bg} rounded-sm hover:ring-1 ${ring} transition relative"></div>`;
         }
-        html += `</div>`;
+        
+        // Safely format the date for a clean native title hover
+        const dayName = new Date(day + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
+        
+        // Apply color highlighting to days with activity
+        const textColor = dayTotal > 0 ? "text-green-600" : "text-gray-300";
+        
+        // Render the Daily Tally at the bottom of the column
+        html += `
+            <div class="text-[9px] font-black text-center pt-1 mt-auto ${textColor}" title="${dayName} • ${dayTotal} Updates">
+                ${dayTotal}
+            </div>
+        </div>`;
     });
     html += `</div>`;
 
     graphContainer.innerHTML = html;
 
-    // 7. X-Axis Labels (Date bounds)
-    // FIX 3: Add  to target the first item in the days array to prevent Invalid Date
+    // 7. X-Axis Labels (Date bounds) - Safely using .at(0) to target the first item
     labelContainer.innerHTML = `
-        <span>${new Date(days[0] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+        <span>${new Date(days.at(0) + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
         <span class="text-blue-500 tracking-widest text-[10px]">30-DAY ACTIVITY MATRIX</span>
         <span>Today</span>
     `;
