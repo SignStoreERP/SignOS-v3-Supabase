@@ -248,7 +248,7 @@ function renderGraph() {
     graphContainer.innerHTML = html;
 
     // 7. X-Axis Labels (Date bounds)
-    // FIX 3: Grab days instead of the entire array to prevent Invalid Date
+    // FIX 3: Add  to target the first item in the days array to prevent Invalid Date
     labelContainer.innerHTML = `
         <span>${new Date(days + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
         <span class="text-blue-500 tracking-widest text-[10px]">30-DAY ACTIVITY MATRIX</span>
