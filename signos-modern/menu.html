@@ -94,15 +94,15 @@
 
 <script>
 // --- SSO TOKEN RELAY BRIDGE ---
-async function launchSecureStudio() {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session) return alert("Security Error: Active session required.");
+function launchSecureStudio() {
+    // 1. Grab the active JWT directly from the browser's memory
+    const token = sessionStorage.getItem("supabase.auth.token");
     
-    const token = data.session.access_token;
-    const refresh = data.session.refresh_token;
+    if (!token) return alert("Security Error: Active session required.");
     
-    // Launch the new Cloudflare-secured domain with the SSO tokens attached
-    window.open(`https://studio.zublinsystems.com/?access=${token}&refresh=${refresh}`, '_blank');
+    // 2. Launch the Cloudflare-secured domain with the SSO token attached.
+    // (We pass 'sso_relay' as a placeholder to satisfy the React container's formatting rules).
+    window.open(`https://studio.zublinsystems.com/?access=${token}&refresh=sso_relay`, '_blank');
 }
 
 // 1. SAFETY VALVE
