@@ -6,7 +6,6 @@
     <title>SignOS Menu v6.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
-    <script src="vercel.json"></script>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans flex flex-col pb-10">
 
@@ -71,7 +70,7 @@
 
     <!-- +++++++++ SEMI-HIDDEN 3D STUDIO ALPHA BUTTON +++++++++ -->
 <div class="w-full max-w-4xl mx-auto px-4 mt-12 mb-2 opacity-40 hover:opacity-100 transition-opacity duration-300">
-    <a href="/studio/" target="_blank" rel="noreferrer" class="bg-slate-900/50...">
+    <a onclick="launchSecureStudio()" class="cursor-pointer bg-slate-900/50 hover:bg-slate-800/80 p-4 rounded-xl border border-slate-800 hover:border-cyan-500/50 transition group block">
         <div class="flex items-center gap-4">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center shadow-inner border border-cyan-500/20 bg-cyan-500/10 text-cyan-400/50 group-hover:text-cyan-400 group-hover:border-cyan-500/30 transition">
                 <span class="text-lg">🧊</span>
@@ -94,6 +93,18 @@
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 
 <script>
+// --- SSO TOKEN RELAY BRIDGE ---
+async function launchSecureStudio() {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) return alert("Security Error: Active session required.");
+    
+    const token = data.session.access_token;
+    const refresh = data.session.refresh_token;
+    
+    // Launch the new Cloudflare-secured domain with the SSO tokens attached
+    window.open(`https://studio.zublinsystems.com/?access=${token}&refresh=${refresh}`, '_blank');
+}
+
 // 1. SAFETY VALVE
 function val(obj, key) {
     if (!obj) return "";
