@@ -6,7 +6,6 @@
     <title>3D Spatial Studio | SignOS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="signos-core.js"></script>
-    <script src="signos-ui.js"></script>
     <style>
         .custom-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f8fafc; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
@@ -168,7 +167,7 @@
             </div>
 
             <div class="p-3 shrink-0 border-b border-gray-100 flex flex-col gap-2 bg-white">
-                <input type="text" id="color-search" placeholder="Search colors..." oninput="SignOS_UI.filterGrid('modal-grid', 'color-search')" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
+                <input type="text" id="color-search" placeholder="Search colors..." oninput="renderGrid()" class="w-full border border-gray-300 rounded p-2 text-xs font-bold outline-none focus:border-blue-500 shadow-inner">
             </div>
             <div id="modal-grid" class="p-4 overflow-y-auto custom-scroll flex flex-wrap gap-2 content-start bg-gray-50 flex-1"></div>
         </div>
@@ -184,6 +183,18 @@
             trim: { hex: '#000000', name: '1" Black' },
             coil: { hex: '#000000', name: 'Gloss Black' }
         };
+
+        // Fail-Safe Fetcher
+        async function fetchSafe(url, headers) {
+            try {
+                const res = await fetch(url, { headers });
+                if (!res.ok) return [];
+                return await res.json();
+            } catch (e) {
+                console.warn("Fetch failed for:", url);
+                return [];
+            }
+        }
 
         window.onload = async function() {
             const token = sessionStorage.getItem("supabase.auth.token");
@@ -210,39 +221,33 @@
                     document.getElementById('vps-status-text').innerText = "Uplink Failed";
                 });
 
-            // MASS DATABASE FETCH (Vinyl + SW + PMS + MFG Coils + MFG Trim)
+            // ISOLATED DATABASE FETCH (Prevents single-point failure)
             const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
             const devHeaders = { ...headers, 'Accept-Profile': 'dev' };
             
-            try {
-                const [resVin, resTrim, resCoil, resSW, resPMS] = await Promise.all([
-                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=2000`, { headers }),
-                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, { headers: devHeaders }),
-                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, { headers: devHeaders }),
-                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_paint?select=*&limit=3000`, { headers }),
-                    fetch(`${SUPABASE_URL}/rest/v1/ref_colors_pms?select=*&limit=3000`, { headers })
-                ]);
+            const rawVinyl = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_vinyl?select=*&limit=2000`, headers);
+            const rawTrim = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_trimcap?select=*&limit=1000`, devHeaders);
+            const rawCoil = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_coil?select=*&limit=1000`, devHeaders);
+            const rawSW = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_paint?select=*&limit=3000`, headers);
+            const rawPMS = await fetchSafe(`${SUPABASE_URL}/rest/v1/ref_colors_pms?select=*&limit=3000`, headers);
 
-                const rawVinyl = await resVin.json();
-                const rawTrim = resTrim.ok ? await resTrim.json() : [];
-                const rawCoil = resCoil.ok ? await resCoil.json() : [];
-                const rawSW = await resSW.json();
-                const rawPMS = await resPMS.json();
-
-                // Build strict arrays required by SignOS_UI.buildColorGrid -> { Code, Name, Hex_Code }
-                dbData.vinyl = [{ Code: 'NONE', Name: 'No Vinyl Overlay', Hex_Code: 'transparent' }, 
-                    ...rawVinyl.filter(v => v.Series && (v.Series.includes('8500') || v.Series.includes('8800'))).map(v => ({
-                        Code: v.Color_Code || v.Item_Code || v.Hex_Code, Name: v.Color_Name || v.Name, Hex_Code: v.Hex_Code || v.HEX_Code
-                    }))];
-                
-                dbData.trim_mfg = rawTrim.map(t => ({ Code: t.hex_code, Name: t.color_name, Hex_Code: t.hex_code }));
-                dbData.coil_mfg = rawCoil.map(c => ({ Code: c.hex_code, Name: c.color_name, Hex_Code: c.hex_code }));
-                dbData.sw = rawSW.map(p => ({ Code: p['Color Code'] || p.Code, Name: p['Color Name'] || p.Name, Hex_Code: p['HEX Code'] || p.Hex_Code }));
-                dbData.pms = rawPMS.map(p => ({ Code: p['PMS Name / Code'] || p.Code, Name: p['PMS Name / Code'] || p.Name, Hex_Code: p['HEX Code'] || p.Hex_Code }));
-
-            } catch(e) {
-                console.error("Failed to load components:", e);
-            }
+            // Robust Mapping Engine (Checks every possible column variation)
+            dbData.vinyl = [{ Code: 'NONE', Name: 'No Vinyl Overlay', Hex_Code: 'transparent' }, 
+                ...rawVinyl.filter(v => {
+                    const s = String(v.Series_ID || v.series_id || v.Series || v.series || '').toLowerCase();
+                    return s.includes('8500') || s.includes('8800');
+                }).map(v => ({
+                    Code: v.Color_Code || v.color_code || v.Item_Code || v.Hex_Code, 
+                    Name: v.Display_Name || v.display_name || v.Color_Name || v.color_name || v.Name || 'Unknown', 
+                    Hex_Code: v.HEX_Code || v.Hex_Code || v.hex_code || v.HEX || '#ffffff'
+                }))];
+            
+            // Fallbacks inserted just in case the `dev` schema was blocked
+            dbData.trim_mfg = rawTrim.length > 0 ? rawTrim.map(t => ({ Code: t.hex_code, Name: t.color_name, Hex_Code: t.hex_code })) : [{Code: '#000000', Name: 'Standard Black', Hex_Code: '#000000'}];
+            dbData.coil_mfg = rawCoil.length > 0 ? rawCoil.map(c => ({ Code: c.hex_code, Name: c.color_name, Hex_Code: c.hex_code })) : [{Code: '#000000', Name: 'Gloss Black', Hex_Code: '#000000'}, {Code: '#94a3b8', Name: 'Mill Finish', Hex_Code: '#94a3b8'}];
+            
+            dbData.sw = rawSW.map(p => ({ Code: p['Color Code'] || p.Code || p.color_code, Name: p['Color Name'] || p.Name || p.color_name, Hex_Code: p['HEX Code'] || p.Hex_Code || p.hex_code }));
+            dbData.pms = rawPMS.map(p => ({ Code: p['PMS Name / Code'] || p.Code || p.pms_code, Name: p['PMS Name / Code'] || p.Name || p.pms_name, Hex_Code: p['HEX Code'] || p.Hex_Code || p.hex_code }));
         };
 
         // --- PRESETS ---
@@ -269,11 +274,12 @@
             if (type === 'vinyl') {
                 tabs.classList.add('hidden');
                 tabs.classList.remove('flex');
-                renderGrid(dbData.vinyl);
+                activeColorSystem = 'VINYL';
+                renderGrid();
             } else {
                 tabs.classList.remove('hidden');
                 tabs.classList.add('flex');
-                setColorSystem('MFG'); // Reset to default tab for Paints
+                setColorSystem('MFG');
             }
         }
 
@@ -288,27 +294,46 @@
             
             document.getElementById('color-search').placeholder = `Search ${sys} Colors...`;
             document.getElementById('color-search').value = '';
-
-            let dataToRender = [];
-            if (sys === 'MFG') dataToRender = activeModalType === 'trim' ? dbData.trim_mfg : dbData.coil_mfg;
-            else if (sys === 'SW') dataToRender = dbData.sw;
-            else if (sys === 'PMS') dataToRender = dbData.pms;
-
-            renderGrid(dataToRender);
+            renderGrid();
         }
 
-        function renderGrid(data) {
-            SignOS_UI.buildColorGrid({
-                containerId: 'modal-grid',
-                data: data,
-                type: 'paint', // Instructs the builder to use the square PBR swatches
-                onSelect: (item) => {
-                    selections[activeModalType] = { hex: item.Hex_Code, name: item.Name };
-                    updateSwatchUI();
-                    closeModal();
-                    updateStudio();
+        // Native Grid Renderer (Bypasses UI library requirements)
+        function renderGrid() {
+            const grid = document.getElementById('modal-grid');
+            const search = document.getElementById('color-search').value.toLowerCase();
+            let html = '';
+
+            let data = [];
+            if (activeColorSystem === 'VINYL') data = dbData.vinyl;
+            else if (activeColorSystem === 'MFG') data = activeModalType === 'trim' ? dbData.trim_mfg : dbData.coil_mfg;
+            else if (activeColorSystem === 'SW') data = dbData.sw;
+            else if (activeColorSystem === 'PMS') data = dbData.pms;
+
+            data.forEach(c => {
+                if (search && !c.Name.toLowerCase().includes(search) && !(c.Code && c.Code.toLowerCase().includes(search))) return;
+
+                let bgStyle = `background-color: ${c.Hex_Code};`;
+                if (c.Hex_Code === 'transparent') {
+                    bgStyle = `background-image: repeating-linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), repeating-linear-gradient(45deg, #ccc 25%, #fff 25%, #fff 75%, #ccc 75%, #ccc); background-position: 0 0, 4px 4px; background-size: 8px 8px;`;
                 }
+
+                html += `
+                <button onclick="selectColor('${c.Hex_Code}', '${c.Name.replace(/'/g, "\\'")}')" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-gray-200 transition w-[72px] focus:outline-none border border-transparent hover:border-gray-300">
+                    <div class="w-10 h-10 rounded-full border border-gray-400 shadow-sm shrink-0" style="${bgStyle}"></div>
+                    <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words">${c.Name}</span>
+                    <span class="text-[8px] font-black text-gray-400">${c.Code || ''}</span>
+                </button>`;
             });
+
+            if (html === '') html = `<div class="w-full p-4 text-center text-xs font-bold text-gray-400 italic">No colors found.</div>`;
+            grid.innerHTML = html;
+        }
+
+        function selectColor(hex, name) {
+            selections[activeModalType] = { hex: hex, name: name };
+            updateSwatchUI();
+            closeModal();
+            updateStudio();
         }
 
         function closeModal() {
@@ -317,7 +342,16 @@
 
         function updateSwatchUI() {
             ['vinyl', 'trim', 'coil'].forEach(type => {
-                document.getElementById(`swatch-${type}`).style.backgroundColor = selections[type].hex;
+                const swatch = document.getElementById(`swatch-${type}`);
+                if (selections[type].hex === 'transparent') {
+                    swatch.style.backgroundImage = `repeating-linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), repeating-linear-gradient(45deg, #ccc 25%, #fff 25%, #fff 75%, #ccc 75%, #ccc)`;
+                    swatch.style.backgroundPosition = `0 0, 4px 4px`;
+                    swatch.style.backgroundSize = `8px 8px`;
+                    swatch.style.backgroundColor = `transparent`;
+                } else {
+                    swatch.style.backgroundImage = 'none';
+                    swatch.style.backgroundColor = selections[type].hex;
+                }
                 document.getElementById(`name-${type}`).innerText = selections[type].name;
             });
         }
