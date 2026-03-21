@@ -346,7 +346,7 @@
                 }
 
                 html += `
-                <button onclick="selectColor('${c.Hex_Code}', '${c.Name.replace(/'/g, "\\'")}')" class="flex flex-col items-center justify-start gap-1 p-2 rounded hover:bg-gray-200 transition w-[80px] h-[90px] focus:outline-none border border-transparent hover:border-gray-300">
+                <button onclick="selectColor('${c.Hex_Code}', '${c.Name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" class="flex flex-col items-center justify-start gap-1 p-2 rounded hover:bg-gray-200 transition w-[80px] h-[90px] focus:outline-none border border-transparent hover:border-gray-300">
                     <div class="w-10 h-10 rounded-full border border-gray-400 shadow-sm shrink-0" style="${bgStyle}"></div>
                     <span class="text-[9px] font-bold text-gray-700 text-center leading-tight w-full break-words line-clamp-3">${c.Name}</span>
                 </button>`;
