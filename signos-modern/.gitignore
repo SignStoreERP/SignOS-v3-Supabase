@@ -22,3 +22,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Node & Vite Build Directories
+node_modules/
+dist/
+dist-ssr/
+build/
+
+# Local Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Supabase Local DB
+.supabase/
+
+# OS Files
+.DS_Store

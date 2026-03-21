@@ -1,5 +1,5 @@
 SIGNOS REPOSITORY STATE
-Generated: 2026-03-20T01:11:03.563Z
+Generated: 2026-03-21T04:21:04.528Z
 
 ├── .cursorrules
 ├── .github
@@ -157,76 +157,6 @@ Generated: 2026-03-20T01:11:03.563Z
 │   │   ├── 20260312175500_remote_schema.sql
 │   │   └── 20260312184436_remote_schema.sql
 │   └── snippets
-├── tools
-│   ├── backfill-commits.cjs
-│   └── generate-context.cjs
-├── vps-3d-studio
-│   ├── .gitignore
-│   ├── App.tsx
-│   ├── README.md
-│   ├── components
-│   │   ├── Configurator
-│   │   │   └── Controls.tsx
-│   │   ├── Dashboard
-│   │   │   ├── ManufacturingView.tsx
-│   │   │   ├── PricingOverlay.tsx
-│   │   │   └── QuoteView.tsx
-│   │   ├── Tools
-│   │   │   └── FontCalibratorModal.tsx
-│   │   ├── Viewer2D
-│   │   │   └── BlueprintView.tsx
-│   │   └── Viewer3D
-│   │       ├── ChannelLetterRenderer.tsx
-│   │       ├── LetterGroup.tsx
-│   │       ├── SignLine.tsx
-│   │       ├── SignRenderer.tsx
-│   │       ├── useSignMaterials.ts
-│   │       └── utils.ts
-│   ├── constants.ts
-│   ├── data
-│   │   ├── fonts
-│   │   │   ├── GTBenguiat.ts
-│   │   │   ├── GTClarendon.ts
-│   │   │   ├── GTEurostyle.ts
-│   │   │   ├── GTFutura.ts
-│   │   │   ├── GTGaramond.ts
-│   │   │   ├── GTHelvetica.ts
-│   │   │   ├── GTRegistry.ts
-│   │   │   ├── GTTimes.ts
-│   │   │   ├── expandedMetrics.ts
-│   │   │   ├── helvetica.ts
-│   │   │   ├── helveticaBold.ts
-│   │   │   ├── index.ts
-│   │   │   ├── types.ts
-│   │   │   └── utils.ts
-│   │   └── materials.ts
-│   ├── docs
-│   │   └── notebook_lm
-│   │       ├── 01_cartridge_schema.md
-│   │       ├── 02_logic_manifesto.md
-│   │       ├── 03_supabase_blueprint.md
-│   │       └── 04_system_overview.md
-│   ├── index.html
-│   ├── index.tsx
-│   ├── metadata.json
-│   ├── migrated_prompt_history
-│   │   ├── prompt_2026-02-02T19_06_33.034Z.json
-│   │   └── prompt_2026-02-02T23_30_27.724Z.json
-│   ├── package-lock.json
-│   ├── package.json
-│   ├── services
-│   │   ├── blueprintExporter.ts
-│   │   ├── engine.ts
-│   │   ├── geminiService.ts
-│   │   ├── pricing.ts
-│   │   ├── textureUtils.ts
-│   │   └── vectorUtils.ts
-│   ├── tsconfig.json
-│   ├── types.ts
-│   └── vite.config.ts
-└── vps-proxy
-    ├── .env
-    ├── engine.js
-    ├── package-lock.json
-    ├── package.json
-    └── server.js
+└── tools
+    ├── backfill-commits.cjs
+    └── generate-context.cjs
