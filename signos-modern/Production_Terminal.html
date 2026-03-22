@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Production Terminal | SignOS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Imports Global Supabase URLs and Anon Keys -->
+    <script src="signos-core.js"></script>
+    <script src="signos-view-svg.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col pb-10 select-none">
+    
+    <!-- Massive Touch Target Header -->
+    <header class="bg-black border-b border-slate-800 p-5 flex justify-between items-center shadow-lg sticky top-0 z-50">
+        <div>
+            <h1 class="text-2xl font-black tracking-widest text-white uppercase">SignOS <span class="text-blue-500">Floor</span></h1>
+            <p class="text-xs font-mono text-slate-500 uppercase tracking-widest mt-1" id="auth-user">Loading User Identity...</p>
+        </div>
+        <a href="menu.html" class="text-sm font-black text-slate-400 border-2 border-slate-700 px-6 py-4 rounded-xl hover:bg-slate-800 hover:text-white transition uppercase tracking-widest">
+            Exit
+        </a>
+    </header>
+
+    <!-- Main Content Queue -->
+    <main class="flex-1 p-4 md:p-6 overflow-y-auto max-w-3xl mx-auto w-full space-y-6" id="task-container">
+         <!-- Active tasks injected via JS -->
+    </main>
+
+    <script>
+    // --- 1. INITIALIZATION & SECURITY ---
+    window.onload = async function() {
+        const token = sessionStorage.getItem('supabase.auth.token');
+        const user = sessionStorage.getItem('signos_user');
+        
+        if (!token) {
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        document.getElementById('auth-user').innerText = `Active User: ${user}`;
+        await loadAssignedTasks();
+    };
+
+    // --- 2. FETCH ASSIGNED WORK ORDERS ---
+    async function loadAssignedTasks() {
+        const container = document.getElementById('task-container');
+        container.innerHTML = '<div class="text-center text-blue-500 font-black animate-pulse text-sm uppercase tracking-widest py-10">Syncing floor data...</div>';
+
+        try {
+            // Natively fetches the production_tasks table to render the UI queue
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/production_tasks?select=*&limit=5`, {
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${sessionStorage.getItem('supabase.auth.token')}` }
+            });
+
+            if (!res.ok) throw new Error("Failed to fetch assigned tasks.");
+            const tasks = await res.json();
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-500 font-bold text-xs uppercase tracking-widest py-10">No active tasks in your queue.</div>';
+                return;
+            }
+
+            let html = '';
+            tasks.forEach(task => {
+                html += `
+                <div class="bg-slate-800 p-6 rounded-xl shadow-xl border border-slate-700 relative">
+                    <div class="absolute top-4 right-4 flex gap-2">
+                        <span class="bg-blue-900/50 text-blue-400 border border-blue-800/50 px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest">${task.workstation_id}</span>
+                    </div>
+                    <h2 class="text-xl font-black text-white uppercase tracking-widest mb-1">${task.description}</h2>
+                    <div class="text-xs font-bold text-slate-400 mb-6 uppercase tracking-wide">Standard Time: ${task.std_time} ${task.uom}</div>
+
+                    <!-- Massive Touch Target for Clocking In -->
+                    <button id="btn-${task.id}" onclick="triggerOpsProd('${task.id}')" class="w-full h-28 bg-blue-600 hover:bg-blue-500 active:scale-95 transition-transform text-white font-black text-3xl rounded-xl shadow-lg uppercase tracking-widest flex flex-col items-center justify-center gap-1 mb-4">
+                        <span>Tap to Clock In</span>
+                        <span class="text-[10px] text-blue-200 font-bold">OPS_PROD</span>
+                    </button>
+
+                    <!-- Data Baton Handshake Gate (Hidden until clocked in) -->
+                    <div id="baton-${task.id}" class="hidden space-y-3 pt-2">
+                        <input type="text" id="notes-${task.id}" placeholder="Handling Instructions (e.g., 'Wet Paint')" class="w-full h-14 bg-slate-900 border border-slate-700 rounded-xl p-4 text-sm font-bold text-white outline-none focus:border-emerald-500 shadow-inner">
+                        <button onclick="passDataBaton('${task.id}')" class="w-full h-24 bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-transform text-white font-black text-xl rounded-xl shadow-lg uppercase tracking-widest flex flex-col items-center justify-center gap-1">
+                            <span>Mark Complete</span>
+                            <span class="text-[10px] text-emerald-200 font-bold">PASS DATA BATON & UPLOAD PHOTO</span>
+                        </button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+
+        } catch (e) {
+            container.innerHTML = `<div class="text-center text-red-500 font-bold text-xs uppercase tracking-widest py-10">Error: ${e.message}</div>`;
+        }
+    }
+
+    // --- 3. THE TIME TRACKING API TRIGGER ---
+    async function triggerOpsProd(taskId) {
+        const btn = document.getElementById(`btn-${taskId}`);
+        const batonDiv = document.getElementById(`baton-${taskId}`);
+        const token = sessionStorage.getItem('supabase.auth.token') || SUPABASE_ANON_KEY;
+        const workerId = sessionStorage.getItem('signos_user');
+
+        btn.disabled = true;
+        btn.classList.replace('bg-blue-600', 'bg-amber-500');
+        btn.innerHTML = `<span>LOGGING TIME...</span><span class="text-[10px] text-amber-200 font-bold">SYNCING TO SUPABASE</span>`;
+
+        try {
+            // 1. Mandatory Telemetry (Audit Log Protocol 6511)
+            await fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    user_id: workerId,
+                    role: sessionStorage.getItem('signos_role') || 'PROD',
+                    action: 'OPS_PROD_START',
+                    target: taskId,
+                    meta_data: { freshdesk_sync: 'pending' }
+                })
+            });
+
+            // 2. Reveal the Data Baton
+            btn.classList.replace('bg-amber-500', 'bg-slate-800');
+            btn.classList.add('opacity-50', 'border', 'border-slate-700');
+            btn.innerHTML = `<span>CLOCKED IN</span><span class="text-[10px] text-slate-400 font-bold">WORKING</span>`;
+            batonDiv.classList.remove('hidden');
+
+        } catch (e) {
+            btn.disabled = false;
+            btn.classList.replace('bg-amber-500', 'bg-red-600');
+            btn.innerHTML = `<span>API ERROR</span><span class="text-[10px] text-red-200 font-bold">TAP TO RETRY</span>`;
+        }
+    }
+
+    // --- 4. THE DATA BATON PASS ---
+    async function passDataBaton(taskId) {
+        const token = sessionStorage.getItem('supabase.auth.token') || SUPABASE_ANON_KEY;
+        const notes = document.getElementById(`notes-${taskId}`).value;
+        const batonDiv = document.getElementById(`baton-${taskId}`);
+
+        batonDiv.innerHTML = '<div class="text-center text-emerald-500 font-bold animate-pulse text-xs uppercase tracking-widest py-6">Passing Baton & Awaiting AI Photo Sweep...</div>';
+
+        try {
+            // Pushes completion state to the database so VIR_AGENT_SCHED can update FreshDesk
+            await fetch(`${SUPABASE_URL}/rest/v1/access_logs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    user_id: sessionStorage.getItem('signos_user'),
+                    role: sessionStorage.getItem('signos_role') || 'PROD',
+                    action: 'OPS_PROD_COMPLETE',
+                    target: taskId,
+                    meta_data: { handling_instructions: notes, qa_hash: 'pending_photo_sweep' }
+                })
+            });
+
+            setTimeout(() => {
+                batonDiv.innerHTML = '<div class="text-center text-emerald-500 font-black text-2xl uppercase tracking-widest py-6 border border-emerald-500/30 bg-emerald-500/10 rounded-xl">TASK COMPLETED</div>';
+            }, 800);
+
+        } catch (e) {
+            batonDiv.innerHTML = `<div class="text-center text-red-500 font-bold text-xs uppercase tracking-widest py-6">Error: ${e.message}</div>`;
+        }
+    }
+    </script>
+</body>
+</html>
